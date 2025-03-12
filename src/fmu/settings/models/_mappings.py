@@ -8,7 +8,12 @@ from pydantic import BaseModel, RootModel
 
 from fmu.dataio._models.enums import Content  # type: ignore
 
-from ._enums import DataEntrySource, MappingType, RelationType, TargetSystem
+from ._enums import (
+    DataEntrySource,
+    MappingType,
+    RelationType,
+    TargetSystem,
+)
 
 
 class Source(BaseModel):
