@@ -6,9 +6,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
-from fmu.settings import __version__
-
 from ._logging import null_logger
+from ._version import __version__
 from .models.config import Config
 
 logger: Final = null_logger(__name__)
@@ -46,7 +45,7 @@ def _create_fmu_config(
         config = Config.model_validate(config_data)
 
     if config.created_by != user:
-        logger.warn(
+        logger.warning(
             f"Config created_by is '{config.created_by}' but current user is '{user}'"
         )
 
@@ -88,7 +87,7 @@ def _create_fmu_directory(base_path: Path) -> Path:
     return fmu_dir
 
 
-def _write_fmu_config(fmu_dir: Path, config: Config) -> Path:
+def write_fmu_config(fmu_dir: Path, config: Config) -> Path:
     """Writes the configuration file to .fmu/config.json.
 
     Args:
@@ -140,7 +139,7 @@ def init_fmu_directory(
 
     fmu_dir = _create_fmu_directory(base_path)
     config = _create_fmu_config(config_data)
-    _write_fmu_config(fmu_dir, config)
+    write_fmu_config(fmu_dir, config)
 
     logger.debug(f"Successfully initialized .fmu directory at '{fmu_dir}'")
     return fmu_dir
