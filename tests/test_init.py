@@ -13,8 +13,8 @@ from fmu.settings import __version__
 from fmu.settings._init import (
     _create_fmu_config,
     _create_fmu_directory,
-    _write_fmu_config,
     init_fmu_directory,
+    write_fmu_config,
 )
 from fmu.settings.models.config import Config
 
@@ -91,7 +91,7 @@ def test_make_fmu_directory(tmp_path: Path) -> None:
 
 def test_write_fmu_config_roundtrip(tmp_path: Path, config_model: Config) -> None:
     """Tests that the FMU config writes correctly."""
-    config_path = _write_fmu_config(tmp_path, config_model)
+    config_path = write_fmu_config(tmp_path, config_model)
     assert str(config_path).endswith("config.json")
     with open(config_path, encoding="utf-8") as f:
         config_data = json.loads(f.read())

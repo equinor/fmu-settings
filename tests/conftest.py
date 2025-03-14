@@ -1,12 +1,15 @@
 """Root configuration for pytest."""
 
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
 from pytest_lazy_fixtures import lf
 
-from fmu.settings import __version__
+from fmu.settings._fmu_dir import FMUDirectory
+from fmu.settings._init import init_fmu_directory
+from fmu.settings._version import __version__
 from fmu.settings.models.config import Config
 
 
@@ -36,3 +39,15 @@ def config_model(config_dict: dict[str, Any]) -> Config:
 def config_data_options(request: pytest.FixtureRequest) -> pytest.FixtureRequest:
     """Possible configuration inputs used when generating a new .fmu directory."""
     return request.param
+
+
+@pytest.fixture
+def fmu_dir_path(tmp_path: Path, config_model: Config) -> Path:
+    """Create a temporary FMU directory for testing."""
+    return init_fmu_directory(tmp_path, config_model)
+
+
+@pytest.fixture
+def fmu_dir(fmu_dir_path: Path) -> FMUDirectory:
+    """Create an FMUDirectory instance for testing."""
+    return FMUDirectory(fmu_dir_path.parent, search_parents=False)
