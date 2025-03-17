@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from typing import Any, Final, Self, cast
 
-from ._init import write_fmu_config
 from ._logging import null_logger
 from .models.config import Config
 
@@ -55,6 +54,11 @@ class FMUDirectory:
         """Returns the path to the .fmu directory."""
         return cast("Path", self._path)
 
+    @property
+    def config_path(self: Self) -> Path:
+        """Returns the path to the .fmu configuration."""
+        return self.path / "config.json"
+
     @staticmethod
     def find_fmu_directory(start_path: Path) -> Path | None:
         """Searches for a .fmu directory in start_path and its parents.
@@ -95,13 +99,13 @@ class FMUDirectory:
             ValueError: If config.json cannot be parsed
         """
         if self._config_cache is None:
-            config_path = self.path / "config.json"
-
-            if not config_path.exists():
-                raise FileNotFoundError(f"Config file not found at '{config_path}'")
+            if not self.config_path.exists():
+                raise FileNotFoundError(
+                    f"Config file not found at '{self.config_path}'"
+                )
 
             try:
-                with open(config_path, encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     config_data = json.load(f)
                 self._config_cache = Config.model_validate(config_data)
             except json.JSONDecodeError as e:
@@ -126,7 +130,7 @@ class FMUDirectory:
         config_dict.update(updates)
 
         updated_config = Config.model_validate(config_dict)
-        write_fmu_config(self.path, updated_config)
+        self.write_config(updated_config)
         self._config_cache = updated_config
 
         return updated_config
@@ -169,6 +173,30 @@ class FMUDirectory:
         """
         file_path = self.get_file_path(relative_path)
         return file_path.read_text(encoding=encoding)
+
+    def write_config(self, config: Config) -> Path:
+        """Writes the configuration file to .fmu/config.json.
+
+        Args:
+            fmu_dir: Path to the .fmu directory
+            config: Config model instance being saved
+
+        Returns:
+            Path to the written config file
+        """
+        logger.debug(f"Writing config to '{self.config_path}'")
+
+        config_json = config.model_dump(
+            mode="json",
+            exclude_none=True,
+            by_alias=True,
+        )
+
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            json.dump(config_json, f, indent=2)
+
+        logger.debug(f"Successfully wrote config to '{self.config_path}'")
+        return self.config_path
 
     def write_file(self, relative_path: str | Path, data: bytes) -> None:
         """Writes bytes to a file in the .fmu directory.

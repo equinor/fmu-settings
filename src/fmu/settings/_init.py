@@ -4,16 +4,30 @@ import getpass
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from textwrap import dedent
 from typing import Any, Final
 
+from ._fmu_dir import FMUDirectory
 from ._logging import null_logger
 from ._version import __version__
 from .models.config import Config
 
 logger: Final = null_logger(__name__)
 
+_README = dedent("""\
+    This directory contains static configuration data for your FMU project.
 
-def _create_fmu_config(
+    You should *not* manually modify files within this directory. Doing so may
+    result in erroneous behavior or erroneous data in your FMU project.
+
+    Changes to data stored within this directory must happen through the FMU
+    Settings application.
+
+    Run `fmu-settings` to do this.
+""")
+
+
+def _create_config_model(
     config_data: Config | dict[str, Any] | None,
 ) -> Config:
     """Creates the initial configuration file saved in .fmu.
@@ -55,7 +69,7 @@ def _create_fmu_config(
     return config
 
 
-def _create_fmu_directory(base_path: Path) -> Path:
+def _create_fmu_directory(base_path: Path) -> FMUDirectory:
     """Creates the .fmu directory.
 
     Args:
@@ -66,7 +80,7 @@ def _create_fmu_directory(base_path: Path) -> Path:
         FileExistsError: If .fmu exists
 
     Returns:
-        Path to the .fmu directory
+        Instance of FMUDirectory
     """
     logger.debug(f"Creating .fmu directory in '{base_path}'")
 
@@ -84,7 +98,7 @@ def _create_fmu_directory(base_path: Path) -> Path:
 
     fmu_dir.mkdir()
     logger.debug(f"Created .fmu directory at '{fmu_dir}'")
-    return fmu_dir
+    return FMUDirectory(base_path)
 
 
 def write_fmu_config(fmu_dir: Path, config: Config) -> Path:
@@ -115,7 +129,7 @@ def write_fmu_config(fmu_dir: Path, config: Config) -> Path:
 
 def init_fmu_directory(
     base_path: str | Path, config_data: Config | dict[str, Any] | None = None
-) -> Path:
+) -> FMUDirectory:
     """Creates and initializes a .fmu directory.
 
     Also initializes a configuration file if configuration data is provided through the
@@ -138,8 +152,10 @@ def init_fmu_directory(
     base_path = Path(base_path)
 
     fmu_dir = _create_fmu_directory(base_path)
-    config = _create_fmu_config(config_data)
-    write_fmu_config(fmu_dir, config)
+    config = _create_config_model(config_data)
+
+    fmu_dir.write_config(config)
+    fmu_dir.write_text_file("README", _README)
 
     logger.debug(f"Successfully initialized .fmu directory at '{fmu_dir}'")
     return fmu_dir
