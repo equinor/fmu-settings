@@ -11,7 +11,8 @@ from pytest import MonkeyPatch
 
 from fmu.settings import __version__
 from fmu.settings._init import (
-    _create_fmu_config,
+    _README,
+    _create_config_model,
     _create_fmu_directory,
     init_fmu_directory,
     write_fmu_config,
@@ -27,8 +28,9 @@ def test_create_fmu_directory_with_no_config_data(
 ) -> None:
     """Tests creating a config directory with default settings."""
     with patch("fmu.settings._init.getpass.getuser", return_value="user"):
-        fmu_dir = init_fmu_directory(tmp_path, config_data_options)
+        init_fmu_directory(tmp_path, config_data_options)
 
+    fmu_dir = tmp_path / ".fmu"
     assert fmu_dir.exists()
     assert fmu_dir.is_dir()
     assert fmu_dir == tmp_path / ".fmu"
@@ -61,7 +63,7 @@ def test_create_fmu_config(
         mock_datetime.now.return_value = unix_epoch_utc
         mock_datetime.datetime.now.return_value = unix_epoch_utc
 
-        fmu_config = _create_fmu_config(config_data_options)
+        fmu_config = _create_config_model(config_data_options)
 
     expected = Config(
         version=__version__,
@@ -97,3 +99,12 @@ def test_write_fmu_config_roundtrip(tmp_path: Path, config_model: Config) -> Non
         config_data = json.loads(f.read())
     # Fails if invalid
     Config.model_validate(config_data)
+
+
+def test_readme_is_written(tmp_path: Path, config_model: Config) -> None:
+    """Tests that the README is written when .fmu is initialized."""
+    fmu_dir = init_fmu_directory(tmp_path, config_model)
+
+    readme = fmu_dir.path / "README"
+    assert readme.exists()
+    assert readme.read_text() == _README

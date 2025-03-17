@@ -44,7 +44,8 @@ def config_data_options(request: pytest.FixtureRequest) -> pytest.FixtureRequest
 @pytest.fixture
 def fmu_dir_path(tmp_path: Path, config_model: Config) -> Path:
     """Create a temporary FMU directory for testing."""
-    return init_fmu_directory(tmp_path, config_model)
+    fmu_dir = init_fmu_directory(tmp_path, config_model)
+    return fmu_dir.path
 
 
 @pytest.fixture
