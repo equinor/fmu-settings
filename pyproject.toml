@@ -37,7 +37,6 @@ dev = [
     "mypy",
     "pytest",
     "pytest-cov",
-    "pytest-lazy-fixtures",
     "pytest-mock",
     "pytest-xdist",
     "ruff",

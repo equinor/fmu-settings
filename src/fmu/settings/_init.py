@@ -1,16 +1,12 @@
 """Initializes the .fmu directory."""
 
-import getpass
-import json
-from datetime import UTC, datetime
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Final
 
 from ._fmu_dir import FMUDirectory
 from ._logging import null_logger
-from ._version import __version__
-from .models.config import Config
+from .resources.config import Config
 
 logger: Final = null_logger(__name__)
 
@@ -25,48 +21,6 @@ _README = dedent("""\
 
     Run `fmu-settings` to do this.
 """)
-
-
-def _create_config_model(
-    config_data: Config | dict[str, Any] | None,
-) -> Config:
-    """Creates the initial configuration file saved in .fmu.
-
-    Args:
-        config_data: A Config instance or dictionary to create one from (optional)
-
-    Raises:
-        ValidationError: If Pydantic fails to validate the config data
-
-    Returns:
-        A validated Config instance
-    """
-    logger.debug("Creating Config model")
-    created_at = datetime.now(UTC)
-    user = getpass.getuser()
-    if config_data is None:
-        logger.debug("Using default configuration")
-        return Config(
-            version=__version__,
-            created_at=created_at,
-            created_by=user,
-        )
-    if isinstance(config_data, Config):
-        logger.debug("Using provided Config instance")
-        config = config_data
-    else:
-        logger.debug("Validating provided config dictionary")
-        config = Config.model_validate(config_data)
-
-    if config.created_by != user:
-        logger.warning(
-            f"Config created_by is '{config.created_by}' but current user is '{user}'"
-        )
-
-    # Ensure not stale
-    config.created_at = created_at
-
-    return config
 
 
 def _create_fmu_directory(base_path: Path) -> FMUDirectory:
@@ -101,32 +55,6 @@ def _create_fmu_directory(base_path: Path) -> FMUDirectory:
     return FMUDirectory(base_path)
 
 
-def write_fmu_config(fmu_dir: Path, config: Config) -> Path:
-    """Writes the configuration file to .fmu/config.json.
-
-    Args:
-        fmu_dir: Path to the .fmu directory
-        config: Config model instance being saved
-
-    Returns:
-        Path to the written config file
-    """
-    config_file = fmu_dir / "config.json"
-    logger.debug(f"Writing config to '{config_file}'")
-
-    config_json = config.model_dump(
-        mode="json",
-        exclude_none=True,
-        by_alias=True,
-    )
-
-    with open(config_file, "w", encoding="utf-8") as f:
-        json.dump(config_json, f, indent=2)
-
-    logger.debug(f"Successfully wrote config to '{config_file}'")
-    return config_file
-
-
 def init_fmu_directory(
     base_path: str | Path, config_data: Config | dict[str, Any] | None = None
 ) -> FMUDirectory:
@@ -137,10 +65,10 @@ def init_fmu_directory(
 
     Args:
         base_path: Directory where .fmu should be created
-        config_data: Optional Config instance of dictionary with configuration data
+        config_data: Optional Config instance or dictionary with configuration data
 
     Returns:
-        Path to the .fmu directory
+        Instance of FMUDirectory
 
     Raises:
         FileExistsError: If .fmu exists
@@ -151,11 +79,18 @@ def init_fmu_directory(
     logger.debug("Initializing .fmu directory")
     base_path = Path(base_path)
 
-    fmu_dir = _create_fmu_directory(base_path)
-    config = _create_config_model(config_data)
+    _create_fmu_directory(base_path)
 
-    fmu_dir.write_config(config)
+    fmu_dir = FMUDirectory(base_path, search_parents=False)
     fmu_dir.write_text_file("README", _README)
+
+    fmu_dir.config.reset()
+    if config_data:
+        if isinstance(config_data, Config):
+            config_dict = config_data.model_dump()
+            fmu_dir.update_config(config_dict)
+        elif isinstance(config_data, dict):
+            fmu_dir.update_config(config_data)
 
     logger.debug(f"Successfully initialized .fmu directory at '{fmu_dir}'")
     return fmu_dir
