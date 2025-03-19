@@ -4,12 +4,10 @@ import json
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
 from pytest import MonkeyPatch
 
-from fmu.settings import find_nearest_fmu_directory, get_fmu_directory
+from fmu.settings import __version__, find_nearest_fmu_directory, get_fmu_directory
 from fmu.settings._fmu_dir import FMUDirectory
-from fmu.settings.models.config import Config
 
 
 def test_init_existing_directory(fmu_dir: FMUDirectory) -> None:
@@ -102,55 +100,50 @@ def test_find_nearest_not_found(tmp_path: Path, monkeypatch: MonkeyPatch) -> Non
         FMUDirectory.find_nearest(tmp_path)
 
 
-def test_get_config(fmu_dir: FMUDirectory, config_model: Config) -> None:
-    """Tests get_config returns the correct config."""
-    config = fmu_dir.get_config()
-    assert config == config_model
+def test_get_config_value(fmu_dir: FMUDirectory) -> None:
+    """Tests get_config_value retrieves correctly from the config."""
+    assert fmu_dir.get_config_value("version") == __version__
+    assert fmu_dir.get_config_value("created_by") == "user"
 
 
-def test_get_config_missing_file(tmp_path: Path) -> None:
-    """Tests get_config raises FileNotFoundError when config.json missing."""
-    empty_fmu_dir = tmp_path / ".fmu"
-    empty_fmu_dir.mkdir()
+def test_set_config_value(fmu_dir: FMUDirectory) -> None:
+    """Tests set_config_value sets and writes the result."""
+    fmu_dir.set_config_value("version", "200.0.0")
+    with open(fmu_dir.config.path, encoding="utf-8") as f:
+        config_dict = json.loads(f.read())
 
-    fmu = FMUDirectory(tmp_path, search_parents=False)
-
-    with pytest.raises(
-        FileNotFoundError,
-        match=f"Config file not found at '{empty_fmu_dir}/config.json'",
-    ):
-        fmu.get_config()
-
-
-def test_get_config_invalid_json(fmu_dir: FMUDirectory) -> None:
-    """Tests a corrupted config.json raises ValueError."""
-    config_path = fmu_dir.path / "config.json"
-    with open(config_path, "a", encoding="utf-8") as f:
-        f.write("%")
-
-    with pytest.raises(ValueError, match="Invalid JSON in config file"):
-        fmu_dir.get_config()
+    assert config_dict["version"] == "200.0.0"
+    assert fmu_dir.get_config_value("version") == "200.0.0"
+    assert fmu_dir.config.load().version == "200.0.0"
 
 
 def test_update_config(fmu_dir: FMUDirectory) -> None:
-    """Tests update_config updates and saves the config."""
-    updated_config = fmu_dir.update_config({"version": "2.0.0"})
+    """Tests update_config updates and saves the config for multiple values."""
+    updated_config = fmu_dir.update_config({"version": "2.0.0", "created_by": "user2"})
 
     assert updated_config.version == "2.0.0"
-    assert fmu_dir._config_cache is not None
-    assert fmu_dir._config_cache.version == "2.0.0"
+    assert updated_config.created_by == "user2"
 
-    config_file = fmu_dir.path / "config.json"
+    assert fmu_dir.config.load() is not None
+    assert fmu_dir.get_config_value("version", None) == "2.0.0"
+    assert fmu_dir.get_config_value("created_by", None) == "user2"
+
+    config_file = fmu_dir.config.path
     with open(config_file, encoding="utf-8") as f:
         saved_config = json.load(f)
 
     assert saved_config["version"] == "2.0.0"
+    assert saved_config["created_by"] == "user2"
 
 
 def test_update_config_invalid_data(fmu_dir: FMUDirectory) -> None:
     """Tests that update_config raises ValidationError on bad data."""
-    with pytest.raises(ValidationError, match="version"):
-        fmu_dir.update_config({"version": 123})
+    updates = {"version": 123}
+    with pytest.raises(
+        ValueError,
+        match=f"Invalid value set for 'ConfigManager' with updates '{updates}'",
+    ):
+        fmu_dir.update_config(updates)
 
 
 def test_get_file_path(fmu_dir: FMUDirectory) -> None:

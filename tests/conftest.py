@@ -3,14 +3,14 @@
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
-from pytest_lazy_fixtures import lf
 
 from fmu.settings._fmu_dir import FMUDirectory
 from fmu.settings._init import init_fmu_directory
 from fmu.settings._version import __version__
-from fmu.settings.models.config import Config
+from fmu.settings.resources.config import Config
 
 
 @pytest.fixture
@@ -35,20 +35,14 @@ def config_model(config_dict: dict[str, Any]) -> Config:
     return Config.model_validate(config_dict)
 
 
-@pytest.fixture(params=[None, lf("config_dict"), lf("config_model")])
-def config_data_options(request: pytest.FixtureRequest) -> pytest.FixtureRequest:
-    """Possible configuration inputs used when generating a new .fmu directory."""
-    return request.param
-
-
 @pytest.fixture
-def fmu_dir_path(tmp_path: Path, config_model: Config) -> Path:
-    """Create a temporary FMU directory for testing."""
-    fmu_dir = init_fmu_directory(tmp_path, config_model)
-    return fmu_dir.path
-
-
-@pytest.fixture
-def fmu_dir(fmu_dir_path: Path) -> FMUDirectory:
+def fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> FMUDirectory:
     """Create an FMUDirectory instance for testing."""
-    return FMUDirectory(fmu_dir_path.parent, search_parents=False)
+    with (
+        patch("fmu.settings.resources.config.getpass.getuser", return_value="user"),
+        patch("fmu.settings.resources.config.datetime") as mock_datetime,
+    ):
+        mock_datetime.now.return_value = unix_epoch_utc
+        mock_datetime.datetime.now.return_value = unix_epoch_utc
+
+        return init_fmu_directory(tmp_path)
