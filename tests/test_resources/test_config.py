@@ -50,7 +50,7 @@ def test_get_config_missing_file(tmp_path: Path) -> None:
     empty_fmu_dir = tmp_path / ".fmu"
     empty_fmu_dir.mkdir()
 
-    fmu_dir = FMUDirectory(tmp_path, search_parents=False)
+    fmu_dir = FMUDirectory(tmp_path)
 
     assert fmu_dir.config.exists is False
     with pytest.raises(
@@ -99,7 +99,7 @@ def test_get_key_config_does_not_exist(tmp_path: Path) -> None:
     empty_fmu_dir = tmp_path / ".fmu"
     empty_fmu_dir.mkdir()
 
-    fmu_dir = FMUDirectory(tmp_path, search_parents=False)
+    fmu_dir = FMUDirectory(tmp_path)
 
     assert fmu_dir.config.exists is False
     with pytest.raises(
@@ -169,7 +169,7 @@ def test_set_key_config_does_not_exist(tmp_path: Path) -> None:
     empty_fmu_dir = tmp_path / ".fmu"
     empty_fmu_dir.mkdir()
 
-    fmu_dir = FMUDirectory(tmp_path, search_parents=False)
+    fmu_dir = FMUDirectory(tmp_path)
 
     assert fmu_dir.config.exists is False
     with pytest.raises(
@@ -202,7 +202,7 @@ def test_update_config_when_it_does_not_exist(tmp_path: Path) -> None:
     empty_fmu_dir = tmp_path / ".fmu"
     empty_fmu_dir.mkdir()
 
-    fmu_dir = FMUDirectory(tmp_path, search_parents=False)
+    fmu_dir = FMUDirectory(tmp_path)
 
     assert fmu_dir.config.exists is False
     with pytest.raises(

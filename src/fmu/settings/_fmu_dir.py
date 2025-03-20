@@ -1,7 +1,7 @@
 """Main interface for working with .fmu directory."""
 
 from pathlib import Path
-from typing import Any, Final, Self, cast
+from typing import Any, Final, Self
 
 from ._logging import null_logger
 from .resources.config import Config, ConfigManager
@@ -12,37 +12,24 @@ logger: Final = null_logger(__name__)
 class FMUDirectory:
     """Provides access to a .fmu directory and operations on its contents."""
 
-    def __init__(
-        self: Self,
-        base_path: str | Path,
-        search_parents: bool = True,
-    ) -> None:
+    def __init__(self: Self, base_path: str | Path) -> None:
         """Initializes access to a .fmu directory.
 
         Args:
             base_path: The directory containing the .fmu directory or one of its parent
                        dirs
-            search_parents: If True, searches parent directories for .fmu if not found
 
         Raises:
             FileNotFoundError: If .fmu directory doesn't exist
             PermissionError: If lacking permissions to read/write to the directory
         """
         self.base_path = Path(base_path).resolve()
+        logger.debug(f"Initializing FMUDirectory from '{base_path}'")
 
-        self._path: Path | None = None
-        if search_parents:
-            self._path = self.find_fmu_directory(self.base_path)
+        fmu_dir = self.base_path / ".fmu"
+        if fmu_dir.exists() and fmu_dir.is_dir():
+            self._path = fmu_dir
         else:
-            fmu_dir = self.base_path / ".fmu"
-            if fmu_dir.is_dir():
-                self._path = fmu_dir
-
-        if self._path is None:
-            if search_parents:
-                raise FileNotFoundError(
-                    f"No .fmu directory found at or above {self.base_path}"
-                )
             raise FileNotFoundError(f"No .fmu directory found at {self.base_path}")
 
         self.config = ConfigManager(self)
@@ -52,36 +39,7 @@ class FMUDirectory:
     @property
     def path(self: Self) -> Path:
         """Returns the path to the .fmu directory."""
-        return cast("Path", self._path)
-
-    @staticmethod
-    def find_fmu_directory(start_path: Path) -> Path | None:
-        """Searches for a .fmu directory in start_path and its parents.
-
-        Args:
-            start_path: The path to start searching from
-
-        Returns:
-            Path to the found .fmu directory or None if not found
-        """
-        current = start_path
-        # Prevent symlink loops
-        visited = set()
-
-        while current not in visited:
-            visited.add(current)
-            fmu_dir = current / ".fmu"
-
-            if fmu_dir.is_dir():
-                return fmu_dir
-
-            # We hit root
-            if current == current.parent:
-                break
-
-            current = current.parent
-
-        return None
+        return self._path
 
     def get_config_value(self: Self, key: str, default: Any = None) -> Any:
         """Gets a configuration value by key.
@@ -232,6 +190,35 @@ class FMUDirectory:
         """
         return self.get_file_path(relative_path).exists()
 
+    @staticmethod
+    def find_fmu_directory(start_path: Path) -> Path | None:
+        """Searches for a .fmu directory in start_path and its parents.
+
+        Args:
+            start_path: The path to start searching from
+
+        Returns:
+            Path to the found .fmu directory or None if not found
+        """
+        current = start_path
+        # Prevent symlink loops
+        visited = set()
+
+        while current not in visited:
+            visited.add(current)
+            fmu_dir = current / ".fmu"
+
+            if fmu_dir.is_dir():
+                return fmu_dir
+
+            # We hit root
+            if current == current.parent:
+                break
+
+            current = current.parent
+
+        return None
+
     @classmethod
     def find_nearest(
         cls: type["FMUDirectory"], start_path: str | Path = "."
@@ -247,16 +234,19 @@ class FMUDirectory:
         Raises:
             FileNotFoundError: If no .fmu directory is found
         """
-        return cls(start_path, search_parents=True)
+        start_path = Path(start_path).resolve()
+        fmu_dir_path = cls.find_fmu_directory(start_path)
+        if fmu_dir_path is None:
+            raise FileNotFoundError(f"No .fmu directory found at or above {start_path}")
+        return cls(fmu_dir_path.parent)
 
 
-def get_fmu_directory(base_path: Path, search_parents: bool = True) -> FMUDirectory:
+def get_fmu_directory(base_path: str | Path) -> FMUDirectory:
     """Initializes access to a .fmu directory.
 
     Args:
         base_path: The directory containing the .fmu directory or one of its parent
                    dirs
-        search_parents: If True, searches parent directories for .fmu if not found
 
     Returns:
         FMUDirectory instance
@@ -266,7 +256,7 @@ def get_fmu_directory(base_path: Path, search_parents: bool = True) -> FMUDirect
         PermissionError: If lacking permissions to read/write to the directory
 
     """
-    return FMUDirectory(base_path, search_parents=search_parents)
+    return FMUDirectory(base_path)
 
 
 def find_nearest_fmu_directory(start_path: str | Path = ".") -> FMUDirectory:
