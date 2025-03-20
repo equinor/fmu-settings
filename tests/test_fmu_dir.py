@@ -12,14 +12,40 @@ from fmu.settings._fmu_dir import FMUDirectory
 
 def test_init_existing_directory(fmu_dir: FMUDirectory) -> None:
     """Tests initializing an FMUDirectory on an existing .fmu directory."""
-    fmu = FMUDirectory(fmu_dir.base_path, search_parents=False)
+    fmu = FMUDirectory(fmu_dir.base_path)
     assert fmu.path == fmu_dir.path
     assert fmu.base_path == fmu_dir.base_path
 
 
 def test_get_fmu_directory(fmu_dir: FMUDirectory) -> None:
     """Tests initializing an FMUDirectory via get_fmu_directory."""
-    fmu = get_fmu_directory(fmu_dir.base_path, search_parents=False)
+    fmu = get_fmu_directory(fmu_dir.base_path)
+    assert fmu.path == fmu_dir.path
+    assert fmu.base_path == fmu_dir.base_path
+
+
+def test_find_nearest_fmu_directory(
+    monkeypatch: MonkeyPatch, fmu_dir: FMUDirectory
+) -> None:
+    """Tests initializing an FMUDirectory via find_nearest_fmu_directory."""
+    subdir = fmu_dir.path / "subdir"
+    subdir.mkdir()
+    subdir2 = fmu_dir.path / "subdir2"
+    subdir2.mkdir()
+    subsubdir = subdir / "subsubdir"
+    subsubdir.mkdir()
+
+    fmu = find_nearest_fmu_directory(str(subsubdir))
+    assert fmu.path == fmu_dir.path
+    assert fmu.base_path == fmu_dir.base_path
+
+    monkeypatch.chdir(fmu_dir.base_path)
+    fmu = find_nearest_fmu_directory()
+    assert fmu.path == fmu_dir.path
+    assert fmu.base_path == fmu_dir.base_path
+
+    monkeypatch.chdir(subdir2)
+    fmu = find_nearest_fmu_directory()
     assert fmu.path == fmu_dir.path
     assert fmu.base_path == fmu_dir.base_path
 
@@ -29,25 +55,7 @@ def test_init_on_missing_directory(tmp_path: Path) -> None:
     with pytest.raises(
         FileNotFoundError, match=f"No .fmu directory found at {tmp_path}"
     ):
-        FMUDirectory(tmp_path, search_parents=False)
-
-
-def test_init_search_parents(fmu_dir: FMUDirectory) -> None:
-    """Tests initializing with search_parents=True."""
-    subdir = fmu_dir.base_path / "subdir"
-    subdir.mkdir()
-
-    fmu = FMUDirectory(subdir, search_parents=True)
-    assert fmu.path == fmu_dir.path
-    assert fmu.base_path == subdir
-
-
-def test_init_search_parents_on_missing_directory(tmp_path: Path) -> None:
-    """Tests initializing with a missing directory raises."""
-    with pytest.raises(
-        FileNotFoundError, match=f"No .fmu directory found at or above {tmp_path}"
-    ):
-        FMUDirectory(tmp_path, search_parents=True)
+        FMUDirectory(tmp_path)
 
 
 def test_find_fmu_directory(fmu_dir: FMUDirectory) -> None:
@@ -75,15 +83,6 @@ def test_find_nearest(fmu_dir: FMUDirectory) -> None:
     subdir.mkdir()
 
     fmu = FMUDirectory.find_nearest(subdir)
-    assert fmu.path == fmu_dir.path
-
-
-def test_find_nearest_fmu_directory(fmu_dir: FMUDirectory) -> None:
-    """Test find_nearest factory method."""
-    subdir = fmu_dir.base_path / "subdir"
-    subdir.mkdir()
-
-    fmu = find_nearest_fmu_directory(subdir)
     assert fmu.path == fmu_dir.path
 
 

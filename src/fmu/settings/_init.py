@@ -81,7 +81,7 @@ def init_fmu_directory(
 
     _create_fmu_directory(base_path)
 
-    fmu_dir = FMUDirectory(base_path, search_parents=False)
+    fmu_dir = FMUDirectory(base_path)
     fmu_dir.write_text_file("README", _README)
 
     fmu_dir.config.reset()
