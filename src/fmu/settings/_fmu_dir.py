@@ -20,6 +20,7 @@ class FMUDirectory:
                        dirs
 
         Raises:
+            FileExistsError: If .fmu exists but is not a directory
             FileNotFoundError: If .fmu directory doesn't exist
             PermissionError: If lacking permissions to read/write to the directory
         """
@@ -27,8 +28,13 @@ class FMUDirectory:
         logger.debug(f"Initializing FMUDirectory from '{base_path}'")
 
         fmu_dir = self.base_path / ".fmu"
-        if fmu_dir.exists() and fmu_dir.is_dir():
-            self._path = fmu_dir
+        if fmu_dir.exists():
+            if fmu_dir.is_dir():
+                self._path = fmu_dir
+            else:
+                raise FileExistsError(
+                    f".fmu exists at {self.base_path} but is not a directory"
+                )
         else:
             raise FileNotFoundError(f"No .fmu directory found at {self.base_path}")
 
@@ -252,6 +258,7 @@ def get_fmu_directory(base_path: str | Path) -> FMUDirectory:
         FMUDirectory instance
 
     Raises:
+        FileExistsError: If .fmu exists but is not a directory
         FileNotFoundError: If .fmu directory doesn't exist
         PermissionError: If lacking permissions to read/write to the directory
 

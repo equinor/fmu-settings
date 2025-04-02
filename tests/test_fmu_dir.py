@@ -58,6 +58,15 @@ def test_init_on_missing_directory(tmp_path: Path) -> None:
         FMUDirectory(tmp_path)
 
 
+def test_init_when_fmu_is_not_a_directory(tmp_path: Path) -> None:
+    """Tests initialized on a .fmu non-directory raises."""
+    (tmp_path / ".fmu").touch()
+    with pytest.raises(
+        FileExistsError, match=f".fmu exists at {tmp_path} but is not a directory"
+    ):
+        FMUDirectory(tmp_path)
+
+
 def test_find_fmu_directory(fmu_dir: FMUDirectory) -> None:
     """Tests find_fmu_directory method on nested children."""
     child = fmu_dir.base_path / "child"
