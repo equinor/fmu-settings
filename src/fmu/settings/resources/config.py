@@ -6,11 +6,13 @@ import getpass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self
+from uuid import UUID  # noqa TC003
 
-from pydantic import AwareDatetime, BaseModel, ValidationError
+from pydantic import ValidationError
 
 from fmu.settings import __version__
 from fmu.settings._logging import null_logger
+from fmu.settings.models.config import Config, Masterdata
 from fmu.settings.types import VersionStr  # noqa TC001
 
 from .managers import PydanticResourceManager
@@ -20,17 +22,6 @@ if TYPE_CHECKING:
     from fmu.settings._fmu_dir import FMUDirectory
 
 logger: Final = null_logger(__name__)
-
-
-class Config(BaseModel):
-    """The configuration file in a .fmu directory.
-
-    Stored as config.json.
-    """
-
-    version: VersionStr
-    created_at: AwareDatetime
-    created_by: str
 
 
 class ConfigManager(PydanticResourceManager[Config]):
@@ -199,6 +190,7 @@ class ConfigManager(PydanticResourceManager[Config]):
             version=__version__,
             created_at=datetime.now(UTC),
             created_by=getpass.getuser(),
+            masterdata=Masterdata(),
         )
 
         self.save(default_config)

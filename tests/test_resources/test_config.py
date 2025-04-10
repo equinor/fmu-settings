@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from fmu.settings._fmu_dir import FMUDirectory
+from fmu.settings.models.smda import Smda
 from fmu.settings.resources.config import Config, ConfigManager
 
 
@@ -195,6 +196,27 @@ def test_update_config(fmu_dir: FMUDirectory) -> None:
         match=f"Invalid value set for 'ConfigManager' with updates '{bad_updates}'",
     ):
         fmu_dir.config.update(bad_updates)
+
+
+def test_set_smda(fmu_dir: FMUDirectory, masterdata_dict: dict[str, Any]) -> None:
+    """Tests setting the masterdata.smda value in the config."""
+    assert fmu_dir.config.get("masterdata.smda") is None
+    with open(fmu_dir.path / fmu_dir.config.relative_path, encoding="utf-8") as f:
+        config_on_disk = json.loads(f.read())
+    assert config_on_disk["masterdata"]["smda"] is None
+
+    fmu_dir.set_config_value("masterdata", masterdata_dict)
+
+    smda_model = Smda.model_validate(masterdata_dict["smda"])
+    # Compare to round-trip'd Pydantic model for uuid-str to UUID() obj conversion
+    assert fmu_dir.get_config_value("masterdata.smda") == smda_model.model_dump()
+    with open(fmu_dir.path / fmu_dir.config.relative_path, encoding="utf-8") as f:
+        config_on_disk = json.loads(f.read())
+
+    config_on_disk_model = Config.model_validate(config_on_disk)
+    assert fmu_dir.config._cache is not None
+    assert fmu_dir.config._cache.masterdata.smda == smda_model
+    assert config_on_disk_model == fmu_dir.config._cache
 
 
 def test_update_config_when_it_does_not_exist(tmp_path: Path) -> None:
