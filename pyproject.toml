@@ -28,6 +28,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
+    "annotated_types",  # Dependency in Pydantic also
     "fmu-dataio",
     "pydantic",
 ]

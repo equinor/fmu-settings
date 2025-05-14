@@ -7,10 +7,11 @@ from unittest.mock import patch
 
 import pytest
 
-from fmu.settings._fmu_dir import FMUDirectory
-from fmu.settings._init import init_fmu_directory
+from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
+from fmu.settings._init import init_fmu_directory, init_user_fmu_directory
 from fmu.settings._version import __version__
-from fmu.settings.models.config import Config
+from fmu.settings.models.project_config import ProjectConfig
+from fmu.settings.models.user_config import UserConfig
 
 
 @pytest.fixture
@@ -81,25 +82,59 @@ def config_dict_with_masterdata(
 
 
 @pytest.fixture
-def config_model(config_dict: dict[str, Any]) -> Config:
-    """A Config model representing a .fmu config file."""
-    return Config.model_validate(config_dict)
+def config_model(config_dict: dict[str, Any]) -> ProjectConfig:
+    """A ProjectConfig model representing a .fmu config file."""
+    return ProjectConfig.model_validate(config_dict)
 
 
 @pytest.fixture
-def config_model_with_masterdata(config_dict_with_masterdata: dict[str, Any]) -> Config:
-    """A Config model representing a .fmu config file."""
-    return Config.model_validate(config_dict_with_masterdata)
+def config_model_with_masterdata(
+    config_dict_with_masterdata: dict[str, Any],
+) -> ProjectConfig:
+    """A ProjectConfig model representing a .fmu config file."""
+    return ProjectConfig.model_validate(config_dict_with_masterdata)
 
 
 @pytest.fixture
-def fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> FMUDirectory:
-    """Create an FMUDirectory instance for testing."""
+def user_config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
+    """A dictionary representing a .fmu user config."""
+    return {
+        "version": __version__,
+        "created_at": unix_epoch_utc,
+        "api_tokens": {},
+        "recent_directories": [],
+    }
+
+
+@pytest.fixture
+def user_config_model(user_config_dict: dict[str, Any]) -> UserConfig:
+    """A UserConfig model representing a .fmu config file."""
+    return UserConfig.model_validate(user_config_dict)
+
+
+@pytest.fixture
+def fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
+    """Create an ProjectFMUDirectory instance for testing."""
     with (
-        patch("fmu.settings.resources.config.getpass.getuser", return_value="user"),
-        patch("fmu.settings.resources.config.datetime") as mock_datetime,
+        patch(
+            "fmu.settings.models.project_config.getpass.getuser",
+            return_value="user",
+        ),
+        patch("fmu.settings.models.project_config.datetime") as mock_datetime,
+    ):
+        mock_datetime.now.return_value = unix_epoch_utc
+        mock_datetime.datetime.now.return_value = unix_epoch_utc
+        return init_fmu_directory(tmp_path)
+
+
+@pytest.fixture
+def user_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> UserFMUDirectory:
+    """Create an ProjectFMUDirectory instance for testing."""
+    with (
+        patch("pathlib.Path.home", return_value=tmp_path),
+        patch("fmu.settings.models.user_config.datetime") as mock_datetime,
     ):
         mock_datetime.now.return_value = unix_epoch_utc
         mock_datetime.datetime.now.return_value = unix_epoch_utc
 
-        return init_fmu_directory(tmp_path)
+        return init_user_fmu_directory()

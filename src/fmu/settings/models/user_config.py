@@ -1,0 +1,38 @@
+"""The model for config.json."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Annotated, Self
+from uuid import UUID  # noqa TC003
+
+import annotated_types
+from pydantic import AwareDatetime, Field, SecretStr
+
+from fmu.settings import __version__
+from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
+
+RecentDirectories = Annotated[set[Path], annotated_types.Len(0, 5)]
+
+
+class UserConfig(ResettableBaseModel):
+    """The configuration file in a $HOME/.fmu directory.
+
+    Stored as config.json.
+    """
+
+    version: VersionStr
+    created_at: AwareDatetime
+    api_tokens: dict[str, SecretStr] = Field(default_factory=dict)
+    recent_directories: RecentDirectories
+
+    @classmethod
+    def reset(cls: type[Self]) -> Self:
+        """Resets the model to an initial state."""
+        return cls(
+            version=__version__,
+            created_at=datetime.now(UTC),
+            api_tokens={},
+            recent_directories=set(),
+        )

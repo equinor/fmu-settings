@@ -1,10 +1,15 @@
 """The model for config.json."""
 
+import getpass
+from datetime import UTC, datetime
+from typing import Self
 from uuid import UUID  # noqa TC003
 
 from pydantic import AwareDatetime, BaseModel, Field
 
-from fmu.settings.types import VersionStr  # noqa TC001
+from fmu.settings import __version__
+from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
+
 from .smda import Smda
 
 
@@ -18,7 +23,7 @@ class Masterdata(BaseModel):
     """Block containing SMDA-related attributes. See :class:`Smda`."""
 
 
-class Config(BaseModel):
+class ProjectConfig(ResettableBaseModel):
     """The configuration file in a .fmu directory.
 
     Stored as config.json.
@@ -28,3 +33,17 @@ class Config(BaseModel):
     created_at: AwareDatetime
     created_by: str
     masterdata: Masterdata
+
+    @classmethod
+    def reset(cls: type[Self]) -> Self:
+        """Resets the configuration to defaults.
+
+        Returns:
+            The new default Config object
+        """
+        return cls(
+            version=__version__,
+            created_at=datetime.now(UTC),
+            created_by=getpass.getuser(),
+            masterdata=Masterdata(),
+        )

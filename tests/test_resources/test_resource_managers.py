@@ -7,7 +7,7 @@ from typing import Self
 import pytest
 from pydantic import BaseModel
 
-from fmu.settings._fmu_dir import FMUDirectory
+from fmu.settings._fmu_dir import ProjectFMUDirectory
 from fmu.settings.resources.managers import PydanticResourceManager
 
 
@@ -20,7 +20,7 @@ class A(BaseModel):
 class AManager(PydanticResourceManager[A]):
     """A test Pydantic resource manager."""
 
-    def __init__(self: Self, fmu_dir: FMUDirectory) -> None:
+    def __init__(self: Self, fmu_dir: ProjectFMUDirectory) -> None:
         """Initializer."""
         super().__init__(fmu_dir, A)
 
@@ -30,13 +30,13 @@ class AManager(PydanticResourceManager[A]):
         return Path("foo.json")
 
 
-def test_pydantic_resource_manager_implementation(fmu_dir: FMUDirectory) -> None:
+def test_pydantic_resource_manager_implementation(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests that derived classes must implement 'relative_path'."""
 
     class Manager(PydanticResourceManager[A]):
         """A test Pydantic resource manager."""
 
-        def __init__(self: Self, fmu_dir: FMUDirectory) -> None:
+        def __init__(self: Self, fmu_dir: ProjectFMUDirectory) -> None:
             """Initializer."""
             super().__init__(fmu_dir, A)
 
@@ -45,7 +45,7 @@ def test_pydantic_resource_manager_implementation(fmu_dir: FMUDirectory) -> None
         _ = manager.relative_path
 
 
-def test_pydantic_resource_manager_init(fmu_dir: FMUDirectory) -> None:
+def test_pydantic_resource_manager_init(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests that initialization of a Pydantic resource manager is as expected."""
     a = AManager(fmu_dir)
     assert a.fmu_dir == fmu_dir
@@ -63,7 +63,7 @@ def test_pydantic_resource_manager_init(fmu_dir: FMUDirectory) -> None:
         a.load()
 
 
-def test_pydantic_resource_manager_save(fmu_dir: FMUDirectory) -> None:
+def test_pydantic_resource_manager_save(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests saving a Pydantic resource that does not yet exist."""
     a = AManager(fmu_dir)
     a_model = A(foo="bar")
@@ -78,7 +78,7 @@ def test_pydantic_resource_manager_save(fmu_dir: FMUDirectory) -> None:
     assert a_model == A.model_validate(a_dict)
 
 
-def test_pydantic_resource_manager_load(fmu_dir: FMUDirectory) -> None:
+def test_pydantic_resource_manager_load(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests loading a Pydantic resource."""
     a = AManager(fmu_dir)
     a_model = A(foo="bar")
@@ -87,7 +87,9 @@ def test_pydantic_resource_manager_load(fmu_dir: FMUDirectory) -> None:
     assert a._cache == a_model
 
 
-def test_pydantic_resource_manager_loads_invalid_model(fmu_dir: FMUDirectory) -> None:
+def test_pydantic_resource_manager_loads_invalid_model(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
     """Tests loading a Pydantic resource."""
     a = AManager(fmu_dir)
     a_model = A(foo="bar")

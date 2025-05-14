@@ -6,26 +6,30 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self, TypeVar
 from uuid import UUID  # noqa TC003
 
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 
 from fmu.settings._logging import null_logger
-from fmu.settings.types import VersionStr  # noqa TC001
+from fmu.settings.models.project_config import ProjectConfig
+from fmu.settings.models.user_config import UserConfig
+from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
 
 from .managers import PydanticResourceManager
 
 if TYPE_CHECKING:
     # Avoid circular dependency for type hint in __init__ only
-    from fmu.settings._fmu_dir import FMUDirectoryBase
+    from fmu.settings._fmu_dir import (
+        FMUDirectoryBase,
+        ProjectFMUDirectory,
+        UserFMUDirectory,
+    )
 
 logger: Final = null_logger(__name__)
 
-T = TypeVar("T", bound=BaseModel)
+T = TypeVar("T", bound=ResettableBaseModel)
 
 
 class ConfigManager(PydanticResourceManager[T]):
     """Manages the .fmu configuration file."""
-
-    config: T
 
     def __init__(self: Self, fmu_dir: FMUDirectoryBase, config: type[T]) -> None:
         """Initializes the Config resource manager."""
@@ -184,6 +188,24 @@ class ConfigManager(PydanticResourceManager[T]):
         """Resets the configuration to defaults.
 
         Returns:
-            The new default Config object
+            The new default config object
         """
-        raise NotImplementedError
+        config = self.model_class.reset()
+        self.save(config)
+        return config
+
+
+class ProjectConfigManager(ConfigManager[ProjectConfig]):
+    """Manages the .fmu configuration file in a project."""
+
+    def __init__(self: Self, fmu_dir: ProjectFMUDirectory) -> None:
+        """Initializes the ProjectConfig resource manager."""
+        super().__init__(fmu_dir, ProjectConfig)
+
+
+class UserConfigManager(ConfigManager[UserConfig]):
+    """Manages the .fmu configuration file in a user's home directory."""
+
+    def __init__(self: Self, fmu_dir: UserFMUDirectory) -> None:
+        """Initializes the UserConfig resource manager."""
+        super().__init__(fmu_dir, UserConfig)
