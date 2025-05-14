@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     # Avoid circular dependency for type hint in __init__ only
-    from fmu.settings._fmu_dir import FMUDirectory
+    from fmu.settings._fmu_dir import FMUDirectoryBase
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -19,7 +19,7 @@ T = TypeVar("T", bound=BaseModel)
 class PydanticResourceManager(Generic[T]):
     """Base class for managing resources represented by Pydantic models."""
 
-    def __init__(self: Self, fmu_dir: FMUDirectory, model_class: type[T]) -> None:
+    def __init__(self: Self, fmu_dir: FMUDirectoryBase, model_class: type[T]) -> None:
         """Initializes the resource manager.
 
         Args:

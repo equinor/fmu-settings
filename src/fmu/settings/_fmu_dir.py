@@ -1,23 +1,32 @@
 """Main interface for working with .fmu directory."""
 
 from pathlib import Path
-from typing import Any, Final, Self
+from typing import Any, Final, Self, TypeAlias, cast
 
 from ._logging import null_logger
-from .resources.config import Config, ConfigManager
+from .models.project_config import ProjectConfig
+from .models.user_config import UserConfig
+from .resources.config_managers import (
+    ProjectConfigManager,
+    UserConfigManager,
+)
 
 logger: Final = null_logger(__name__)
 
+FMUConfigManager: TypeAlias = ProjectConfigManager | UserConfigManager
 
-class FMUDirectory:
+
+class FMUDirectoryBase:
     """Provides access to a .fmu directory and operations on its contents."""
+
+    config: FMUConfigManager
 
     def __init__(self: Self, base_path: str | Path) -> None:
         """Initializes access to a .fmu directory.
 
         Args:
             base_path: The directory containing the .fmu directory or one of its parent
-                       dirs
+                dirs
 
         Raises:
             FileExistsError: If .fmu exists but is not a directory
@@ -37,8 +46,6 @@ class FMUDirectory:
                 )
         else:
             raise FileNotFoundError(f"No .fmu directory found at {self.base_path}")
-
-        self.config = ConfigManager(self)
 
         logger.debug(f"Using .fmu directory at {self._path}")
 
@@ -74,14 +81,16 @@ class FMUDirectory:
         """
         self.config.set(key, value)
 
-    def update_config(self: Self, updates: dict[str, Any]) -> Config:
+    def update_config(
+        self: Self, updates: dict[str, Any]
+    ) -> ProjectConfig | UserConfig:
         """Updates multiple configuration values at once.
 
         Args:
             updates: Dictionary of key-value pairs to update
 
         Returns:
-            The updated Config object
+            The updated *Config object
 
         Raises:
             FileNotFoundError: If config file doesn't exist
@@ -196,6 +205,30 @@ class FMUDirectory:
         """
         return self.get_file_path(relative_path).exists()
 
+
+class ProjectFMUDirectory(FMUDirectoryBase):
+    config: ProjectConfigManager
+
+    def __init__(self, base_path: str | Path) -> None:
+        """Initializes a project-based .fmu directory."""
+        self.config = ProjectConfigManager(self)
+        super().__init__(base_path)
+
+    def update_config(self: Self, updates: dict[str, Any]) -> ProjectConfig:
+        """Updates multiple configuration values at once.
+
+        Args:
+            updates: Dictionary of key-value pairs to update
+
+        Returns:
+            The updated ProjectConfig object
+
+        Raises:
+            FileNotFoundError: If config file doesn't exist
+            ValueError: If the updates config is invalid
+        """
+        return cast("ProjectConfig", super().update_config(updates))
+
     @staticmethod
     def find_fmu_directory(start_path: Path) -> Path | None:
         """Searches for a .fmu directory in start_path and its parents.
@@ -214,7 +247,8 @@ class FMUDirectory:
             visited.add(current)
             fmu_dir = current / ".fmu"
 
-            if fmu_dir.is_dir():
+            # Do not include $HOME/.fmu in the search
+            if fmu_dir.is_dir() and current != Path.home():
                 return fmu_dir
 
             # We hit root
@@ -226,9 +260,7 @@ class FMUDirectory:
         return None
 
     @classmethod
-    def find_nearest(
-        cls: type["FMUDirectory"], start_path: str | Path = "."
-    ) -> "FMUDirectory":
+    def find_nearest(cls: type[Self], start_path: str | Path = ".") -> Self:
         """Factory method to find and open the nearest .fmu directory.
 
         Args:
@@ -247,7 +279,31 @@ class FMUDirectory:
         return cls(fmu_dir_path.parent)
 
 
-def get_fmu_directory(base_path: str | Path) -> FMUDirectory:
+class UserFMUDirectory(FMUDirectoryBase):
+    config: UserConfigManager
+
+    def __init__(self) -> None:
+        """Initializes a project-based .fmu directory."""
+        self.config = UserConfigManager(self)
+        super().__init__(Path.home())
+
+    def update_config(self: Self, updates: dict[str, Any]) -> UserConfig:
+        """Updates multiple configuration values at once.
+
+        Args:
+            updates: Dictionary of key-value pairs to update
+
+        Returns:
+            The updated UserConfig object
+
+        Raises:
+            FileNotFoundError: If config file doesn't exist
+            ValueError: If the updates config is invalid
+        """
+        return cast("UserConfig", super().update_config(updates))
+
+
+def get_fmu_directory(base_path: str | Path) -> ProjectFMUDirectory:
     """Initializes access to a .fmu directory.
 
     Args:
@@ -263,10 +319,10 @@ def get_fmu_directory(base_path: str | Path) -> FMUDirectory:
         PermissionError: If lacking permissions to read/write to the directory
 
     """
-    return FMUDirectory(base_path)
+    return ProjectFMUDirectory(base_path)
 
 
-def find_nearest_fmu_directory(start_path: str | Path = ".") -> FMUDirectory:
+def find_nearest_fmu_directory(start_path: str | Path = ".") -> ProjectFMUDirectory:
     """Factory method to find and open the nearest .fmu directory.
 
     Args:
@@ -278,4 +334,4 @@ def find_nearest_fmu_directory(start_path: str | Path = ".") -> FMUDirectory:
     Raises:
         FileNotFoundError: If no .fmu directory is found
     """
-    return FMUDirectory.find_nearest(start_path)
+    return ProjectFMUDirectory.find_nearest(start_path)

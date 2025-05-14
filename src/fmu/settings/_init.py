@@ -4,9 +4,9 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any, Final
 
-from ._fmu_dir import FMUDirectory
+from ._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from ._logging import null_logger
-from .resources.config import Config
+from .models.project_config import ProjectConfig
 
 logger: Final = null_logger(__name__)
 
@@ -22,8 +22,22 @@ _README = dedent("""\
     Run `fmu-settings` to do this.
 """)
 
+_USER_README = dedent("""\
+    This directory contains static data and configuration elements used by some
+    components in FMU. It may also contains sensitive access tokens that should not be
+    shared with others.
 
-def _create_fmu_directory(base_path: Path) -> FMUDirectory:
+    You should *not* manually modify files within this directory. Doing so may
+    result in erroneous behavior by some FMU components.
+
+    Changes to data stored within this directory must happen through the FMU
+    Settings application.
+
+    Run `fmu-settings` to do this.
+""")
+
+
+def _create_fmu_directory(base_path: Path) -> None:
     """Creates the .fmu directory.
 
     Args:
@@ -32,9 +46,6 @@ def _create_fmu_directory(base_path: Path) -> FMUDirectory:
     Raises:
         FileNotFoundError: If base_path doesn't exist
         FileExistsError: If .fmu exists
-
-    Returns:
-        Instance of FMUDirectory
     """
     logger.debug(f"Creating .fmu directory in '{base_path}'")
 
@@ -52,12 +63,11 @@ def _create_fmu_directory(base_path: Path) -> FMUDirectory:
 
     fmu_dir.mkdir()
     logger.debug(f"Created .fmu directory at '{fmu_dir}'")
-    return FMUDirectory(base_path)
 
 
 def init_fmu_directory(
-    base_path: str | Path, config_data: Config | dict[str, Any] | None = None
-) -> FMUDirectory:
+    base_path: str | Path, config_data: ProjectConfig | dict[str, Any] | None = None
+) -> ProjectFMUDirectory:
     """Creates and initializes a .fmu directory.
 
     Also initializes a configuration file if configuration data is provided through the
@@ -65,7 +75,8 @@ def init_fmu_directory(
 
     Args:
         base_path: Directory where .fmu should be created
-        config_data: Optional Config instance or dictionary with configuration data
+        config_data: Optional ProjectConfig instance or dictionary with configuration
+          data
 
     Returns:
         Instance of FMUDirectory
@@ -81,16 +92,40 @@ def init_fmu_directory(
 
     _create_fmu_directory(base_path)
 
-    fmu_dir = FMUDirectory(base_path)
+    fmu_dir = ProjectFMUDirectory(base_path)
     fmu_dir.write_text_file("README", _README)
 
     fmu_dir.config.reset()
     if config_data:
-        if isinstance(config_data, Config):
+        if isinstance(config_data, ProjectConfig):
             config_dict = config_data.model_dump()
             fmu_dir.update_config(config_dict)
         elif isinstance(config_data, dict):
             fmu_dir.update_config(config_data)
 
+    logger.debug(f"Successfully initialized .fmu directory at '{fmu_dir}'")
+    return fmu_dir
+
+
+def init_user_fmu_directory() -> UserFMUDirectory:
+    """Creates and initializes a user's $HOME/.fmu directory.
+
+    Returns:
+        Instance of FMUDirectory
+
+    Raises:
+        FileExistsError: If .fmu exists
+        FileNotFoundError: If base_path doesn't exist
+        PermissionError: If the user lacks permission to create directories
+        ValidationError: If config_data fails validationg
+    """
+    logger.debug("Initializing .fmu directory")
+
+    _create_fmu_directory(Path.home())
+
+    fmu_dir = UserFMUDirectory()
+    fmu_dir.write_text_file("README", _USER_README)
+
+    fmu_dir.config.reset()
     logger.debug(f"Successfully initialized .fmu directory at '{fmu_dir}'")
     return fmu_dir

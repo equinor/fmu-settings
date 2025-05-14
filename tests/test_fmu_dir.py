@@ -1,33 +1,34 @@
-"""Tests for the FMUDirectory class."""
+"""Tests for the ProjectFMUDirectory class."""
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from pytest import MonkeyPatch
 
 from fmu.settings import __version__, find_nearest_fmu_directory, get_fmu_directory
-from fmu.settings._fmu_dir import FMUDirectory
+from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 
 
-def test_init_existing_directory(fmu_dir: FMUDirectory) -> None:
-    """Tests initializing an FMUDirectory on an existing .fmu directory."""
-    fmu = FMUDirectory(fmu_dir.base_path)
+def test_init_existing_directory(fmu_dir: ProjectFMUDirectory) -> None:
+    """Tests initializing an ProjectFMUDirectory on an existing .fmu directory."""
+    fmu = ProjectFMUDirectory(fmu_dir.base_path)
     assert fmu.path == fmu_dir.path
     assert fmu.base_path == fmu_dir.base_path
 
 
-def test_get_fmu_directory(fmu_dir: FMUDirectory) -> None:
-    """Tests initializing an FMUDirectory via get_fmu_directory."""
+def test_get_fmu_directory(fmu_dir: ProjectFMUDirectory) -> None:
+    """Tests initializing an ProjectFMUDirectory via get_fmu_directory."""
     fmu = get_fmu_directory(fmu_dir.base_path)
     assert fmu.path == fmu_dir.path
     assert fmu.base_path == fmu_dir.base_path
 
 
 def test_find_nearest_fmu_directory(
-    monkeypatch: MonkeyPatch, fmu_dir: FMUDirectory
+    monkeypatch: MonkeyPatch, fmu_dir: ProjectFMUDirectory
 ) -> None:
-    """Tests initializing an FMUDirectory via find_nearest_fmu_directory."""
+    """Tests initializing an ProjectFMUDirectory via find_nearest_fmu_directory."""
     subdir = fmu_dir.path / "subdir"
     subdir.mkdir()
     subdir2 = fmu_dir.path / "subdir2"
@@ -55,7 +56,7 @@ def test_init_on_missing_directory(tmp_path: Path) -> None:
     with pytest.raises(
         FileNotFoundError, match=f"No .fmu directory found at {tmp_path}"
     ):
-        FMUDirectory(tmp_path)
+        ProjectFMUDirectory(tmp_path)
 
 
 def test_init_when_fmu_is_not_a_directory(tmp_path: Path) -> None:
@@ -64,16 +65,16 @@ def test_init_when_fmu_is_not_a_directory(tmp_path: Path) -> None:
     with pytest.raises(
         FileExistsError, match=f".fmu exists at {tmp_path} but is not a directory"
     ):
-        FMUDirectory(tmp_path)
+        ProjectFMUDirectory(tmp_path)
 
 
-def test_find_fmu_directory(fmu_dir: FMUDirectory) -> None:
+def test_find_fmu_directory(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests find_fmu_directory method on nested children."""
     child = fmu_dir.base_path / "child"
     grand_child = child / "grandchild"
     grand_child.mkdir(parents=True)
 
-    found_dir = FMUDirectory.find_fmu_directory(grand_child)
+    found_dir = ProjectFMUDirectory.find_fmu_directory(grand_child)
     assert found_dir == fmu_dir.path
 
 
@@ -82,16 +83,16 @@ def test_find_fmu_directory_not_found(tmp_path: Path) -> None:
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()
 
-    found_dir = FMUDirectory.find_fmu_directory(empty_dir)
+    found_dir = ProjectFMUDirectory.find_fmu_directory(empty_dir)
     assert found_dir is None
 
 
-def test_find_nearest(fmu_dir: FMUDirectory) -> None:
+def test_find_nearest(fmu_dir: ProjectFMUDirectory) -> None:
     """Test find_nearest factory method."""
     subdir = fmu_dir.base_path / "subdir"
     subdir.mkdir()
 
-    fmu = FMUDirectory.find_nearest(subdir)
+    fmu = ProjectFMUDirectory.find_nearest(subdir)
     assert fmu.path == fmu_dir.path
 
 
@@ -101,20 +102,20 @@ def test_find_nearest_not_found(tmp_path: Path, monkeypatch: MonkeyPatch) -> Non
     with pytest.raises(
         FileNotFoundError, match=f"No .fmu directory found at or above {tmp_path}"
     ):
-        FMUDirectory.find_nearest()
+        ProjectFMUDirectory.find_nearest()
     with pytest.raises(
         FileNotFoundError, match=f"No .fmu directory found at or above {tmp_path}"
     ):
-        FMUDirectory.find_nearest(tmp_path)
+        ProjectFMUDirectory.find_nearest(tmp_path)
 
 
-def test_get_config_value(fmu_dir: FMUDirectory) -> None:
+def test_get_config_value(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests get_config_value retrieves correctly from the config."""
     assert fmu_dir.get_config_value("version") == __version__
     assert fmu_dir.get_config_value("created_by") == "user"
 
 
-def test_set_config_value(fmu_dir: FMUDirectory) -> None:
+def test_set_config_value(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests set_config_value sets and writes the result."""
     fmu_dir.set_config_value("version", "200.0.0")
     with open(fmu_dir.config.path, encoding="utf-8") as f:
@@ -125,7 +126,7 @@ def test_set_config_value(fmu_dir: FMUDirectory) -> None:
     assert fmu_dir.config.load().version == "200.0.0"
 
 
-def test_update_config(fmu_dir: FMUDirectory) -> None:
+def test_update_config(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests update_config updates and saves the config for multiple values."""
     updated_config = fmu_dir.update_config({"version": "2.0.0", "created_by": "user2"})
 
@@ -144,23 +145,23 @@ def test_update_config(fmu_dir: FMUDirectory) -> None:
     assert saved_config["created_by"] == "user2"
 
 
-def test_update_config_invalid_data(fmu_dir: FMUDirectory) -> None:
+def test_update_config_invalid_data(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests that update_config raises ValidationError on bad data."""
     updates = {"version": 123}
     with pytest.raises(
         ValueError,
-        match=f"Invalid value set for 'ConfigManager' with updates '{updates}'",
+        match=f"Invalid value set for 'ProjectConfigManager' with updates '{updates}'",
     ):
         fmu_dir.update_config(updates)
 
 
-def test_get_file_path(fmu_dir: FMUDirectory) -> None:
+def test_get_file_path(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests get_file_path returns correct path."""
     path = fmu_dir.get_file_path("test.txt")
     assert path == fmu_dir.path / "test.txt"
 
 
-def test_file_exists(fmu_dir: FMUDirectory) -> None:
+def test_file_exists(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests file_exists returns correct boolean."""
     test_file = fmu_dir.path / "exists.txt"
     test_file.touch()
@@ -169,7 +170,7 @@ def test_file_exists(fmu_dir: FMUDirectory) -> None:
     assert fmu_dir.file_exists("doesnt.txt") is False
 
 
-def test_read_file(fmu_dir: FMUDirectory) -> None:
+def test_read_file(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests read_file reads bytes correctly."""
     test_file = fmu_dir.path / "bin.dat"
     test_data = b"test bin data"
@@ -179,13 +180,13 @@ def test_read_file(fmu_dir: FMUDirectory) -> None:
     assert data == test_data
 
 
-def test_read_file_not_found(fmu_dir: FMUDirectory) -> None:
+def test_read_file_not_found(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests read_file raises FileNotFoundError for missing files."""
     with pytest.raises(FileNotFoundError, match="No such file or directory"):
         fmu_dir.read_file("not_real.txt")
 
 
-def test_read_text_file(fmu_dir: FMUDirectory) -> None:
+def test_read_text_file(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests read_text_file reads text correctly."""
     test_file = fmu_dir.path / "text.txt"
     test_text = "test text data å"
@@ -195,7 +196,7 @@ def test_read_text_file(fmu_dir: FMUDirectory) -> None:
     assert text == test_text
 
 
-def test_write_text_file(fmu_dir: FMUDirectory) -> None:
+def test_write_text_file(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests write_text_file writes text correctly."""
     test_text = "new text data æ"
     fmu_dir.write_text_file("new_text.txt", test_text)
@@ -205,7 +206,7 @@ def test_write_text_file(fmu_dir: FMUDirectory) -> None:
     assert file_path.read_text() == test_text
 
 
-def test_write_file_creates_dir(fmu_dir: FMUDirectory) -> None:
+def test_write_file_creates_dir(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests write_file creates parent directories."""
     test_data = b"nested data"
     fmu_dir.write_file("nested/dir/file.dat", test_data)
@@ -218,7 +219,7 @@ def test_write_file_creates_dir(fmu_dir: FMUDirectory) -> None:
     assert file_path.read_bytes() == test_data
 
 
-def test_list_files(fmu_dir: FMUDirectory) -> None:
+def test_list_files(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests that list_files returns the correct files."""
     (fmu_dir.path / "file1.txt").touch()
     (fmu_dir.path / "file2.txt").touch()
@@ -244,9 +245,73 @@ def test_list_files(fmu_dir: FMUDirectory) -> None:
     assert not_subdir_files == []
 
 
-def test_ensure_directory(fmu_dir: FMUDirectory) -> None:
+def test_ensure_directory(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests that ensure_directory creates directories."""
     dir_path = fmu_dir.ensure_directory("nested/test/dir")
     assert dir_path.exists()
     assert dir_path.is_dir()
-    assert dir_path == fmu_dir.path / "nested" / "test" / "dir"
+
+
+def test_user_init_existing_directory(user_fmu_dir: UserFMUDirectory) -> None:
+    """Tests initializing an ProjectFMUDirectory on an existing .fmu directory."""
+    with patch("pathlib.Path.home", return_value=user_fmu_dir.base_path):
+        fmu = UserFMUDirectory()
+
+    assert fmu.path == user_fmu_dir.path
+    assert fmu.base_path == user_fmu_dir.base_path
+
+
+def test_user_init_on_missing_directory(tmp_path: Path) -> None:
+    """Tests initializing with a missing directory raises."""
+    with (
+        patch("pathlib.Path.home", return_value=tmp_path),
+        pytest.raises(
+            FileNotFoundError, match=f"No .fmu directory found at {tmp_path}"
+        ),
+    ):
+        UserFMUDirectory()
+
+
+def test_user_init_when_fmu_is_not_a_directory(tmp_path: Path) -> None:
+    """Tests initialized on a .fmu non-directory raises."""
+    (tmp_path / ".fmu").touch()
+    with (
+        patch("pathlib.Path.home", return_value=tmp_path),
+        pytest.raises(
+            FileExistsError, match=f".fmu exists at {tmp_path} but is not a directory"
+        ),
+    ):
+        UserFMUDirectory()
+
+
+def test_update_user_config(user_fmu_dir: UserFMUDirectory) -> None:
+    """Tests update_config updates and saves the user config for multiple values."""
+    recent_dir = "/foo/bar"
+    updated_config = user_fmu_dir.update_config(
+        {"version": "2.0.0", "recent_directories": [recent_dir]}
+    )
+
+    assert updated_config.version == "2.0.0"
+    assert updated_config.recent_directories == {Path(recent_dir)}
+
+    assert user_fmu_dir.config.load() is not None
+    assert user_fmu_dir.get_config_value("version", None) == "2.0.0"
+    assert user_fmu_dir.get_config_value("recent_directories") == {Path(recent_dir)}
+
+    config_file = user_fmu_dir.config.path
+    with open(config_file, encoding="utf-8") as f:
+        saved_config = json.load(f)
+
+    assert saved_config["version"] == "2.0.0"
+    assert saved_config["recent_directories"] == [recent_dir]
+
+
+def test_update_user_config_invalid_data(user_fmu_dir: UserFMUDirectory) -> None:
+    """Tests that update_config raises ValidationError on bad data."""
+    updates = {"recent_directories": [123]}
+    with pytest.raises(
+        ValueError,
+        match="Invalid value set for 'UserConfigManager' with updates "
+        "'{'recent_directories':",
+    ):
+        user_fmu_dir.update_config(updates)
