@@ -101,7 +101,9 @@ def user_config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
     return {
         "version": __version__,
         "created_at": unix_epoch_utc,
-        "api_tokens": {},
+        "user_api_keys": {
+            "smda_subscription": None,
+        },
         "recent_directories": [],
     }
 

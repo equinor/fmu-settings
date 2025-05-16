@@ -8,12 +8,25 @@ from typing import Annotated, Self
 from uuid import UUID  # noqa TC003
 
 import annotated_types
-from pydantic import AwareDatetime, Field, SecretStr
+from pydantic import AwareDatetime, BaseModel, SecretStr, field_serializer
 
 from fmu.settings import __version__
 from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
 
 RecentDirectories = Annotated[set[Path], annotated_types.Len(0, 5)]
+
+
+class UserAPIKeys(BaseModel):
+    """Known API keys stored in a user config."""
+
+    smda_subscription: SecretStr | None = None
+
+    @field_serializer("smda_subscription", when_used="json")
+    def dump_secret(self, v: SecretStr | None) -> str | None:
+        """Write the secret string value when serializing to json."""
+        if v is None:
+            return None
+        return v.get_secret_value()
 
 
 class UserConfig(ResettableBaseModel):
@@ -24,7 +37,7 @@ class UserConfig(ResettableBaseModel):
 
     version: VersionStr
     created_at: AwareDatetime
-    api_tokens: dict[str, SecretStr] = Field(default_factory=dict)
+    user_api_keys: UserAPIKeys
     recent_directories: RecentDirectories
 
     @classmethod
@@ -33,6 +46,6 @@ class UserConfig(ResettableBaseModel):
         return cls(
             version=__version__,
             created_at=datetime.now(UTC),
-            api_tokens={},
+            user_api_keys=UserAPIKeys(),
             recent_directories=set(),
         )
