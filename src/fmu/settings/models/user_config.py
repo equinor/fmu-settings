@@ -49,3 +49,25 @@ class UserConfig(ResettableBaseModel):
             user_api_keys=UserAPIKeys(),
             recent_directories=set(),
         )
+
+    def obfuscate_secrets(self: Self) -> Self:
+        """Returns a copy of the model with obfuscated secrets.
+
+        If an API Key is:
+
+            key: SecretStr = SecretStr("secret")
+
+        we may want to serialize it to JSON as:
+
+            {key:"********"}
+
+        so that we do not serialize the actual value of the secret when, for example,
+        returning the user configuration from an API.
+        """
+        config_dict = self.model_dump()
+        # Overwrite secret keys with obfuscated keys
+        for k, v in config_dict["user_api_keys"].items():
+            if v is not None:
+                # Convert SecretStr("*********") to "*********"
+                config_dict["user_api_keys"][k] = str(v)
+        return self.model_validate(config_dict)
