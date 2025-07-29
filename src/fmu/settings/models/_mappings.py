@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, RootModel
 
-from fmu.dataio._models.enums import Content  # type: ignore
+from fmu.datamodels.enums import Content  # type: ignore
 
 from ._enums import (
     DataEntrySource,
