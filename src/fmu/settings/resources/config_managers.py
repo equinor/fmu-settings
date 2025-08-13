@@ -73,7 +73,7 @@ class ConfigManager(PydanticResourceManager[T]):
             default: Value to return if key is not found. Default None
 
         Returns:
-            The configuration value or deafult
+            The configuration value or default
         """
         try:
             config = self.load()
