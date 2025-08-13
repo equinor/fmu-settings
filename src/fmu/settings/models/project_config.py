@@ -3,24 +3,12 @@
 import getpass
 from datetime import UTC, datetime
 from typing import Self
-from uuid import UUID  # noqa TC003
 
-from pydantic import AwareDatetime, BaseModel, Field
+from pydantic import AwareDatetime, Field
 
+from fmu.datamodels.fmu_results.fields import Masterdata
 from fmu.settings import __version__
 from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
-
-from .smda import Smda
-
-
-class Masterdata(BaseModel):
-    """The ``masterdata`` block contains information related to masterdata.
-
-    Currently, SMDA holds the masterdata.
-    """
-
-    smda: Smda | None = Field(default=None)
-    """Block containing SMDA-related attributes. See :class:`Smda`."""
 
 
 class ProjectConfig(ResettableBaseModel):
@@ -32,7 +20,7 @@ class ProjectConfig(ResettableBaseModel):
     version: VersionStr
     created_at: AwareDatetime
     created_by: str
-    masterdata: Masterdata
+    masterdata: Masterdata | None = Field(default=None)
 
     @classmethod
     def reset(cls: type[Self]) -> Self:
@@ -45,5 +33,5 @@ class ProjectConfig(ResettableBaseModel):
             version=__version__,
             created_at=datetime.now(UTC),
             created_by=getpass.getuser(),
-            masterdata=Masterdata(),
+            masterdata=None,
         )

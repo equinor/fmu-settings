@@ -7,9 +7,9 @@ from typing import Any
 
 import pytest
 
+from fmu.datamodels.fmu_results.fields import Smda
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from fmu.settings.models.project_config import ProjectConfig
-from fmu.settings.models.smda import Smda
 from fmu.settings.models.user_config import UserConfig
 from fmu.settings.resources.config_managers import (
     ProjectConfigManager,
@@ -238,7 +238,7 @@ def test_set_smda(
     assert fmu_dir.config.get("masterdata.smda") is None
     with open(fmu_dir.path / fmu_dir.config.relative_path, encoding="utf-8") as f:
         config_on_disk = json.loads(f.read())
-    assert config_on_disk["masterdata"]["smda"] is None
+    assert config_on_disk["masterdata"] is None
 
     fmu_dir.set_config_value("masterdata", masterdata_dict)
 
@@ -250,6 +250,7 @@ def test_set_smda(
 
     config_on_disk_model = ProjectConfig.model_validate(config_on_disk)
     assert fmu_dir.config._cache is not None
+    assert fmu_dir.config._cache.masterdata is not None
     assert fmu_dir.config._cache.masterdata.smda == smda_model
     assert config_on_disk_model == fmu_dir.config._cache
 

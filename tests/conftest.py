@@ -27,9 +27,7 @@ def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
         "version": __version__,
         "created_at": unix_epoch_utc,
         "created_by": "user",
-        "masterdata": {
-            "smda": None,
-        },
+        "masterdata": None,
     }
 
 
