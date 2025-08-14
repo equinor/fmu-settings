@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from fmu.datamodels.fmu_results.fields import Smda
+from fmu.datamodels.fmu_results.fields import Model, Smda
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
@@ -252,6 +252,43 @@ def test_set_smda(
     assert fmu_dir.config._cache is not None
     assert fmu_dir.config._cache.masterdata is not None
     assert fmu_dir.config._cache.masterdata.smda == smda_model
+    assert config_on_disk_model == fmu_dir.config._cache
+
+
+def test_set_model_invalid_fails(
+    fmu_dir: ProjectFMUDirectory, model_dict: dict[str, Any]
+) -> None:
+    """Tests setting the model value in the config using an invalid dictionary."""
+    assert fmu_dir.config.get("model") is None
+
+    # drop model.name to test validation
+    model_dict.pop("name")
+
+    with pytest.raises(ValueError, match="model.name"):
+        fmu_dir.set_config_value("model", model_dict)
+
+
+def test_set_model(fmu_dir: ProjectFMUDirectory, model_dict: dict[str, Any]) -> None:
+    """Tests setting the model value in the config."""
+    assert fmu_dir.config.get("model") is None
+    with open(fmu_dir.path / fmu_dir.config.relative_path, encoding="utf-8") as f:
+        config_on_disk = json.loads(f.read())
+    assert config_on_disk["model"] is None
+
+    fmu_dir.set_config_value("model", model_dict)
+
+    model = Model.model_validate(model_dict)
+
+    assert fmu_dir.get_config_value("model") == model
+    assert fmu_dir.get_config_value("model.revision") == "21.0.0"
+    assert fmu_dir.get_config_value("model.name") == "Drogon"
+
+    with open(fmu_dir.path / fmu_dir.config.relative_path, encoding="utf-8") as f:
+        config_on_disk = json.loads(f.read())
+
+    config_on_disk_model = ProjectConfig.model_validate(config_on_disk)
+    assert fmu_dir.config._cache is not None
+    assert fmu_dir.config._cache.model == model
     assert config_on_disk_model == fmu_dir.config._cache
 
 

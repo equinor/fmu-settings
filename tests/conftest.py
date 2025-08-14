@@ -28,6 +28,7 @@ def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
         "created_at": unix_epoch_utc,
         "created_by": "user",
         "masterdata": None,
+        "model": None,
     }
 
 
@@ -67,8 +68,20 @@ def masterdata_dict() -> dict[str, Any]:
 
 
 @pytest.fixture
+def model_dict() -> dict[str, Any]:
+    """Example model information."""
+    return {
+        "name": "Drogon",
+        "revision": "21.0.0",
+        "description": None,
+    }
+
+
+@pytest.fixture
 def config_dict_with_masterdata(
-    unix_epoch_utc: datetime, masterdata_dict: dict[str, Any]
+    unix_epoch_utc: datetime,
+    masterdata_dict: dict[str, Any],
+    model_dict: dict[str, Any],
 ) -> dict[str, Any]:
     """A dictionary representing a .fmu config."""
     return {
@@ -76,6 +89,7 @@ def config_dict_with_masterdata(
         "created_at": unix_epoch_utc,
         "created_by": "user",
         "masterdata": masterdata_dict,
+        "model": model_dict,
     }
 
 

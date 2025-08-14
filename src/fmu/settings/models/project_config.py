@@ -6,7 +6,7 @@ from typing import Self
 
 from pydantic import AwareDatetime, Field
 
-from fmu.datamodels.fmu_results.fields import Masterdata
+from fmu.datamodels.fmu_results.fields import Masterdata, Model
 from fmu.settings import __version__
 from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
 
@@ -21,6 +21,7 @@ class ProjectConfig(ResettableBaseModel):
     created_at: AwareDatetime
     created_by: str
     masterdata: Masterdata | None = Field(default=None)
+    model: Model | None = Field(default=None)
 
     @classmethod
     def reset(cls: type[Self]) -> Self:
@@ -34,4 +35,5 @@ class ProjectConfig(ResettableBaseModel):
             created_at=datetime.now(UTC),
             created_by=getpass.getuser(),
             masterdata=None,
+            model=None,
         )
