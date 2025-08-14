@@ -29,6 +29,7 @@ def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
         "created_by": "user",
         "masterdata": None,
         "model": None,
+        "access": None,
     }
 
 
@@ -74,6 +75,15 @@ def model_dict() -> dict[str, Any]:
         "name": "Drogon",
         "revision": "21.0.0",
         "description": None,
+    }
+
+
+@pytest.fixture
+def access_dict() -> dict[str, Any]:
+    """Example access information."""
+    return {
+        "asset": {"name": "Drogon"},
+        "classification": "internal",
     }
 
 

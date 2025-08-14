@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from fmu.datamodels.fmu_results.fields import Model, Smda
+from fmu.datamodels.fmu_results.fields import Access, Model, Smda
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
@@ -289,6 +289,43 @@ def test_set_model(fmu_dir: ProjectFMUDirectory, model_dict: dict[str, Any]) -> 
     config_on_disk_model = ProjectConfig.model_validate(config_on_disk)
     assert fmu_dir.config._cache is not None
     assert fmu_dir.config._cache.model == model
+    assert config_on_disk_model == fmu_dir.config._cache
+
+
+def test_set_access_invalid_fails(
+    fmu_dir: ProjectFMUDirectory, access_dict: dict[str, Any]
+) -> None:
+    """Tests setting the access value in the config using an invalid dictionary."""
+    assert fmu_dir.config.get("access") is None
+
+    # drop access.asset to test validation
+    access_dict.pop("asset")
+
+    with pytest.raises(ValueError, match="access.asset"):
+        fmu_dir.set_config_value("access", access_dict)
+
+
+def test_set_access(fmu_dir: ProjectFMUDirectory, access_dict: dict[str, Any]) -> None:
+    """Tests setting the access value in the config."""
+    assert fmu_dir.config.get("access") is None
+    with open(fmu_dir.path / fmu_dir.config.relative_path, encoding="utf-8") as f:
+        config_on_disk = json.loads(f.read())
+    assert config_on_disk["access"] is None
+
+    fmu_dir.set_config_value("access", access_dict)
+
+    access = Access.model_validate(access_dict)
+
+    assert fmu_dir.get_config_value("access") == access
+    assert fmu_dir.get_config_value("access.classification") == "internal"
+    assert fmu_dir.get_config_value("access.asset.name") == "Drogon"
+
+    with open(fmu_dir.path / fmu_dir.config.relative_path, encoding="utf-8") as f:
+        config_on_disk = json.loads(f.read())
+
+    config_on_disk_model = ProjectConfig.model_validate(config_on_disk)
+    assert fmu_dir.config._cache is not None
+    assert fmu_dir.config._cache.access == access
     assert config_on_disk_model == fmu_dir.config._cache
 
 
