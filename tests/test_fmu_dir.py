@@ -288,30 +288,32 @@ def test_update_user_config(user_fmu_dir: UserFMUDirectory) -> None:
     """Tests update_config updates and saves the user config for multiple values."""
     recent_dir = "/foo/bar"
     updated_config = user_fmu_dir.update_config(
-        {"version": "2.0.0", "recent_directories": [recent_dir]}
+        {"version": "2.0.0", "recent_project_directories": [recent_dir]}
     )
 
     assert updated_config.version == "2.0.0"
-    assert updated_config.recent_directories == {Path(recent_dir)}
+    assert updated_config.recent_project_directories == {Path(recent_dir)}
 
     assert user_fmu_dir.config.load() is not None
     assert user_fmu_dir.get_config_value("version", None) == "2.0.0"
-    assert user_fmu_dir.get_config_value("recent_directories") == {Path(recent_dir)}
+    assert user_fmu_dir.get_config_value("recent_project_directories") == {
+        Path(recent_dir)
+    }
 
     config_file = user_fmu_dir.config.path
     with open(config_file, encoding="utf-8") as f:
         saved_config = json.load(f)
 
     assert saved_config["version"] == "2.0.0"
-    assert saved_config["recent_directories"] == [recent_dir]
+    assert saved_config["recent_project_directories"] == [recent_dir]
 
 
 def test_update_user_config_invalid_data(user_fmu_dir: UserFMUDirectory) -> None:
     """Tests that update_config raises ValidationError on bad data."""
-    updates = {"recent_directories": [123]}
+    updates = {"recent_project_directories": [123]}
     with pytest.raises(
         ValueError,
         match="Invalid value set for 'UserConfigManager' with updates "
-        "'{'recent_directories':",
+        "'{'recent_project_directories':",
     ):
         user_fmu_dir.update_config(updates)

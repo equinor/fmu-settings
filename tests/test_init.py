@@ -134,7 +134,7 @@ def test_init_user_fmu_directory(
     assert config_json["version"] == __version__
     assert config_json["created_at"] != str(unix_epoch_utc)
     assert config_json["user_api_keys"] == {"smda_subscription": None}
-    assert config_json["recent_directories"] == []
+    assert config_json["recent_project_directories"] == []
 
     created_at = datetime.fromisoformat(config_json["created_at"])
     now = datetime.now(UTC)

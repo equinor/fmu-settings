@@ -13,7 +13,7 @@ from pydantic import AwareDatetime, BaseModel, SecretStr, field_serializer
 from fmu.settings import __version__
 from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
 
-RecentDirectories = Annotated[set[Path], annotated_types.Len(0, 5)]
+RecentProjectDirectories = Annotated[set[Path], annotated_types.Len(0, 5)]
 
 
 class UserAPIKeys(BaseModel):
@@ -38,7 +38,7 @@ class UserConfig(ResettableBaseModel):
     version: VersionStr
     created_at: AwareDatetime
     user_api_keys: UserAPIKeys
-    recent_directories: RecentDirectories
+    recent_project_directories: RecentProjectDirectories
 
     @classmethod
     def reset(cls: type[Self]) -> Self:
@@ -47,7 +47,7 @@ class UserConfig(ResettableBaseModel):
             version=__version__,
             created_at=datetime.now(UTC),
             user_api_keys=UserAPIKeys(),
-            recent_directories=set(),
+            recent_project_directories=set(),
         )
 
     def obfuscate_secrets(self: Self) -> Self:

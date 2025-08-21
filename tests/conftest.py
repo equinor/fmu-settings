@@ -126,7 +126,7 @@ def user_config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
         "user_api_keys": {
             "smda_subscription": None,
         },
-        "recent_directories": [],
+        "recent_project_directories": [],
     }
 
 
