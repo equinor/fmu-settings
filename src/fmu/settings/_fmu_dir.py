@@ -6,7 +6,7 @@ from typing import Any, Final, Self, TypeAlias, cast
 from ._logging import null_logger
 from .models.project_config import ProjectConfig
 from .models.user_config import UserConfig
-from .resources.config_managers import (
+from ._resources.config_managers import (
     ProjectConfigManager,
     UserConfigManager,
 )
