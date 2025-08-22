@@ -8,7 +8,7 @@ import pytest
 from pydantic import BaseModel
 
 from fmu.settings._fmu_dir import ProjectFMUDirectory
-from fmu.settings.resources.pydantic_resource_manager import PydanticResourceManager
+from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
 
 
 class A(BaseModel):
