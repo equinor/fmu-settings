@@ -4,12 +4,12 @@ from pathlib import Path
 from typing import Any, Final, Self, TypeAlias, cast
 
 from ._logging import null_logger
-from .models.project_config import ProjectConfig
-from .models.user_config import UserConfig
 from ._resources.config_managers import (
     ProjectConfigManager,
     UserConfigManager,
 )
+from .models.project_config import ProjectConfig
+from .models.user_config import UserConfig
 
 logger: Final = null_logger(__name__)
 
