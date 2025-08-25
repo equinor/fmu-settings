@@ -9,12 +9,12 @@ import pytest
 
 from fmu.datamodels.fmu_results.fields import Access, Model, Smda
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
-from fmu.settings.models.project_config import ProjectConfig
-from fmu.settings.models.user_config import UserConfig
-from fmu.settings.resources.config_managers import (
+from fmu.settings._resources.config_managers import (
     ProjectConfigManager,
     UserConfigManager,
 )
+from fmu.settings.models.project_config import ProjectConfig
+from fmu.settings.models.user_config import UserConfig
 
 
 @pytest.fixture
