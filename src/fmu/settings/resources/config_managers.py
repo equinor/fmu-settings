@@ -13,7 +13,7 @@ from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
 from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
 
-from .managers import PydanticResourceManager
+from .pydantic_resource_manager import PydanticResourceManager
 
 if TYPE_CHECKING:
     # Avoid circular dependency for type hint in __init__ only
