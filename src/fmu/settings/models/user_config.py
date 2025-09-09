@@ -8,12 +8,18 @@ from typing import Annotated, Self
 from uuid import UUID  # noqa TC003
 
 import annotated_types
-from pydantic import AwareDatetime, BaseModel, SecretStr, field_serializer
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    SecretStr,
+    field_serializer,
+    field_validator,
+)
 
 from fmu.settings import __version__
 from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
 
-RecentProjectDirectories = Annotated[set[Path], annotated_types.Len(0, 5)]
+RecentProjectDirectories = Annotated[list[Path], annotated_types.Len(0, 5)]
 
 
 class UserAPIKeys(BaseModel):
@@ -47,8 +53,16 @@ class UserConfig(ResettableBaseModel):
             version=__version__,
             created_at=datetime.now(UTC),
             user_api_keys=UserAPIKeys(),
-            recent_project_directories=set(),
+            recent_project_directories=[],
         )
+
+    @field_validator("recent_project_directories", mode="before")
+    @classmethod
+    def ensure_unique(cls, recent_projects: list[Path]) -> list[Path]:
+        """Ensures that recent_project_directories contains unique entries."""
+        if len(recent_projects) != len(set(recent_projects)):
+            raise ValueError("recent_project_directories must contain unique entries")
+        return recent_projects
 
     def obfuscate_secrets(self: Self) -> Self:
         """Returns a copy of the model with obfuscated secrets.
