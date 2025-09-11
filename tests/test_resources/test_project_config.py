@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from fmu.datamodels.fmu_results.fields import Access, Model, Smda
+
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from fmu.settings._resources.config_managers import (
     ProjectConfigManager,
