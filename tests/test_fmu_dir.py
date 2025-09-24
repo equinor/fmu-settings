@@ -292,13 +292,13 @@ def test_update_user_config(user_fmu_dir: UserFMUDirectory) -> None:
     )
 
     assert updated_config.version == "2.0.0"
-    assert updated_config.recent_project_directories == {Path(recent_dir)}
+    assert updated_config.recent_project_directories == [Path(recent_dir)]
 
     assert user_fmu_dir.config.load() is not None
     assert user_fmu_dir.get_config_value("version", None) == "2.0.0"
-    assert user_fmu_dir.get_config_value("recent_project_directories") == {
+    assert user_fmu_dir.get_config_value("recent_project_directories") == [
         Path(recent_dir)
-    }
+    ]
 
     config_file = user_fmu_dir.config.path
     with open(config_file, encoding="utf-8") as f:
@@ -316,4 +316,13 @@ def test_update_user_config_invalid_data(user_fmu_dir: UserFMUDirectory) -> None
         match="Invalid value set for 'UserConfigManager' with updates "
         "'{'recent_project_directories':",
     ):
+        user_fmu_dir.update_config(updates)
+
+
+def test_update_user_config_non_unique_recent_projects(
+    user_fmu_dir: UserFMUDirectory,
+) -> None:
+    """Tests that update_config raises on non-unique recent_project_directories."""
+    updates = {"recent_project_directories": [Path("/foo/bar"), Path("/foo/bar")]}
+    with pytest.raises(ValueError, match="unique entries"):
         user_fmu_dir.update_config(updates)
