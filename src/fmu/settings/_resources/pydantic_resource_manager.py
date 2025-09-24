@@ -58,8 +58,9 @@ class PydanticResourceManager(Generic[T]):
             Validated Pydantic model
 
         Raises:
-            ValueError: If the resource file doesn't exist or if the data doesn't match the model schema
-        """  # noqa: E501
+            ValueError: If the resource file is missing or data does not match the
+            model schema
+        """
         if self._cache is None or force:
             if not self.exists:
                 raise FileNotFoundError(
