@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self, TypeVar
-from uuid import UUID  # noqa TC003
 
 from pydantic import ValidationError
 
 from fmu.settings._logging import null_logger
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
-from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
+from fmu.settings.types import ResettableBaseModel  # noqa: TC001
 
 from .pydantic_resource_manager import PydanticResourceManager
 
