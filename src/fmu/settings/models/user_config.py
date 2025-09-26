@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Self
-from uuid import UUID  # noqa TC003
 
 import annotated_types
 from pydantic import (
