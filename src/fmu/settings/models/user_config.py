@@ -16,7 +16,7 @@ from pydantic import (
 )
 
 from fmu.settings import __version__
-from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
+from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa: TC001
 
 RecentProjectDirectories = Annotated[list[Path], annotated_types.Len(0, 5)]
 

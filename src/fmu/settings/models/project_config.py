@@ -8,7 +8,7 @@ from pydantic import AwareDatetime, Field
 
 from fmu.datamodels.fmu_results.fields import Access, Masterdata, Model
 from fmu.settings import __version__
-from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa TC001
+from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa: TC001
 
 
 class ProjectConfig(ResettableBaseModel):
