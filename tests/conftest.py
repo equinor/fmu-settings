@@ -136,7 +136,7 @@ def user_config_model(user_config_dict: dict[str, Any]) -> UserConfig:
     return UserConfig.model_validate(user_config_dict)
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
     """Create an ProjectFMUDirectory instance for testing."""
     with (

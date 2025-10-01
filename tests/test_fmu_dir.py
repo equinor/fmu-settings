@@ -326,3 +326,23 @@ def test_update_user_config_non_unique_recent_projects(
     updates = {"recent_project_directories": [Path("/foo/bar"), Path("/foo/bar")]}
     with pytest.raises(ValueError, match="unique entries"):
         user_fmu_dir.update_config(updates)
+
+
+def test_acquire_lock_on_project_fmu(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that a lock can be acquired on the project dir."""
+    fmu_dir._lock.acquire()
+    assert fmu_dir._lock.is_locked()
+    assert fmu_dir._lock.exists
+    assert (fmu_dir.path / ".lock").exists()
+
+
+def test_acquire_lock_on_user_fmu(
+    user_fmu_dir: UserFMUDirectory,
+) -> None:
+    """Tests that a lock can be acquired on the user dir."""
+    user_fmu_dir._lock.acquire()
+    assert user_fmu_dir._lock.is_locked()
+    assert user_fmu_dir._lock.exists
+    assert (user_fmu_dir.path / ".lock").exists()

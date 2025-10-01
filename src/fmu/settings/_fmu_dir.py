@@ -8,6 +8,7 @@ from ._resources.config_managers import (
     ProjectConfigManager,
     UserConfigManager,
 )
+from ._resources.lock_manager import LockManager
 from .models.project_config import ProjectConfig
 from .models.user_config import UserConfig
 
@@ -20,6 +21,7 @@ class FMUDirectoryBase:
     """Provides access to a .fmu directory and operations on its contents."""
 
     config: FMUConfigManager
+    _lock: LockManager
 
     def __init__(self: Self, base_path: str | Path) -> None:
         """Initializes access to a .fmu directory.
@@ -35,6 +37,7 @@ class FMUDirectoryBase:
         """
         self.base_path = Path(base_path).resolve()
         logger.debug(f"Initializing FMUDirectory from '{base_path}'")
+        self._lock = LockManager(self)
 
         fmu_dir = self.base_path / ".fmu"
         if fmu_dir.exists():
