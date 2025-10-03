@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from fmu.settings import __version__
+from fmu.settings._global_config import find_global_config
 from fmu.settings._init import (
     _README,
     _USER_README,
@@ -102,6 +103,23 @@ def test_write_fmu_config_roundtrip(tmp_path: Path) -> None:
         config_data = json.loads(f.read())
     # Fails if invalid
     ProjectConfig.model_validate(config_data)
+
+
+def test_write_fmu_config_with_global_config(fmuconfig_with_output: Path) -> None:
+    """Tests creating an .fmu config with a global_config."""
+    tmp_path = fmuconfig_with_output
+    cfg = find_global_config(tmp_path, strict=False)
+    assert cfg is not None
+    fmu_dir = init_fmu_directory(tmp_path, global_config=cfg)
+    config = fmu_dir.config.load()
+    assert config.masterdata is not None
+    assert config.masterdata.smda.field[0].identifier == "DROGON"
+
+    assert config.model is not None
+    assert config.model.name == "Drogon"
+
+    assert config.access is not None
+    assert config.access.asset.name == "Drogon"
 
 
 def test_readme_is_written(tmp_path: Path, config_model: ProjectConfig) -> None:

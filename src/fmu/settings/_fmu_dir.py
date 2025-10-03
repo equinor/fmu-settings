@@ -82,7 +82,9 @@ class FMUDirectoryBase:
             FileNotFoundError: If config file doesn't exist
             ValueError: If the updated config is invalid
         """
+        logger.info(f"Setting {key} in {self.path}")
         self.config.set(key, value)
+        logger.debug(f"Set {key} to {value}")
 
     def update_config(
         self: Self, updates: dict[str, Any]

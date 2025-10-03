@@ -28,7 +28,9 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
+    "PyYAML",
     "annotated_types",  # Dependency in Pydantic also
+    "fmu-config",
     "fmu-datamodels",
     "pydantic",
 ]
@@ -41,6 +43,7 @@ dev = [
     "pytest-mock",
     "pytest-xdist",
     "ruff",
+    "types-PyYAML",
 ]
 
 [project.urls]
