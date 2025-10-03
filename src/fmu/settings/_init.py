@@ -4,6 +4,8 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any, Final
 
+from fmu.datamodels.fmu_results.global_configuration import GlobalConfiguration
+
 from ._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from ._logging import null_logger
 from .models.project_config import ProjectConfig
@@ -66,7 +68,9 @@ def _create_fmu_directory(base_path: Path) -> None:
 
 
 def init_fmu_directory(
-    base_path: str | Path, config_data: ProjectConfig | dict[str, Any] | None = None
+    base_path: str | Path,
+    config_data: ProjectConfig | dict[str, Any] | None = None,
+    global_config: GlobalConfiguration | None = None,
 ) -> ProjectFMUDirectory:
     """Creates and initializes a .fmu directory.
 
@@ -74,9 +78,11 @@ def init_fmu_directory(
     function.
 
     Args:
-        base_path: Directory where .fmu should be created
+        base_path: Directory where .fmu should be created.
         config_data: Optional ProjectConfig instance or dictionary with configuration
-          data
+          data.
+        global_config: Optional GlobaConfiguration instance with existing global config
+          data.
 
     Returns:
         Instance of FMUDirectory
@@ -98,12 +104,14 @@ def init_fmu_directory(
     fmu_dir.config.reset()
     if config_data:
         if isinstance(config_data, ProjectConfig):
-            config_dict = config_data.model_dump()
-            fmu_dir.update_config(config_dict)
-        elif isinstance(config_data, dict):
-            fmu_dir.update_config(config_data)
+            config_data = config_data.model_dump()
+        fmu_dir.update_config(config_data)
 
-    logger.debug(f"Successfully initialized .fmu directory at '{fmu_dir}'")
+    if global_config:
+        for key, value in global_config.model_dump().items():
+            fmu_dir.set_config_value(key, value)
+
+    logger.info(f"Successfully initialized .fmu directory at '{fmu_dir}'")
     return fmu_dir
 
 
