@@ -333,7 +333,7 @@ def test_acquire_lock_on_project_fmu(
 ) -> None:
     """Tests that a lock can be acquired on the project dir."""
     fmu_dir._lock.acquire()
-    assert fmu_dir._lock.is_locked()
+    assert fmu_dir._lock.is_acquired()
     assert fmu_dir._lock.exists
     assert (fmu_dir.path / ".lock").exists()
 
@@ -343,6 +343,6 @@ def test_acquire_lock_on_user_fmu(
 ) -> None:
     """Tests that a lock can be acquired on the user dir."""
     user_fmu_dir._lock.acquire()
-    assert user_fmu_dir._lock.is_locked()
+    assert user_fmu_dir._lock.is_acquired()
     assert user_fmu_dir._lock.exists
     assert (user_fmu_dir.path / ".lock").exists()
