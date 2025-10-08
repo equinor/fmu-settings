@@ -95,6 +95,7 @@ def test_lock_acquire_raises_if_already_acquired(fmu_dir: ProjectFMUDirectory) -
     lock = LockManager(fmu_dir)
     lock.acquire()
     assert lock.is_locked()
+    assert lock.is_acquired()
     with pytest.raises(LockError, match="Lock already acquired"):
         lock.acquire()
 
@@ -190,6 +191,7 @@ def test_lock_acquire_over_expired_lock(fmu_dir: ProjectFMUDirectory) -> None:
     stale_lock = LockManager(fmu_dir, timeout_seconds=-1)  # Expired
     stale_lock.acquire()
     assert stale_lock.is_locked() is False
+    assert stale_lock.is_acquired() is False
     assert stale_lock._is_stale() is True
     stale_lock_info = stale_lock.load()
 
@@ -198,6 +200,7 @@ def test_lock_acquire_over_expired_lock(fmu_dir: ProjectFMUDirectory) -> None:
     lock_info = lock.load()
 
     assert lock.is_locked()
+    assert lock.is_acquired()
     assert stale_lock.path == lock.path
     assert lock_info != stale_lock_info
 
@@ -385,27 +388,55 @@ def test_try_acquire_fails_when_linking_temp_file(
 def test_is_locked_expected(
     fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch
 ) -> None:
-    """Tests is_locked under expected conditions."""
+    """Tests is_locked under expected, simple conditions."""
     lock = LockManager(fmu_dir)
     assert lock.is_locked() is False
     lock.acquire()
     assert lock.is_locked() is True
+    lock.release()
+    assert lock.is_locked() is False
 
 
-def test_is_locked_unexpected_members(
+def test_is_locked_by_other_process(
     fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch
 ) -> None:
-    """Tests is_locked under expected member conditions."""
+    """Tests is_locked when another process has the lock."""
     lock = LockManager(fmu_dir)
     assert lock.is_locked() is False
-    lock.acquire()
+    with patch("os.getpid", return_value=-1234):
+        lock.acquire()
+
     assert lock.is_locked() is True
+
+    with patch("os.getpid", return_value=-1234):
+        lock.release()
+    assert lock.is_locked() is False
+
+
+def test_is_acquired_expected(
+    fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch
+) -> None:
+    """Tests is_acquired under expected conditions."""
+    lock = LockManager(fmu_dir)
+    assert lock.is_acquired() is False
+    lock.acquire()
+    assert lock.is_acquired() is True
+
+
+def test_is_acquired_unexpected_members(
+    fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch
+) -> None:
+    """Tests is_acquired under expected member conditions."""
+    lock = LockManager(fmu_dir)
+    assert lock.is_acquired() is False
+    lock.acquire()
+    assert lock.is_acquired() is True
     lock_info = lock._cache
     lock._cache = None
-    assert lock.is_locked() is False
+    assert lock.is_acquired() is False
     lock._cache = lock_info
     lock._acquired_at = None
-    assert lock.is_locked() is False
+    assert lock.is_acquired() is False
 
 
 @pytest.mark.parametrize(
@@ -417,23 +448,23 @@ def test_is_locked_unexpected_members(
         (False, False, False),
     ],
 )
-def test_is_locked_unexpected_methods(
+def test_is_acquired_unexpected_methods(
     fmu_dir: ProjectFMUDirectory,
     monkeypatch: MonkeyPatch,
     is_mine: bool,
     is_stale: bool,
     expected: bool,
 ) -> None:
-    """Tests is_locked under expected method conditions."""
+    """Tests is_acquired under expected method conditions."""
     lock = LockManager(fmu_dir)
-    assert lock.is_locked() is False
+    assert lock.is_acquired() is False
     lock.acquire()
 
     with (
         patch.object(lock, "_is_mine", return_value=is_mine),
         patch.object(lock, "_is_stale", return_value=is_stale),
     ):
-        assert lock.is_locked() is expected
+        assert lock.is_acquired() is expected
 
 
 def test_refresh_works_as_expected(

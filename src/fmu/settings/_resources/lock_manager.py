@@ -153,7 +153,17 @@ class LockManager(PydanticResourceManager[LockInfo]):
                 temp_path.unlink()
 
     def is_locked(self: Self) -> bool:
-        """Returns whether or not the lock is currently locked."""
+        """Returns whether or not the lock is locked by anyone.
+
+        This does a force load on the lock file.
+        """
+        lock_info = self._safe_load(force=True)
+        if not lock_info:
+            return False
+        return time.time() < lock_info.expires_at
+
+    def is_acquired(self: Self) -> bool:
+        """Returns whether or not the lock is currently acquired by this instance."""
         if self._cache is None or self._acquired_at is None:
             return False
         return self._is_mine(self._cache) and not self._is_stale()
@@ -219,13 +229,13 @@ class LockManager(PydanticResourceManager[LockInfo]):
             and lock_info.acquired_at == self._acquired_at
         )
 
-    def _safe_load(self: Self) -> LockInfo | None:
+    def _safe_load(self: Self, force: bool = False) -> LockInfo | None:
         """Load lock info, returning None if corrupted.
 
         Because this file does not exist in a static state, wrap around loading it.
         """
         try:
-            return self.load()
+            return self.load(force=force)
         except Exception:
             return None
 
