@@ -87,6 +87,62 @@ def test_pydantic_resource_manager_load(fmu_dir: ProjectFMUDirectory) -> None:
     assert a._cache == a_model
 
 
+def test_pydantic_resource_manager_load_force_true(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests loading a Pydantic resource with force=True."""
+    a = AManager(fmu_dir)
+    a_model = A(foo="bar")
+    a.save(a_model)
+    assert a.load() == a_model
+    assert a._cache == a_model
+
+    a_shadow = AManager(fmu_dir)
+    a_shadow_model = A(foo="baz")
+    a_shadow.save(a_shadow_model)
+
+    assert a_shadow.load() == a_shadow_model
+    assert a_shadow._cache == a_shadow_model
+
+    assert a.load() == a_model
+    assert a._cache == a_model
+
+    assert a.load(force=True) == a_shadow_model
+    assert a._cache == a_shadow_model
+
+
+def test_pydantic_resource_manager_load_cache_false(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests loading a Pydantic resource with cache=False."""
+    a = AManager(fmu_dir)
+    a_model = A(foo="bar")
+    a.save(a_model)
+
+    a_shadow = AManager(fmu_dir)
+    assert a_shadow.load(store_cache=False) == a_model
+    assert a_shadow._cache is None
+
+    assert a_shadow.load(store_cache=True) == a_model
+    assert a_shadow._cache == a_model
+
+
+def test_pydantic_resource_manager_load_force_true_cache_false(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests loading a Pydantic resource with force=True, cache=False."""
+    a = AManager(fmu_dir)
+    a_model = A(foo="bar")
+    a.save(a_model)
+
+    a_shadow = AManager(fmu_dir)
+    a_shadow_model = A(foo="baz")
+    a_shadow.save(a_shadow_model)
+
+    assert a.load(force=True, store_cache=False) == a_shadow_model
+    assert a._cache is a_model
+
+
 def test_pydantic_resource_manager_loads_invalid_model(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
