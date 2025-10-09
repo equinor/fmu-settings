@@ -48,11 +48,14 @@ class PydanticResourceManager(Generic[T]):
         """Returns whether or not the resource exists."""
         return self.path.exists()
 
-    def load(self: Self, force: bool = False) -> T:
-        """Loads the resources from disk and validates it as a Pydantic model.
+    def load(self: Self, force: bool = False, store_cache: bool = True) -> T:
+        """Loads the resource from disk and validates it as a Pydantic model.
 
         Args:
-            force: Force a re-read even if the file is already cached
+            force: Force a re-read even if the file is already cached.
+            store_cache: Whether or not to cache the loaded model internally. This is
+                best used with 'force=True' because if a model is already stored in
+                _cache it will be returned without re-loading. Default True.
 
         Returns:
             Validated Pydantic model
@@ -71,7 +74,11 @@ class PydanticResourceManager(Generic[T]):
             try:
                 content = self.fmu_dir.read_text_file(self.relative_path)
                 data = json.loads(content)
-                self._cache = self.model_class.model_validate(data)
+                validated_model = self.model_class.model_validate(data)
+                if store_cache:
+                    self._cache = validated_model
+                else:
+                    return validated_model
             except ValidationError as e:
                 raise ValueError(
                     f"Invalid content in resource file for '{self.__class__.__name__}: "
