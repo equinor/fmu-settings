@@ -9,6 +9,7 @@ from pytest import MonkeyPatch
 
 from fmu.settings import __version__, find_nearest_fmu_directory, get_fmu_directory
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
+from fmu.settings._resources.lock_manager import LockManager
 
 
 def test_init_existing_directory(fmu_dir: ProjectFMUDirectory) -> None:
@@ -217,6 +218,30 @@ def test_write_file_creates_dir(fmu_dir: ProjectFMUDirectory) -> None:
     file_path = nested_dir / "file.dat"
     assert file_path.exists()
     assert file_path.read_bytes() == test_data
+
+
+def test_write_operations_raise_when_locked(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests write helpers raise when another process holds the lock."""
+    lock = LockManager(fmu_dir)
+    with (
+        patch("socket.gethostname", return_value="other-host"),
+        patch("os.getpid", return_value=12345),
+    ):
+        lock.acquire()
+
+    with pytest.raises(PermissionError, match="Cannot write to .fmu directory"):
+        fmu_dir.write_text_file("blocked.txt", "blocked")
+
+    with pytest.raises(PermissionError, match="Cannot write to .fmu directory"):
+        fmu_dir.write_file("blocked.bin", b"blocked")
+
+    with (
+        patch("socket.gethostname", return_value="other-host"),
+        patch("os.getpid", return_value=12345),
+    ):
+        lock.release()
 
 
 def test_list_files(fmu_dir: ProjectFMUDirectory) -> None:

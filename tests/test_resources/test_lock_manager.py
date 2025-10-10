@@ -341,6 +341,7 @@ def test_try_acquire_succeeds_as_expected(
         mock_unlink.assert_called_once()
 
     lock_info = lock._cache
+    assert lock_info is not None
     temp_lockfile = (
         fmu_dir.path / f".lock.{lock_info.hostname}.{lock_info.pid}.{temp_uuid.hex[:8]}"
     )
@@ -583,3 +584,67 @@ def test_save_not_owned(fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch) 
         pytest.raises(LockError, match="lock file is held by another"),
     ):
         lock.save(lock_info)
+
+
+def test_ensure_can_write_no_lock(fmu_dir: ProjectFMUDirectory) -> None:
+    """Tests ensure_can_write when no lock exists."""
+    lock = LockManager(fmu_dir)
+    assert lock.exists is False
+    lock.ensure_can_write()
+
+
+def test_ensure_can_write_invalid_lock(fmu_dir: ProjectFMUDirectory) -> None:
+    """Tests ensure_can_write ignores unreadable lock info."""
+    lock = LockManager(fmu_dir)
+    lock.path.write_text("garbage")
+    with patch.object(lock, "_safe_load", return_value=None):
+        lock.ensure_can_write()
+
+
+def test_ensure_can_write_owned_lock(fmu_dir: ProjectFMUDirectory) -> None:
+    """Tests ensure_can_write passes when lock is owned by caller."""
+    lock = LockManager(fmu_dir)
+    lock.acquire()
+    lock.ensure_can_write()
+    lock.release()
+
+
+def test_ensure_can_write_stale_lock(fmu_dir: ProjectFMUDirectory) -> None:
+    """Tests ensure_can_write ignores stale locks."""
+    lock = LockManager(fmu_dir)
+    future = time.time() + 10
+    lock_info = LockInfo(
+        pid=123,
+        hostname="host",
+        user="user",
+        acquired_at=future - 100,
+        expires_at=future,
+    )
+    lock.path.write_text(lock_info.model_dump_json(indent=2))
+    with (
+        patch.object(lock, "_safe_load", return_value=lock_info),
+        patch.object(lock, "is_acquired", return_value=False),
+        patch.object(lock, "_is_stale", return_value=True),
+    ):
+        lock.ensure_can_write()
+
+
+def test_ensure_can_write_foreign_lock(fmu_dir: ProjectFMUDirectory) -> None:
+    """Tests ensure_can_write raises on active locks owned by others."""
+    lock = LockManager(fmu_dir)
+    now = time.time()
+    lock_info = LockInfo(
+        pid=123,
+        hostname="remote",
+        user="user",
+        acquired_at=now,
+        expires_at=now + DEFAULT_LOCK_TIMEOUT,
+    )
+    lock.path.write_text(lock_info.model_dump_json(indent=2))
+    with (
+        patch.object(lock, "_safe_load", return_value=lock_info),
+        patch.object(lock, "is_acquired", return_value=False),
+        patch.object(lock, "_is_stale", return_value=False),
+        pytest.raises(PermissionError, match="Cannot write to .fmu directory"),
+    ):
+        lock.ensure_can_write()

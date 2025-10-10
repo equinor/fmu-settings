@@ -98,6 +98,7 @@ class PydanticResourceManager(Generic[T]):
         Args:
             model: Validated Pydantic model instance
         """
+        self.fmu_dir._lock.ensure_can_write()
         json_data = model.model_dump_json(by_alias=True, indent=2)
         self.fmu_dir.write_text_file(self.relative_path, json_data)
         self._cache = model
