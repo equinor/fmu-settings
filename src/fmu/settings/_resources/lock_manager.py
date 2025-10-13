@@ -170,12 +170,16 @@ class LockManager(PydanticResourceManager[LockInfo]):
 
     def ensure_can_write(self: Self) -> None:
         """Raise PermissionError if another process currently holds the lock."""
-        lock_info = self._safe_load(force=True)
+        try:
+            lock_info = self.load(force=True, store_cache=False)
+        except Exception:
+            lock_info = None
+
         if (
             self.exists
             and lock_info is not None
             and not self.is_acquired()
-            and not self._is_stale()
+            and not self._is_stale(lock_info=lock_info)
         ):
             raise PermissionError(
                 "Cannot write to .fmu directory because it is locked by "
@@ -254,9 +258,11 @@ class LockManager(PydanticResourceManager[LockInfo]):
         except Exception:
             return None
 
-    def _is_stale(self: Self) -> bool:
+    def _is_stale(self: Self, lock_info: LockInfo | None = None) -> bool:
         """Check if existing lock is stale (expired or process dead)."""
-        lock_info = self._safe_load()
+        if lock_info is None:
+            lock_info = self._safe_load()
+
         if not lock_info:
             return True
 
