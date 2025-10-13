@@ -642,9 +642,10 @@ def test_ensure_can_write_foreign_lock(fmu_dir: ProjectFMUDirectory) -> None:
     )
     lock.path.write_text(lock_info.model_dump_json(indent=2))
     with (
-        patch.object(lock, "_safe_load", return_value=lock_info),
-        patch.object(lock, "is_acquired", return_value=False),
-        patch.object(lock, "_is_stale", return_value=False),
+        patch(
+            "fmu.settings._resources.lock_manager.socket.gethostname",
+            return_value="current-host",
+        ),
         pytest.raises(PermissionError, match="Cannot write to .fmu directory"),
     ):
         lock.ensure_can_write()
