@@ -149,6 +149,7 @@ class FMUDirectoryBase:
             relative_path: Path relative to the .fmu directory
             data: Bytes to write
         """
+        self._lock.ensure_can_write()
         file_path = self.get_file_path(relative_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -165,6 +166,7 @@ class FMUDirectoryBase:
             content: Text content to write
             encoding: Text encoding to use. Default utf-8
         """
+        self._lock.ensure_can_write()
         file_path = self.get_file_path(relative_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 

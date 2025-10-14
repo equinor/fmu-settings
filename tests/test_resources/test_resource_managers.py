@@ -3,11 +3,13 @@
 import json
 from pathlib import Path
 from typing import Self
+from unittest.mock import patch
 
 import pytest
 from pydantic import BaseModel
 
 from fmu.settings._fmu_dir import ProjectFMUDirectory
+from fmu.settings._resources.lock_manager import LockManager
 from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
 
 
@@ -76,6 +78,28 @@ def test_pydantic_resource_manager_save(fmu_dir: ProjectFMUDirectory) -> None:
         a_dict = json.loads(f.read())
 
     assert a_model == A.model_validate(a_dict)
+
+
+def test_pydantic_resource_manager_save_raises_when_locked(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests saving raises when another process holds the lock."""
+    lock = LockManager(fmu_dir)
+    with (
+        patch("socket.gethostname", return_value="other-host"),
+        patch("os.getpid", return_value=12345),
+    ):
+        lock.acquire()
+
+    a = AManager(fmu_dir)
+    with pytest.raises(PermissionError, match="Cannot write to .fmu directory"):
+        a.save(A(foo="bar"))
+
+    with (
+        patch("socket.gethostname", return_value="other-host"),
+        patch("os.getpid", return_value=12345),
+    ):
+        lock.release()
 
 
 def test_pydantic_resource_manager_load(fmu_dir: ProjectFMUDirectory) -> None:
