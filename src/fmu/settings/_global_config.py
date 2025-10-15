@@ -1,12 +1,17 @@
 """Functions related to finding and validating an existing global configuration."""
 
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
+
+from pydantic import ValidationError
 
 from fmu.config.utilities import yaml_load
 from fmu.datamodels.fmu_results.global_configuration import GlobalConfiguration
 
 from ._logging import null_logger
+
+if TYPE_CHECKING:
+    from pydantic_core import InitErrorDetails
 
 logger: Final = null_logger(__name__)
 
@@ -37,6 +42,17 @@ INVALID_STRAT_NAMES: Final[tuple[str, ...]] = (
 )
 
 
+def _raise_validation_error(message: str) -> None:
+    """Raise a Pydantic ValidationError with an error message."""
+    error: InitErrorDetails = {
+        "type": "value_error",
+        "loc": ("__root__",),
+        "input": "",
+        "ctx": {"error": message},
+    }
+    raise ValidationError.from_exception_data("GlobalConfiguration", [error])
+
+
 def validate_global_configuration_strictly(cfg: GlobalConfiguration) -> None:  # noqa: PLR0912
     """Does stricter checks against a valid GlobalConfiguration file.
 
@@ -47,54 +63,67 @@ def validate_global_configuration_strictly(cfg: GlobalConfiguration) -> None:  #
         cfg: A GlobalConfiguration instance to be validated
 
     Raises:
-        ValueError: If some value in the GlobalConfiguration is invalid or not allowed
+        ValidationError: If some value in the GlobalConfiguration is invalid
+            or not allowed
     """
     # Check model and access
     if cfg.model.name.lower() in INVALID_NAMES:
-        raise ValueError(f"Invalid name in 'model': {cfg.model.name}")
+        _raise_validation_error(
+            f"Invalid name in 'model': {cfg.model.name}",
+        )
     if cfg.access.asset.name.lower() in INVALID_NAMES:
-        raise ValueError(f"Invalid name in 'access.asset': {cfg.access.asset.name}")
+        _raise_validation_error(
+            f"Invalid name in 'access.asset': {cfg.access.asset.name}",
+        )
 
     # Check masterdata
 
     # smda.country
     for country in cfg.masterdata.smda.country:
         if str(country.uuid) in INVALID_UUIDS:
-            raise ValueError(f"Invalid SMDA UUID in 'smda.country': {country.uuid}")
+            _raise_validation_error(
+                f"Invalid SMDA UUID in 'smda.country': {country.uuid}",
+            )
 
     # smda.discovery
     for discovery in cfg.masterdata.smda.discovery:
         if discovery.short_identifier.lower() in INVALID_NAMES:
-            raise ValueError(
-                f"Invalid SMDA short identifier in 'smda.discovery': "
-                f"{discovery.short_identifier}"
+            _raise_validation_error(
+                "Invalid SMDA short identifier in 'smda.discovery': "
+                f"{discovery.short_identifier}",
             )
         if str(discovery.uuid) in INVALID_UUIDS:
-            raise ValueError(f"Invalid SMDA UUID in 'smda.discovery': {discovery.uuid}")
+            _raise_validation_error(
+                f"Invalid SMDA UUID in 'smda.discovery': {discovery.uuid}",
+            )
 
     # smda.field
     for field in cfg.masterdata.smda.field:
         if field.identifier.lower() in INVALID_NAMES:
-            raise ValueError(
-                f"Invalid SMDA identifier in 'smda.field': {field.identifier}"
+            _raise_validation_error(
+                f"Invalid SMDA identifier in 'smda.field': {field.identifier}",
             )
         if str(field.uuid) in INVALID_UUIDS:
-            raise ValueError(f"Invalid SMDA UUID in 'smda.field': {field.uuid}")
+            _raise_validation_error(
+                f"Invalid SMDA UUID in 'smda.field': {field.uuid}",
+            )
 
     # smda.coordinate_system
     if (coord_uuid := str(cfg.masterdata.smda.coordinate_system.uuid)) in INVALID_UUIDS:
-        raise ValueError(f"Invalid SMDA UUID in 'smda.coordinate_system': {coord_uuid}")
+        _raise_validation_error(
+            f"Invalid SMDA UUID in 'smda.coordinate_system': {coord_uuid}",
+        )
 
     # smda.stratigraphic_column
     strat = cfg.masterdata.smda.stratigraphic_column
     if strat.identifier.lower() in INVALID_NAMES:
-        raise ValueError(
-            f"Invalid SMDA identifier in 'smda.stratigraphic_column': "
-            f"{strat.identifier}"
+        _raise_validation_error(
+            "Invalid SMDA identifier in 'smda.stratigraphic_column': "
+            f"{strat.identifier}",
         )
     if str(strat.uuid) in INVALID_UUIDS:
-        raise ValueError(
-            f"Invalid SMDA UUID in 'smda.stratigraphic_column': {strat.uuid}"
+        _raise_validation_error(
+            f"Invalid SMDA UUID in 'smda.stratigraphic_column': {strat.uuid}",
         )
 
     # Check stratigraphy
@@ -102,8 +131,8 @@ def validate_global_configuration_strictly(cfg: GlobalConfiguration) -> None:  #
     if cfg.stratigraphy:
         for key in cfg.stratigraphy:
             if key.lower() in INVALID_STRAT_NAMES:
-                raise ValueError(
-                    f"Invalid stratigraphy name in 'smda.stratigraphy': {key}"
+                _raise_validation_error(
+                    f"Invalid stratigraphy name in 'smda.stratigraphy': {key}",
                 )
 
 
@@ -128,8 +157,13 @@ def load_global_configuration_if_present(
         global_variables_dict = yaml_load(path, loader=loader)
         global_config = GlobalConfiguration.model_validate(global_variables_dict)
         logger.debug(f"Global variables at {path} has valid settings data")
-    except Exception:
-        logger.debug(f"Global variables at {path} does not have valid settings data")
+    except ValidationError as e:
+        logger.debug(f"Global variables at {path} failed validation: {e}")
+        return None
+    except Exception as e:
+        logger.debug(
+            f"Failed to load global variables at {path}: {type(e).__name__}: {e}"
+        )
         return None
     return global_config
 
