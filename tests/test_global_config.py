@@ -78,7 +78,9 @@ def test_validate_global_config_strict_access(
     if valid:
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
-        with pytest.raises(ValidationError, match=f"Invalid name in 'access.asset': {name}"):
+        with pytest.raises(
+            ValidationError, match=f"Invalid name in 'access.asset': {name}"
+        ):
             validate_global_configuration_strictly(cfg)
 
 
@@ -210,7 +212,8 @@ def test_validate_global_config_strict_coordinate_system(
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
         with pytest.raises(
-            ValidationError, match=f"Invalid SMDA UUID in 'smda.coordinate_system': {uuid}"
+            ValidationError,
+            match=f"Invalid SMDA UUID in 'smda.coordinate_system': {uuid}",
         ):
             validate_global_configuration_strictly(cfg)
 
