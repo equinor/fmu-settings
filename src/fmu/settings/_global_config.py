@@ -145,16 +145,18 @@ def load_global_configuration_if_present(
         fmu_load: Whether or not to load in the custom 'fmu' format. Default False.
 
     Returns:
-        GlobalConfiguration instance or None.
+        GlobalConfiguration instance or None if file cannot be loaded.
+
+    Raises:
+        ValidationError: If the file is loaded but has invalid schema.
     """
     loader = "fmu" if fmu_load else "standard"
     try:
         global_variables_dict = yaml_load(path, loader=loader)
         global_config = GlobalConfiguration.model_validate(global_variables_dict)
         logger.debug(f"Global variables at {path} has valid settings data")
-    except ValidationError as e:
-        logger.debug(f"Global variables at {path} failed validation: {e}")
-        return None
+    except ValidationError:
+        raise
     except Exception as e:
         logger.debug(
             f"Failed to load global variables at {path}: {type(e).__name__}: {e}"
@@ -173,6 +175,9 @@ def _find_global_variables_file(paths: list[Path]) -> GlobalConfiguration | None
 
     Returns:
         A validated GlobalConfiguration or None.
+
+    Raises:
+        ValidationError: If a file is found but has invalid schema.
     """
     for path in paths:
         if not path.exists():
@@ -204,6 +209,9 @@ def _find_global_config_file(paths: list[Path]) -> GlobalConfiguration | None:
 
     Returns:
         A validated GlobalConfiguration or None.
+
+    Raises:
+        ValidationError: If a file is found but has invalid schema.
     """
     for path in paths:
         if not path.exists():
@@ -241,6 +249,11 @@ def find_global_config(
 
     Returns:
         A valid GlobalConfiguration instance, or None.
+
+    Raises:
+        ValidationError: If a configuration file is found but has invalid schema.
+        InvalidGlobalConfigurationError: If strict=True and configuration contains
+            disallowed content (e.g., Drogon data).
     """
     base_path = Path(base_path)
 

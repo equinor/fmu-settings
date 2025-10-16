@@ -13,6 +13,7 @@ from fmu.datamodels.fmu_results.global_configuration import (
     GlobalConfiguration,
     StratigraphyElement,
 )
+from pydantic import ValidationError
 
 from fmu.settings._global_config import (
     InvalidGlobalConfigurationError,
@@ -291,29 +292,51 @@ def test_validate_global_config_strict_stratigraphy_names(
 
 
 @pytest.mark.parametrize("fmu_load", [True, False])
-def test_load_global_configuration_returns_none_if_invalid_yaml(
+def test_load_global_configuration_raises_on_invalid_yaml_structure(
     fmu_load: bool, tmp_path: Path
 ) -> None:
-    """Tests maybe_load returns None if an Exception is raised."""
+    """Tests that ValidationError is raised for invalid YAML structure."""
     config_path = tmp_path / "global_config.yml"
     with open(config_path, "w") as f:
         f.write("foo=bar")
 
-    assert load_global_configuration_if_present(config_path, fmu_load=fmu_load) is None
+    with pytest.raises(ValidationError):
+        load_global_configuration_if_present(config_path, fmu_load=fmu_load)
 
 
 @pytest.mark.parametrize("fmu_load", [True, False])
-def test_load_global_configuration_returns_none_if_invalid_config(
+def test_load_global_configuration_raises_on_missing_required_fields(
     fmu_load: bool,
     tmp_path: Path,
     global_variables_with_masterdata: dict[str, Any],
 ) -> None:
-    """Tests maybe_load returns None if an Exception is raised."""
+    """Tests that ValidationError is raised for missing required fields."""
     config_path = tmp_path / "global_config.yml"
     del global_variables_with_masterdata["masterdata"]
     with open(config_path, "w") as f:
         yaml.safe_dump(global_variables_with_masterdata, f)
 
+    with pytest.raises(ValidationError):
+        load_global_configuration_if_present(config_path, fmu_load=fmu_load)
+
+
+@pytest.mark.parametrize("fmu_load", [True, False])
+def test_load_global_configuration_returns_none_on_file_not_found(
+    fmu_load: bool, tmp_path: Path
+) -> None:
+    """Tests that None is returned when file doesn't exist."""
+    config_path = tmp_path / "non_existent_file.yml"
+    assert load_global_configuration_if_present(config_path, fmu_load=fmu_load) is None
+
+
+@pytest.mark.parametrize("fmu_load", [True, False])
+def test_load_global_configuration_returns_none_on_yaml_parse_error(
+    fmu_load: bool, tmp_path: Path
+) -> None:
+    """Tests that None is returned on YAML parsing errors."""
+    config_path = tmp_path / "invalid.yml"
+    with open(config_path, "w") as f:
+        f.write("key: [unclosed list")
     assert load_global_configuration_if_present(config_path, fmu_load=fmu_load) is None
 
 
@@ -327,10 +350,23 @@ def test_find_global_config_file_not_there(tmp_path: Path) -> None:
     assert _find_global_config_file([tmp_path / "dne"]) is None
 
 
-def test_find_global_configs_file_malformed(tmp_path: Path) -> None:
-    """Tests finding the global config file if it is malformed."""
+def test_find_global_config_file_malformed_raises_validation_error(
+    tmp_path: Path,
+) -> None:
+    """Tests that malformed global config file raises ValidationError."""
     with open(tmp_path / "global_master_config.yml", "w") as f:
         f.write("foo: bar")
+    with pytest.raises(ValidationError):
+        _find_global_config_file([tmp_path])
+
+
+def test_find_global_config_file_skips_invalid_yaml_and_continues(
+    tmp_path: Path,
+) -> None:
+    """Tests that function skips files with YAML parse errors and continues."""
+    with open(tmp_path / "global_config.yml", "w") as f:
+        f.write("key: [unclosed list")
+
     assert _find_global_config_file([tmp_path]) is None
 
 
@@ -363,32 +399,55 @@ def test_find_global_variables_file_not_there(tmp_path: Path) -> None:
     assert _find_global_variables_file([tmp_path / "dne"]) is None
 
 
-def test_find_global_variables_file_malformed(tmp_path: Path) -> None:
-    """Tests finding the global variables file if it is malformed."""
+def test_find_global_variables_file_malformed_raises_validation_error(
+    tmp_path: Path,
+) -> None:
+    """Tests that malformed global variables file raises ValidationError."""
     with open(tmp_path / "global_variables.yml", "w") as f:
         f.write("foo: bar")
-    assert _find_global_variables_file([tmp_path]) is None
+    with pytest.raises(ValidationError):
+        _find_global_variables_file([tmp_path])
 
 
-def test_find_global_variables_file(fmuconfig_with_output: Path) -> None:
-    """Tests finding the global variables file in fmuconfig."""
+def test_find_global_variables_file_returns_none_when_not_found(
+    fmuconfig_with_output: Path,
+) -> None:
+    """Tests that None is returned when no global variables file exists."""
     tmp_path = fmuconfig_with_output
     some_dir = tmp_path / "some_dir"
     some_dir.mkdir()
-    some_file = some_dir / "some_file"
-    some_file.touch()
     does_not_exist = tmp_path / "bad"
-    assert _find_global_variables_file([does_not_exist, some_dir, some_file]) is None
+    assert _find_global_variables_file([does_not_exist, some_dir]) is None
 
+
+def test_find_global_variables_file_skips_invalid_yaml_and_continues(
+    tmp_path: Path,
+) -> None:
+    """Tests that function skips files with YAML parse errors and continues."""
+    invalid_yaml_file = tmp_path / "global_variables.yml"
+    with open(invalid_yaml_file, "w") as f:
+        f.write("key: [unclosed list")
+
+    assert _find_global_variables_file([tmp_path]) is None
+
+
+def test_find_global_variables_file_raises_on_empty_file(
+    fmuconfig_with_output: Path,
+) -> None:
+    """Tests that ValidationError is raised for empty/invalid file."""
+    tmp_path = fmuconfig_with_output
+    some_file = tmp_path / "some_file"
+    some_file.touch()
+    with pytest.raises(ValidationError):
+        _find_global_variables_file([some_file])
+
+
+def test_find_global_variables_file_returns_valid_config(
+    fmuconfig_with_output: Path,
+) -> None:
+    """Tests finding a valid global variables file in fmuconfig."""
     assert isinstance(
-        _find_global_variables_file(
-            [
-                does_not_exist,
-                some_dir,
-                some_file,
-                fmuconfig_with_output / "fmuconfig/output",
-            ]
-        ),
+        _find_global_variables_file([fmuconfig_with_output / "fmuconfig/output"]),
         GlobalConfiguration,
     )
 
