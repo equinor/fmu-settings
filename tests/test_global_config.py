@@ -13,9 +13,9 @@ from fmu.datamodels.fmu_results.global_configuration import (
     GlobalConfiguration,
     StratigraphyElement,
 )
-from pydantic import ValidationError
 
 from fmu.settings._global_config import (
+    InvalidGlobalConfigurationError,
     _find_global_config_file,
     _find_global_variables_file,
     find_global_config,
@@ -61,7 +61,9 @@ def test_validate_global_config_strict_model(
     if valid:
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
-        with pytest.raises(ValidationError, match=f"Invalid name in 'model': {name}"):
+        with pytest.raises(
+            InvalidGlobalConfigurationError, match=f"Invalid name in 'model': {name}"
+        ):
             validate_global_configuration_strictly(cfg)
 
 
@@ -79,7 +81,8 @@ def test_validate_global_config_strict_access(
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
         with pytest.raises(
-            ValidationError, match=f"Invalid name in 'access.asset': {name}"
+            InvalidGlobalConfigurationError,
+            match=f"Invalid name in 'access.asset': {name}",
         ):
             validate_global_configuration_strictly(cfg)
 
@@ -101,7 +104,8 @@ def test_validate_global_config_strict_smda_country_uuid(
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
         with pytest.raises(
-            ValidationError, match=f"Invalid SMDA UUID in 'smda.country': {uuid}"
+            InvalidGlobalConfigurationError,
+            match=f"Invalid SMDA UUID in 'smda.country': {uuid}",
         ):
             validate_global_configuration_strictly(cfg)
 
@@ -123,7 +127,7 @@ def test_validate_global_config_strict_smda_discovery_identifier(
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
         with pytest.raises(
-            ValidationError,
+            InvalidGlobalConfigurationError,
             match=f"Invalid SMDA short identifier in 'smda.discovery': {identifier}",
         ):
             validate_global_configuration_strictly(cfg)
@@ -146,7 +150,7 @@ def test_validate_global_config_strict_smda_discovery_uuid(
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
         with pytest.raises(
-            ValidationError,
+            InvalidGlobalConfigurationError,
             match=f"Invalid SMDA UUID in 'smda.discovery': {uuid}",
         ):
             validate_global_configuration_strictly(cfg)
@@ -169,7 +173,7 @@ def test_validate_global_config_strict_smda_field_identifier(
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
         with pytest.raises(
-            ValidationError,
+            InvalidGlobalConfigurationError,
             match=f"Invalid SMDA identifier in 'smda.field': {identifier}",
         ):
             validate_global_configuration_strictly(cfg)
@@ -192,7 +196,7 @@ def test_validate_global_config_strict_smda_field_uuid(
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
         with pytest.raises(
-            ValidationError,
+            InvalidGlobalConfigurationError,
             match=f"Invalid SMDA UUID in 'smda.field': {uuid}",
         ):
             validate_global_configuration_strictly(cfg)
@@ -212,7 +216,7 @@ def test_validate_global_config_strict_coordinate_system(
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
         with pytest.raises(
-            ValidationError,
+            InvalidGlobalConfigurationError,
             match=f"Invalid SMDA UUID in 'smda.coordinate_system': {uuid}",
         ):
             validate_global_configuration_strictly(cfg)
@@ -232,7 +236,7 @@ def test_validate_global_config_strict_stratigraphic_column_uuids(
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
         with pytest.raises(
-            ValidationError,
+            InvalidGlobalConfigurationError,
             match=f"Invalid SMDA UUID in 'smda.stratigraphic_column': {uuid}",
         ):
             validate_global_configuration_strictly(cfg)
@@ -254,7 +258,7 @@ def test_validate_global_config_strict_stratigraphic_column_names(
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
         with pytest.raises(
-            ValidationError,
+            InvalidGlobalConfigurationError,
             match=f"Invalid SMDA identifier in 'smda.stratigraphic_column': "
             f"{identifier}",
         ):
@@ -277,7 +281,7 @@ def test_validate_global_config_strict_stratigraphy_names(
         validate_global_configuration_strictly(cfg)  # Does not raise
     else:
         with pytest.raises(
-            ValidationError,
+            InvalidGlobalConfigurationError,
             match=f"Invalid stratigraphy name in 'smda.stratigraphy': {identifier}",
         ):
             validate_global_configuration_strictly(cfg)
@@ -424,7 +428,9 @@ def test_find_global_config_from_input_strict(
 ) -> None:
     """Tests finding a global config with 'Drogon' in it raises."""
     tmp_path = fmuconfig_with_input
-    with pytest.raises(ValidationError, match="Invalid name in 'model': Drogon"):
+    with pytest.raises(
+        InvalidGlobalConfigurationError, match="Invalid name in 'model': Drogon"
+    ):
         find_global_config(tmp_path)
 
 
@@ -443,7 +449,9 @@ def test_find_global_config_extra_output_paths(
     )
     assert isinstance(cfg, GlobalConfiguration)
 
-    with pytest.raises(ValidationError, match="Invalid name in 'model': Drogon"):
+    with pytest.raises(
+        InvalidGlobalConfigurationError, match="Invalid name in 'model': Drogon"
+    ):
         find_global_config(
             base_path,
             extra_output_paths=[tmp_path / "fmuconfig/output/global_variables.yml"],
@@ -466,7 +474,9 @@ def test_find_global_config_extra_input_paths(
     )
     assert isinstance(cfg, GlobalConfiguration)
 
-    with pytest.raises(ValidationError, match="Invalid name in 'model': Drogon"):
+    with pytest.raises(
+        InvalidGlobalConfigurationError, match="Invalid name in 'model': Drogon"
+    ):
         find_global_config(
             base_path,
             extra_input_dirs=[tmp_path / "fmuconfig/input"],
