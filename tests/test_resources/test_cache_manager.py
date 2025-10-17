@@ -13,8 +13,8 @@ if TYPE_CHECKING:
     from fmu.settings._fmu_dir import ProjectFMUDirectory
 
 
-def _read_snapshot_names(resource_cache: Path) -> list[str]:
-    return sorted(p.name for p in resource_cache.iterdir() if p.is_file())
+def _read_snapshot_names(config_cache: Path) -> list[str]:
+    return sorted(p.name for p in config_cache.iterdir() if p.is_file())
 
 
 def test_cache_manager_rejects_absolute_cache_root(
@@ -107,10 +107,10 @@ def test_cache_manager_trim_handles_missing_files(
 
     manager.store_revision("foo.json", "second")
 
-    resource_cache = fmu_dir.path / "cache" / "foo.json"
-    assert _read_snapshot_names(resource_cache)
+    config_cache = fmu_dir.path / "cache" / "foo"
+    assert _read_snapshot_names(config_cache)
     assert getattr(flaky_unlink, "raised", False) is True
-    assert len(_read_snapshot_names(resource_cache)) == 1
+    assert len(_read_snapshot_names(config_cache)) == 1
 
 
 def test_cache_manager_max_revisions_zero_skips_storage(
@@ -120,5 +120,5 @@ def test_cache_manager_max_revisions_zero_skips_storage(
     manager = CacheManager(fmu_dir, max_revisions=0)
     result = manager.store_revision("foo.json", "data")
     assert result is None
-    cache_dir = fmu_dir.path / "cache" / "foo.json"
+    cache_dir = fmu_dir.path / "cache" / "foo"
     assert not cache_dir.exists()

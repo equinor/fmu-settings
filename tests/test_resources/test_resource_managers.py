@@ -215,8 +215,8 @@ def test_pydantic_resource_manager_save_stores_revision_when_enabled(
         "Signature: 8a477f597d28d172789f06886806bc55"
     )
 
-    resource_cache = cache_root / "foo.json"
-    snapshots = list(resource_cache.iterdir())
+    config_cache = cache_root / "foo"
+    snapshots = list(config_cache.iterdir())
     assert len(snapshots) == 1
     snapshot = snapshots[0]
     assert snapshot.suffix == ".json"
@@ -234,7 +234,7 @@ def test_pydantic_resource_manager_revision_cache_trims_excess(
     monkeypatch.setattr(
         CacheManager,
         "_snapshot_filename",
-        lambda self, resource_path: next(sequence),
+        lambda self, config_file_path: next(sequence),
     )
 
     a = AManager(fmu_dir)
@@ -242,11 +242,11 @@ def test_pydantic_resource_manager_revision_cache_trims_excess(
     a.save(A(foo="two"))
     a.save(A(foo="three"))
 
-    resource_cache = fmu_dir.path / "cache" / "foo.json"
-    snapshots = sorted(p.name for p in resource_cache.iterdir())
+    config_cache = fmu_dir.path / "cache" / "foo"
+    snapshots = sorted(p.name for p in config_cache.iterdir())
     assert snapshots == ["rev2.json", "rev3.json"]
 
     assert (
-        json.loads((resource_cache / "rev3.json").read_text(encoding="utf-8"))["foo"]
+        json.loads((config_cache / "rev3.json").read_text(encoding="utf-8"))["foo"]
         == "three"
     )

@@ -35,7 +35,8 @@ class CacheManager:
 
         Args:
             fmu_dir: The FMUDirectory instance.
-            cache_root: Relative path (default ``"cache"``) where snapshots are stored.
+            cache_root: Relative path (within the ``.fmu`` directory) where snapshots
+                are stored. Default is ``"cache"``.
             max_revisions: Maximum number of revisions to retain.
         """
         if Path(cache_root).is_absolute():
@@ -46,13 +47,13 @@ class CacheManager:
         self.max_revisions = max(0, max_revisions)
 
     def store_revision(
-        self: Self, resource_path: Path | str, content: str, encoding: str = "utf-8"
+        self: Self, config_file_path: Path | str, content: str, encoding: str = "utf-8"
     ) -> Path | None:
         """Write a full snapshot of the config.json to the cache directory.
 
         Args:
-            resource_path: Relative path (e.g., ``config.json``) of the resource being
-                cached.
+            config_file_path: Relative path within the ``.fmu`` directory (e.g.,
+                ``config.json``) of the config file being cached.
             content: Serialized payload to store.
             encoding: Encoding used when persisting the snapshot. Defaults to UTF-8.
 
@@ -63,11 +64,11 @@ class CacheManager:
         if self.max_revisions == 0:
             return None
 
-        resource_path = Path(resource_path)
-        relative_resource_dir = self._cache_root / resource_path
-        cache_dir = self._ensure_resource_cache_dir(resource_path)
-        snapshot_name = self._snapshot_filename(resource_path)
-        snapshot_relative_path = relative_resource_dir / snapshot_name
+        config_file_path = Path(config_file_path)
+        config_cache_subdir = self._cache_root / config_file_path.stem
+        cache_dir = self._ensure_config_cache_dir(config_file_path)
+        snapshot_name = self._snapshot_filename(config_file_path)
+        snapshot_relative_path = config_cache_subdir / snapshot_name
         self._fmu_dir.write_text_file(
             snapshot_relative_path, content, encoding=encoding
         )
@@ -77,31 +78,31 @@ class CacheManager:
         self._trim(cache_dir)
         return snapshot_path
 
-    def list_revisions(self: Self, resource_path: Path | str) -> list[Path]:
-        """List existing snapshots for a resource, sorted oldest to newest.
+    def list_revisions(self: Self, config_file_path: Path | str) -> list[Path]:
+        """List existing snapshots for a config file, sorted oldest to newest.
 
         Args:
-            resource_path: Relative path (e.g., ``config.json``) whose cache entries
-                should be enumerated.
+            config_file_path: Relative path within the ``.fmu`` directory (e.g.,
+                ``config.json``) whose cache entries should be listed.
 
         Returns:
             A list of absolute `Path` objects sorted lexicographically (oldest first).
         """
-        resource_path = Path(resource_path)
-        resource_cache_path = self._cache_root / resource_path
-        if not self._fmu_dir.file_exists(resource_cache_path):
+        config_file_path = Path(config_file_path)
+        config_cache_path = self._cache_root / config_file_path.stem
+        if not self._fmu_dir.file_exists(config_cache_path):
             return []
-        cache_dir = self._fmu_dir.get_file_path(resource_cache_path)
+        cache_dir = self._fmu_dir.get_file_path(config_cache_path)
 
         revisions = [p for p in cache_dir.iterdir() if p.is_file()]
         revisions.sort(key=lambda path: path.name)
         return revisions
 
-    def _ensure_resource_cache_dir(self: Self, resource_path: Path) -> Path:
-        """Create (if needed) and return the cache directory for ``resource_path``."""
+    def _ensure_config_cache_dir(self: Self, config_file_path: Path) -> Path:
+        """Create (if needed) and return the cache directory for config file."""
         self._cache_root_path(create=True)
-        resource_cache_dir_relative = self._cache_root / resource_path
-        return self._fmu_dir.ensure_directory(resource_cache_dir_relative)
+        config_cache_dir_relative = self._cache_root / config_file_path.stem
+        return self._fmu_dir.ensure_directory(config_cache_dir_relative)
 
     def _cache_root_path(self: Self, create: bool) -> Path:
         """Resolve the cache root, creating it and the cachedir tag if requested."""
@@ -119,10 +120,10 @@ class CacheManager:
             return
         self._fmu_dir.write_text_file(tag_path_relative, _CACHEDIR_TAG_CONTENT)
 
-    def _snapshot_filename(self: Self, resource_path: Path) -> str:
+    def _snapshot_filename(self: Self, config_file_path: Path) -> str:
         """Generate a timestamped filename for the next snapshot."""
         timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
-        suffix = resource_path.suffix or ".txt"
+        suffix = config_file_path.suffix or ".txt"
         token = uuid4().hex[:8]
         return f"{timestamp}-{token}{suffix}"
 
