@@ -65,14 +65,14 @@ class CacheManager:
             return None
 
         config_file_path = Path(config_file_path)
-        config_cache_subdir = self._cache_root / config_file_path.stem
         cache_dir = self._ensure_config_cache_dir(config_file_path)
         snapshot_name = self._snapshot_filename(config_file_path)
-        snapshot_relative_path = config_cache_subdir / snapshot_name
+        snapshot_path = cache_dir / snapshot_name
+
+        cache_relative = self._cache_root / config_file_path.stem
         self._fmu_dir.write_text_file(
-            snapshot_relative_path, content, encoding=encoding
+            cache_relative / snapshot_name, content, encoding=encoding
         )
-        snapshot_path = self._fmu_dir.get_file_path(snapshot_relative_path)
         logger.debug("Stored revision snapshot at %s", snapshot_path)
 
         self._trim(cache_dir)

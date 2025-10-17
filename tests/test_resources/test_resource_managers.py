@@ -250,3 +250,27 @@ def test_pydantic_resource_manager_revision_cache_trims_excess(
         json.loads((config_cache / "rev3.json").read_text(encoding="utf-8"))["foo"]
         == "three"
     )
+
+
+def test_pydantic_resource_manager_save_with_max_revisions_override(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Saving with max_revisions override creates a temporary CacheManager."""
+    fmu_dir.enable_revision_cache = True
+    fmu_dir.revision_cache_max_revisions = 5
+
+    a = AManager(fmu_dir)
+    a.save(A(foo="one"), max_revisions=3)
+    a.save(A(foo="two"), max_revisions=3)
+    a.save(A(foo="three"), max_revisions=3)
+    a.save(A(foo="four"), max_revisions=3)
+
+    config_cache = fmu_dir.path / "cache" / "foo"
+    snapshots = sorted(p.name for p in config_cache.iterdir())
+    assert len(snapshots) == 3  # noqa: PLR2004
+
+    contents = [
+        json.loads((config_cache / name).read_text(encoding="utf-8"))["foo"]
+        for name in snapshots
+    ]
+    assert contents == ["two", "three", "four"]

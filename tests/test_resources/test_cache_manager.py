@@ -42,6 +42,7 @@ def test_cache_manager_list_revisions_with_existing_snapshots(
     manager.store_revision("foo.json", "two")
     revisions = manager.list_revisions("foo.json")
     assert [path.name for path in revisions] == sorted(path.name for path in revisions)
+    assert len(revisions) == 2  # noqa: PLR2004
 
 
 def test_cache_manager_honours_existing_cachedir_tag(
@@ -108,7 +109,6 @@ def test_cache_manager_trim_handles_missing_files(
     manager.store_revision("foo.json", "second")
 
     config_cache = fmu_dir.path / "cache" / "foo"
-    assert _read_snapshot_names(config_cache)
     assert getattr(flaky_unlink, "raised", False) is True
     assert len(_read_snapshot_names(config_cache)) == 1
 

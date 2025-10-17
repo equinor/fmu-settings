@@ -127,15 +127,14 @@ class PydanticResourceManager(Generic[PydanticResource]):
             )
 
         if enable_revision_cache and self.exists:
-            cache = CacheManager(
-                self.fmu_dir,
-                cache_root=getattr(self.fmu_dir, "revision_cache_root", "cache"),
-                max_revisions=(
-                    getattr(self.fmu_dir, "revision_cache_max_revisions", 5)
-                    if max_revisions is None
-                    else max_revisions
-                ),
-            )
+            if max_revisions is None:
+                cache = self.fmu_dir.cache
+            else:
+                cache = CacheManager(
+                    self.fmu_dir,
+                    cache_root=getattr(self.fmu_dir, "revision_cache_root", "cache"),
+                    max_revisions=max_revisions,
+                )
             cache.store_revision(self.relative_path, json_data)
 
         self._cache = model
