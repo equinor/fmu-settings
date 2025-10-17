@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self, TypeAlias, cast
 
 from ._logging import null_logger
+from ._resources.cache_manager import CacheManager
 from ._resources.config_managers import (
     ProjectConfigManager,
     UserConfigManager,
@@ -22,6 +23,7 @@ class FMUDirectoryBase:
 
     config: FMUConfigManager
     _lock: LockManager
+    _cache_manager: CacheManager | None
     enable_revision_cache: bool
     revision_cache_root: str
     revision_cache_max_revisions: int
@@ -41,6 +43,7 @@ class FMUDirectoryBase:
         self.base_path = Path(base_path).resolve()
         logger.debug(f"Initializing FMUDirectory from '{base_path}'")
         self._lock = LockManager(self)
+        self._cache_manager = None
         self.enable_revision_cache = False
         self.revision_cache_root = "cache"
         self.revision_cache_max_revisions = 5
@@ -62,6 +65,25 @@ class FMUDirectoryBase:
     def path(self: Self) -> Path:
         """Returns the path to the .fmu directory."""
         return self._path
+
+    @property
+    def cache(self: Self) -> CacheManager:
+        """Access the cache manager for this FMU directory.
+
+        Returns:
+            CacheManager instance configured with this directory's settings.
+
+        Example:
+            >>> fmu_dir.enable_revision_cache = True
+            >>> revisions = fmu_dir.cache.list_revisions("config.json")
+        """
+        if self._cache_manager is None:
+            self._cache_manager = CacheManager(
+                self,
+                cache_root=self.revision_cache_root,
+                max_revisions=self.revision_cache_max_revisions,
+            )
+        return self._cache_manager
 
     def get_config_value(self: Self, key: str, default: Any = None) -> Any:
         """Gets a configuration value by key.
