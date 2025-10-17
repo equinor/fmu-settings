@@ -74,9 +74,8 @@ class FMUDirectoryBase:
         ``revision_cache_root`` and ``revision_cache_max_revisions``. Subsequent
         changes to these settings will not affect the existing cache manager.
 
-        To apply new settings, reset the cache manager:
-            >>> fmu_dir._cache_manager = None
-            >>> fmu_dir.revision_cache_max_revisions = 10
+        To apply new settings, use :meth:`reset_cache_manager` before the next access:
+            >>> fmu_dir.reset_cache_manager(max_revisions=10)
             >>> cache = fmu_dir.cache
 
         Returns:
@@ -93,6 +92,34 @@ class FMUDirectoryBase:
                 max_revisions=self.revision_cache_max_revisions,
             )
         return self._cache_manager
+
+    def reset_cache_manager(
+        self: Self,
+        *,
+        cache_root: str | Path | None = None,
+        max_revisions: int | None = None,
+    ) -> None:
+        """Reset the memoized cache manager and optionally update its settings.
+
+        Args:
+            cache_root: New relative cache root to apply. If provided it must be
+                relative to the .fmu directory.
+            max_revisions: New retention limit for revision snapshots.
+
+        Raises:
+            ValueError: If ``cache_root`` is an absolute path.
+        """
+        if cache_root is not None:
+            if Path(cache_root).is_absolute():
+                raise ValueError(
+                    "cache_root must be a path relative to the .fmu directory"
+                )
+            self.revision_cache_root = str(cache_root)
+
+        if max_revisions is not None:
+            self.revision_cache_max_revisions = max_revisions
+
+        self._cache_manager = None
 
     def get_config_value(self: Self, key: str, default: Any = None) -> Any:
         """Gets a configuration value by key.

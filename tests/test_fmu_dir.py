@@ -121,6 +121,29 @@ def test_cache_property_is_lazy(fmu_dir: ProjectFMUDirectory) -> None:
     assert cache.max_revisions == fmu_dir.revision_cache_max_revisions
 
 
+def test_reset_cache_manager_updates_settings(fmu_dir: ProjectFMUDirectory) -> None:
+    """Resetting the cache manager should rebuild it with new settings."""
+    original_cache = fmu_dir.cache
+
+    fmu_dir.reset_cache_manager(cache_root="custom-cache", max_revisions=7)
+
+    refreshed_cache = fmu_dir.cache
+    assert refreshed_cache is not original_cache
+    assert fmu_dir.revision_cache_root == "custom-cache"
+    assert refreshed_cache.max_revisions == 7  # noqa: PLR2004
+    assert refreshed_cache._cache_root == Path("custom-cache")
+
+
+def test_reset_cache_manager_rejects_absolute_root(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Reset should reject absolute cache roots."""
+    with pytest.raises(
+        ValueError, match="cache_root must be a path relative to the .fmu directory"
+    ):
+        fmu_dir.reset_cache_manager(cache_root=Path("/tmp/cache"))
+
+
 def test_get_config_value(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests get_config_value retrieves correctly from the config."""
     assert fmu_dir.get_config_value("version") == __version__
