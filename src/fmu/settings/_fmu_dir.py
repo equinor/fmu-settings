@@ -1,9 +1,10 @@
 """Main interface for working with .fmu directory."""
 
 from pathlib import Path
-from typing import Any, Final, Self, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, Final, Self, TypeAlias, cast
 
 from ._logging import null_logger
+from ._resources.cache_manager import CacheManager
 from ._resources.config_managers import (
     ProjectConfigManager,
     UserConfigManager,
@@ -22,6 +23,10 @@ class FMUDirectoryBase:
 
     config: FMUConfigManager
     _lock: LockManager
+    _cache_manager: CacheManager | None
+    enable_revision_cache: bool
+    revision_cache_root: str
+    revision_cache_max_revisions: int
 
     def __init__(self: Self, base_path: str | Path) -> None:
         """Initializes access to a .fmu directory.
@@ -38,6 +43,10 @@ class FMUDirectoryBase:
         self.base_path = Path(base_path).resolve()
         logger.debug(f"Initializing FMUDirectory from '{base_path}'")
         self._lock = LockManager(self)
+        self._cache_manager = None
+        self.enable_revision_cache = False
+        self.revision_cache_root = "cache"
+        self.revision_cache_max_revisions = 5
 
         fmu_dir = self.base_path / ".fmu"
         if fmu_dir.exists():
@@ -56,6 +65,61 @@ class FMUDirectoryBase:
     def path(self: Self) -> Path:
         """Returns the path to the .fmu directory."""
         return self._path
+
+    @property
+    def cache(self: Self) -> CacheManager:
+        """Access the cache manager for this FMU directory.
+
+        The cache manager is memoized on first access using the current values of
+        ``revision_cache_root`` and ``revision_cache_max_revisions``. Subsequent
+        changes to these settings will not affect the existing cache manager.
+
+        To apply new settings, use :meth:`reset_cache_manager` before the next access:
+            >>> fmu_dir.reset_cache_manager(max_revisions=10)
+            >>> cache = fmu_dir.cache
+
+        Returns:
+            CacheManager instance configured with FMU directory settings.
+
+        Example:
+            >>> fmu_dir.enable_revision_cache = True
+            >>> revisions = fmu_dir.cache.list_revisions("config.json")
+        """
+        if self._cache_manager is None:
+            self._cache_manager = CacheManager(
+                self,
+                cache_root=self.revision_cache_root,
+                max_revisions=self.revision_cache_max_revisions,
+            )
+        return self._cache_manager
+
+    def reset_cache_manager(
+        self: Self,
+        *,
+        cache_root: str | Path | None = None,
+        max_revisions: int | None = None,
+    ) -> None:
+        """Reset the memoized cache manager and optionally update its settings.
+
+        Args:
+            cache_root: New relative cache root to apply. If provided it must be
+                relative to the .fmu directory.
+            max_revisions: New retention limit for revision snapshots.
+
+        Raises:
+            ValueError: If ``cache_root`` is an absolute path.
+        """
+        if cache_root is not None:
+            if Path(cache_root).is_absolute():
+                raise ValueError(
+                    "cache_root must be a path relative to the .fmu directory"
+                )
+            self.revision_cache_root = str(cache_root)
+
+        if max_revisions is not None:
+            self.revision_cache_max_revisions = max_revisions
+
+        self._cache_manager = None
 
     def get_config_value(self: Self, key: str, default: Any = None) -> Any:
         """Gets a configuration value by key.
@@ -214,7 +278,8 @@ class FMUDirectoryBase:
 
 
 class ProjectFMUDirectory(FMUDirectoryBase):
-    config: ProjectConfigManager
+    if TYPE_CHECKING:
+        config: ProjectConfigManager
 
     def __init__(self, base_path: str | Path) -> None:
         """Initializes a project-based .fmu directory."""
@@ -287,7 +352,8 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
 
 class UserFMUDirectory(FMUDirectoryBase):
-    config: UserConfigManager
+    if TYPE_CHECKING:
+        config: UserConfigManager
 
     def __init__(self) -> None:
         """Initializes a project-based .fmu directory."""

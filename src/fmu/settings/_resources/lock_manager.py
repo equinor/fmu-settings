@@ -216,11 +216,19 @@ class LockManager(PydanticResourceManager[LockInfo]):
         self._acquired_at = None
         self._cache = None
 
-    def save(self: Self, data: LockInfo) -> None:
+    def save(
+        self: Self,
+        data: LockInfo,
+        *,
+        enable_revision_cache: bool | None = None,
+        max_revisions: int | None = None,
+    ) -> None:
         """Save the lockfile in an NFS-atomic manner.
 
         This overrides save() from the Pydantic resource manager.
         """
+        del enable_revision_cache, max_revisions  # Lock files do not support caching.
+
         lock_info = self._safe_load()
         if not lock_info or not self._is_mine(lock_info):
             raise LockError(
