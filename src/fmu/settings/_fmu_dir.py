@@ -70,8 +70,17 @@ class FMUDirectoryBase:
     def cache(self: Self) -> CacheManager:
         """Access the cache manager for this FMU directory.
 
+        The cache manager is memoized on first access using the current values of
+        ``revision_cache_root`` and ``revision_cache_max_revisions``. Subsequent
+        changes to these settings will not affect the existing cache manager.
+
+        To apply new settings, reset the cache manager:
+            >>> fmu_dir._cache_manager = None
+            >>> fmu_dir.revision_cache_max_revisions = 10
+            >>> cache = fmu_dir.cache
+
         Returns:
-            CacheManager instance configured with this directory's settings.
+            CacheManager instance configured with FMU directory settings.
 
         Example:
             >>> fmu_dir.enable_revision_cache = True
