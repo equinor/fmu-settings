@@ -1,7 +1,7 @@
 """Main interface for working with .fmu directory."""
 
 from pathlib import Path
-from typing import Any, Final, Self, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, Final, Self, TypeAlias, cast
 
 from ._logging import null_logger
 from ._resources.config_managers import (
@@ -22,6 +22,9 @@ class FMUDirectoryBase:
 
     config: FMUConfigManager
     _lock: LockManager
+    enable_revision_cache: bool
+    revision_cache_root: str
+    revision_cache_max_revisions: int
 
     def __init__(self: Self, base_path: str | Path) -> None:
         """Initializes access to a .fmu directory.
@@ -38,6 +41,9 @@ class FMUDirectoryBase:
         self.base_path = Path(base_path).resolve()
         logger.debug(f"Initializing FMUDirectory from '{base_path}'")
         self._lock = LockManager(self)
+        self.enable_revision_cache = False
+        self.revision_cache_root = "cache"
+        self.revision_cache_max_revisions = 5
 
         fmu_dir = self.base_path / ".fmu"
         if fmu_dir.exists():
@@ -214,7 +220,8 @@ class FMUDirectoryBase:
 
 
 class ProjectFMUDirectory(FMUDirectoryBase):
-    config: ProjectConfigManager
+    if TYPE_CHECKING:
+        config: ProjectConfigManager
 
     def __init__(self, base_path: str | Path) -> None:
         """Initializes a project-based .fmu directory."""
@@ -287,7 +294,8 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
 
 class UserFMUDirectory(FMUDirectoryBase):
-    config: UserConfigManager
+    if TYPE_CHECKING:
+        config: UserConfigManager
 
     def __init__(self) -> None:
         """Initializes a project-based .fmu directory."""

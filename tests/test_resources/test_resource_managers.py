@@ -9,6 +9,7 @@ import pytest
 from pydantic import BaseModel
 
 from fmu.settings._fmu_dir import ProjectFMUDirectory
+from fmu.settings._resources.cache_manager import CacheManager
 from fmu.settings._resources.lock_manager import LockManager
 from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
 
@@ -184,3 +185,68 @@ def test_pydantic_resource_manager_loads_invalid_model(
         ValueError, match=r"Invalid content in resource file[\s\S]*input_value=0"
     ):
         a.load(force=True)
+
+
+def test_pydantic_resource_manager_save_does_not_cache_when_disabled(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Saving without cache enabled should not create cache artifacts."""
+    a = AManager(fmu_dir)
+    a.save(A(foo="bar"))
+
+    cache_root = fmu_dir.path / "cache"
+    assert not cache_root.exists()
+
+
+def test_pydantic_resource_manager_save_stores_revision_when_enabled(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Saving with cache enabled should persist a revision snapshot."""
+    fmu_dir.enable_revision_cache = True
+
+    a = AManager(fmu_dir)
+    model = A(foo="bar")
+    a.save(model)
+
+    cache_root = fmu_dir.path / "cache"
+    assert cache_root.is_dir()
+    tag_path = cache_root / "CACHEDIR.TAG"
+    assert tag_path.read_text(encoding="utf-8").startswith(
+        "Signature: 8a477f597d28d172789f06886806bc55"
+    )
+
+    resource_cache = cache_root / "foo.json"
+    snapshots = list(resource_cache.iterdir())
+    assert len(snapshots) == 1
+    snapshot = snapshots[0]
+    assert snapshot.suffix == ".json"
+    assert json.loads(snapshot.read_text(encoding="utf-8")) == model.model_dump()
+
+
+def test_pydantic_resource_manager_revision_cache_trims_excess(
+    fmu_dir: ProjectFMUDirectory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Revision caching should retain only the configured number of snapshots."""
+    fmu_dir.enable_revision_cache = True
+    fmu_dir.revision_cache_max_revisions = 2
+
+    sequence = iter(["rev1.json", "rev2.json", "rev3.json"])
+    monkeypatch.setattr(
+        CacheManager,
+        "_snapshot_filename",
+        lambda self, resource_path: next(sequence),
+    )
+
+    a = AManager(fmu_dir)
+    a.save(A(foo="one"))
+    a.save(A(foo="two"))
+    a.save(A(foo="three"))
+
+    resource_cache = fmu_dir.path / "cache" / "foo.json"
+    snapshots = sorted(p.name for p in resource_cache.iterdir())
+    assert snapshots == ["rev2.json", "rev3.json"]
+
+    assert (
+        json.loads((resource_cache / "rev3.json").read_text(encoding="utf-8"))["foo"]
+        == "three"
+    )

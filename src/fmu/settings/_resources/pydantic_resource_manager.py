@@ -9,6 +9,8 @@ from pydantic import BaseModel, ValidationError
 
 from fmu.settings.types import ResettableBaseModel
 
+from .cache_manager import CacheManager
+
 if TYPE_CHECKING:
     # Avoid circular dependency for type hint in __init__ only
     from pathlib import Path
@@ -99,15 +101,43 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
         return self._cache
 
-    def save(self: Self, model: PydanticResource) -> None:
+    def save(
+        self: Self,
+        model: PydanticResource,
+        *,
+        enable_revision_cache: bool | None = None,
+        max_revisions: int | None = None,
+    ) -> None:
         """Save the Pydantic model to disk.
 
         Args:
-            model: Validated Pydantic model instance
+            model: Validated Pydantic model instance.
+            enable_revision_cache: Override for whether to store a revision snapshot for
+                this save. If None, fall back to the FMU directory setting.
+            max_revisions: Override for how many snapshots to retain. If None, fall back
+                to the FMU directory setting.
         """
         self.fmu_dir._lock.ensure_can_write()
         json_data = model.model_dump_json(by_alias=True, indent=2)
         self.fmu_dir.write_text_file(self.relative_path, json_data)
+
+        if enable_revision_cache is None:
+            enable_revision_cache = getattr(
+                self.fmu_dir, "enable_revision_cache", False
+            )
+
+        if enable_revision_cache and self.exists:
+            cache = CacheManager(
+                self.fmu_dir,
+                cache_root=getattr(self.fmu_dir, "revision_cache_root", "cache"),
+                max_revisions=(
+                    getattr(self.fmu_dir, "revision_cache_max_revisions", 5)
+                    if max_revisions is None
+                    else max_revisions
+                ),
+            )
+            cache.store_revision(self.relative_path, json_data)
+
         self._cache = model
 
 
@@ -212,7 +242,7 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
             else:
                 config_dict[key] = value
 
-            updated_config = config.model_validate(config_dict)
+            updated_config: MutablePydanticResource = config.model_validate(config_dict)
             self.save(updated_config)
         except ValidationError as e:
             raise ValueError(
@@ -249,7 +279,7 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
                 if "." in key:
                     self._set_dot_notation_key(config_dict, key, value)
 
-                updated_config = config.model_validate(config_dict)
+            updated_config: MutablePydanticResource = config.model_validate(config_dict)
             self.save(updated_config)
         except ValidationError as e:
             raise ValueError(
