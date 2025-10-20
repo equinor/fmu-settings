@@ -139,21 +139,21 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
 
 class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticResource]):
-    """Manages the .fmu configuration file."""
+    """Manages the .fmu resource file."""
 
     def __init__(
-        self: Self, fmu_dir: FMUDirectoryBase, config: type[MutablePydanticResource]
+        self: Self, fmu_dir: FMUDirectoryBase, resource: type[MutablePydanticResource]
     ) -> None:
-        """Initializes the Config resource manager."""
-        super().__init__(fmu_dir, config)
+        """Initializes the resource manager."""
+        super().__init__(fmu_dir, resource)
 
     def _get_dot_notation_key(
-        self: Self, config_dict: dict[str, Any], key: str, default: Any = None
+        self: Self, resource_dict: dict[str, Any], key: str, default: Any = None
     ) -> Any:
         """Sets the value to a dot-notation key.
 
         Args:
-            config_dict: The configuration dictionary we are modifying (by reference)
+            resource_dict: The resource dictionary we are modifying (by reference)
             key: The key to set
             default: Value to return if key is not found. Default None
 
@@ -161,7 +161,7 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
             The value or default
         """
         parts = key.split(".")
-        value = config_dict
+        value = resource_dict
         for part in parts:
             if isinstance(value, dict) and part in value:
                 value = value[part]
@@ -171,28 +171,28 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
         return value
 
     def get(self: Self, key: str, default: Any = None) -> Any:
-        """Gets a configuration value by key.
+        """Gets a resource value by key.
 
         Supports dot notation for nested values (e.g., "foo.bar")
 
         Args:
-            key: The configuration key
+            key: The resource key
             default: Value to return if key is not found. Default None
 
         Returns:
-            The configuration value or default
+            The resource value or default
         """
         try:
-            config = self.load()
+            resource = self.load()
 
             if "." in key:
-                return self._get_dot_notation_key(config.model_dump(), key, default)
+                return self._get_dot_notation_key(resource.model_dump(), key, default)
 
-            if hasattr(config, key):
-                return getattr(config, key)
+            if hasattr(resource, key):
+                return getattr(resource, key)
 
-            config_dict = config.model_dump()
-            return config_dict.get(key, default)
+            resource_dict = resource.model_dump()
+            return resource_dict.get(key, default)
         except FileNotFoundError as e:
             raise FileNotFoundError(
                 f"Resource file for '{self.__class__.__name__}' not found "
@@ -200,17 +200,17 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
             ) from e
 
     def _set_dot_notation_key(
-        self: Self, config_dict: dict[str, Any], key: str, value: Any
+        self: Self, resource_dict: dict[str, Any], key: str, value: Any
     ) -> None:
         """Sets the value to a dot-notation key.
 
         Args:
-            config_dict: The configuration dictionary we are modifying (by reference)
+            resource_dict: The resource dictionary we are modifying (by reference)
             key: The key to set
             value: The value to set
         """
         parts = key.split(".")
-        target = config_dict
+        target = resource_dict
 
         for part in parts[:-1]:
             if part not in target or not isinstance(target[part], dict):
@@ -220,27 +220,27 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
         target[parts[-1]] = value
 
     def set(self: Self, key: str, value: Any) -> None:
-        """Sets a configuration value by key.
+        """Sets a resource value by key.
 
         Args:
-            key: The configuration key
+            key: The resource key
             value: The value to set
 
         Raises:
-            FileNotFoundError: If config file doesn't exist
-            ValueError: If the updated config is invalid
+            FileNotFoundError: If resource file doesn't exist
+            ValueError: If the updated resource is invalid
         """
         try:
-            config = self.load()
-            config_dict = config.model_dump()
+            resource = self.load()
+            resource_dict = resource.model_dump()
 
             if "." in key:
-                self._set_dot_notation_key(config_dict, key, value)
+                self._set_dot_notation_key(resource_dict, key, value)
             else:
-                config_dict[key] = value
+                resource_dict[key] = value
 
-            updated_config: MutablePydanticResource = config.model_validate(config_dict)
-            self.save(updated_config)
+            updated_resource = resource.model_validate(resource_dict)
+            self.save(updated_resource)
         except ValidationError as e:
             raise ValueError(
                 f"Invalid value set for '{self.__class__.__name__}' with "
@@ -253,31 +253,31 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
             ) from e
 
     def update(self: Self, updates: dict[str, Any]) -> MutablePydanticResource:
-        """Updates multiple configuration values at once.
+        """Updates multiple resource values at once.
 
         Args:
             updates: Dictionary of key-value pairs to update
 
         Returns:
-            The updated Config object
+            The updated Resource object
 
         Raises:
-            FileNotFoundError: If config file doesn't exist
-            ValueError: If the updates config is invalid
+            FileNotFoundError: If resource file doesn't exist
+            ValueError: If the updates resource is invalid
         """
         try:
-            config = self.load()
-            config_dict = config.model_dump()
+            resource = self.load()
+            resource_dict = resource.model_dump()
 
             flat_updates = {k: v for k, v in updates.items() if "." not in k}
-            config_dict.update(flat_updates)
+            resource_dict.update(flat_updates)
 
             for key, value in updates.items():
                 if "." in key:
-                    self._set_dot_notation_key(config_dict, key, value)
+                    self._set_dot_notation_key(resource_dict, key, value)
 
-            updated_config: MutablePydanticResource = config.model_validate(config_dict)
-            self.save(updated_config)
+            updated_resource = resource.model_validate(resource_dict)
+            self.save(updated_resource)
         except ValidationError as e:
             raise ValueError(
                 f"Invalid value set for '{self.__class__.__name__}' with "
@@ -289,14 +289,14 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
                 f"at: '{self.path}' when setting updates {updates}"
             ) from e
 
-        return updated_config
+        return updated_resource
 
     def reset(self: Self) -> MutablePydanticResource:
-        """Resets the configuration to defaults.
+        """Resets the resources to defaults.
 
         Returns:
-            The new default config object
+            The new default resource object
         """
-        config = self.model_class.reset()
-        self.save(config)
-        return config
+        resource = self.model_class.reset()
+        self.save(resource)
+        return resource
