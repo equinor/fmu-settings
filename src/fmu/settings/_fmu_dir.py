@@ -23,10 +23,7 @@ class FMUDirectoryBase:
 
     config: FMUConfigManager
     _lock: LockManager
-    _cache_manager: CacheManager | None
-    enable_revision_cache: bool
-    revision_cache_root: str
-    revision_cache_max_revisions: int
+    _cache_manager: CacheManager
 
     def __init__(self: Self, base_path: str | Path) -> None:
         """Initializes access to a .fmu directory.
@@ -43,10 +40,7 @@ class FMUDirectoryBase:
         self.base_path = Path(base_path).resolve()
         logger.debug(f"Initializing FMUDirectory from '{base_path}'")
         self._lock = LockManager(self)
-        self._cache_manager = None
-        self.enable_revision_cache = False
-        self.revision_cache_root = "cache"
-        self.revision_cache_max_revisions = 5
+        self._cache_manager = CacheManager(self, max_revisions=5)
 
         fmu_dir = self.base_path / ".fmu"
         if fmu_dir.exists():
@@ -68,58 +62,18 @@ class FMUDirectoryBase:
 
     @property
     def cache(self: Self) -> CacheManager:
-        """Access the cache manager for this FMU directory.
-
-        The cache manager is memoized on first access using the current values of
-        ``revision_cache_root`` and ``revision_cache_max_revisions``. Subsequent
-        changes to these settings will not affect the existing cache manager.
-
-        To apply new settings, use :meth:`reset_cache_manager` before the next access:
-            >>> fmu_dir.reset_cache_manager(max_revisions=10)
-            >>> cache = fmu_dir.cache
-
-        Returns:
-            CacheManager instance configured with FMU directory settings.
-
-        Example:
-            >>> fmu_dir.enable_revision_cache = True
-            >>> revisions = fmu_dir.cache.list_revisions("config.json")
-        """
-        if self._cache_manager is None:
-            self._cache_manager = CacheManager(
-                self,
-                cache_root=self.revision_cache_root,
-                max_revisions=self.revision_cache_max_revisions,
-            )
+        """Access the cache manager."""
         return self._cache_manager
 
-    def reset_cache_manager(
-        self: Self,
-        *,
-        cache_root: str | Path | None = None,
-        max_revisions: int | None = None,
-    ) -> None:
-        """Reset the memoized cache manager and optionally update its settings.
+    @property
+    def cache_max_revisions(self: Self) -> int:
+        """Current retention limit for revision snapshots."""
+        return self._cache_manager.max_revisions
 
-        Args:
-            cache_root: New relative cache root to apply. If provided it must be
-                relative to the .fmu directory.
-            max_revisions: New retention limit for revision snapshots.
-
-        Raises:
-            ValueError: If ``cache_root`` is an absolute path.
-        """
-        if cache_root is not None:
-            if Path(cache_root).is_absolute():
-                raise ValueError(
-                    "cache_root must be a path relative to the .fmu directory"
-                )
-            self.revision_cache_root = str(cache_root)
-
-        if max_revisions is not None:
-            self.revision_cache_max_revisions = max_revisions
-
-        self._cache_manager = None
+    @cache_max_revisions.setter
+    def cache_max_revisions(self: Self, value: int) -> None:
+        """Update the retention limit for revision snapshots."""
+        self._cache_manager.max_revisions = value
 
     def get_config_value(self: Self, key: str, default: Any = None) -> Any:
         """Gets a configuration value by key.

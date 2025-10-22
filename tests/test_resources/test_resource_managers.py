@@ -1,6 +1,7 @@
 """Tests for fmu.settings.resources.managers."""
 
 import json
+import shutil
 from pathlib import Path
 from typing import Self
 from unittest.mock import patch
@@ -191,10 +192,17 @@ def test_pydantic_resource_manager_save_does_not_cache_when_disabled(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Saving without cache enabled should not create cache artifacts."""
-    a = AManager(fmu_dir)
-    a.save(A(foo="bar"))
-
+    original_default = AManager.cache_enabled
+    AManager.cache_enabled = False
     cache_root = fmu_dir.path / "cache"
+    try:
+        if cache_root.exists():
+            shutil.rmtree(cache_root)
+        a = AManager(fmu_dir)
+        a.save(A(foo="bar"))
+    finally:
+        AManager.cache_enabled = original_default
+
     assert not cache_root.exists()
 
 
@@ -202,8 +210,6 @@ def test_pydantic_resource_manager_save_stores_revision_when_enabled(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Saving with cache enabled should persist a revision snapshot."""
-    fmu_dir.enable_revision_cache = True
-
     a = AManager(fmu_dir)
     model = A(foo="bar")
     a.save(model)
@@ -227,20 +233,22 @@ def test_pydantic_resource_manager_revision_cache_trims_excess(
     fmu_dir: ProjectFMUDirectory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Revision caching should retain only the configured number of snapshots."""
-    fmu_dir.enable_revision_cache = True
-    fmu_dir.revision_cache_max_revisions = 2
+    original_limit = fmu_dir.cache_max_revisions
+    fmu_dir.cache_max_revisions = 2
+    try:
+        sequence = iter(["rev1.json", "rev2.json", "rev3.json"])
+        monkeypatch.setattr(
+            CacheManager,
+            "_snapshot_filename",
+            lambda self, config_file_path: next(sequence),
+        )
 
-    sequence = iter(["rev1.json", "rev2.json", "rev3.json"])
-    monkeypatch.setattr(
-        CacheManager,
-        "_snapshot_filename",
-        lambda self, config_file_path: next(sequence),
-    )
-
-    a = AManager(fmu_dir)
-    a.save(A(foo="one"))
-    a.save(A(foo="two"))
-    a.save(A(foo="three"))
+        a = AManager(fmu_dir)
+        a.save(A(foo="one"))
+        a.save(A(foo="two"))
+        a.save(A(foo="three"))
+    finally:
+        fmu_dir.cache_max_revisions = original_limit
 
     config_cache = fmu_dir.path / "cache" / "foo"
     snapshots = sorted(p.name for p in config_cache.iterdir())
@@ -252,18 +260,20 @@ def test_pydantic_resource_manager_revision_cache_trims_excess(
     )
 
 
-def test_pydantic_resource_manager_save_with_max_revisions_override(
+def test_pydantic_resource_manager_respects_retention_setting(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Saving with max_revisions override creates a temporary CacheManager."""
-    fmu_dir.enable_revision_cache = True
-    fmu_dir.revision_cache_max_revisions = 5
-
-    a = AManager(fmu_dir)
-    a.save(A(foo="one"), max_revisions=3)
-    a.save(A(foo="two"), max_revisions=3)
-    a.save(A(foo="three"), max_revisions=3)
-    a.save(A(foo="four"), max_revisions=3)
+    """Saving uses the cache manager retention setting."""
+    original_limit = fmu_dir.cache_max_revisions
+    fmu_dir.cache_max_revisions = 3
+    try:
+        a = AManager(fmu_dir)
+        a.save(A(foo="one"))
+        a.save(A(foo="two"))
+        a.save(A(foo="three"))
+        a.save(A(foo="four"))
+    finally:
+        fmu_dir.cache_max_revisions = original_limit
 
     config_cache = fmu_dir.path / "cache" / "foo"
     snapshots = sorted(p.name for p in config_cache.iterdir())

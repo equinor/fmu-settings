@@ -5,24 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pytest
-
 from fmu.settings._resources.cache_manager import _CACHEDIR_TAG_CONTENT, CacheManager
 
 if TYPE_CHECKING:
+    import pytest
+
     from fmu.settings._fmu_dir import ProjectFMUDirectory
 
 
 def _read_snapshot_names(config_cache: Path) -> list[str]:
     return sorted(p.name for p in config_cache.iterdir() if p.is_file())
-
-
-def test_cache_manager_rejects_absolute_cache_root(
-    fmu_dir: ProjectFMUDirectory,
-) -> None:
-    """Absolute cache roots are not allowed."""
-    with pytest.raises(ValueError, match="cache_root must be a path relative"):
-        CacheManager(fmu_dir, cache_root=Path("/tmp/cache"))
 
 
 def test_cache_manager_list_revisions_without_directory(
@@ -50,7 +42,7 @@ def test_cache_manager_honours_existing_cachedir_tag(
 ) -> None:
     """Existing cachedir tags are preserved when storing revisions."""
     cache_root = fmu_dir.path / "cache"
-    cache_root.mkdir()
+    cache_root.mkdir(exist_ok=True)
     tag_path = cache_root / "CACHEDIR.TAG"
     tag_path.write_text("custom tag", encoding="utf-8")
 
