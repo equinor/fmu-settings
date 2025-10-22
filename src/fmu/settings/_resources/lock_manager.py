@@ -196,6 +196,8 @@ class LockManager(PydanticResourceManager[LockInfo]):
             LockError: If we don't hold the lock or it's invalid
         """
         if not self.exists:
+            if self.is_acquired():
+                self.release()
             raise LockError("Cannot refresh: lock file does not exist")
 
         lock_info = self._safe_load()
