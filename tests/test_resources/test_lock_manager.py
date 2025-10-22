@@ -649,3 +649,18 @@ def test_ensure_can_write_foreign_lock(fmu_dir: ProjectFMUDirectory) -> None:
         pytest.raises(PermissionError, match="Cannot write to .fmu directory"),
     ):
         lock.ensure_can_write()
+
+
+def test_manual_delete_invalidates_lock_file_on_refresh(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that if a user deletes anothers lock it's invalidated on a refresh."""
+    fmu_dir._lock.acquire()
+    assert fmu_dir._lock.is_acquired() is True
+
+    # Someone deletes the lock
+    fmu_dir._lock.path.unlink()
+
+    with pytest.raises(LockError, match="Cannot refresh: lock file does not exist"):
+        fmu_dir._lock.refresh()
+    assert fmu_dir._lock.is_acquired() is False
