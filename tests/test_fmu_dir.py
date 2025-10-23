@@ -110,6 +110,25 @@ def test_find_nearest_not_found(tmp_path: Path, monkeypatch: MonkeyPatch) -> Non
         ProjectFMUDirectory.find_nearest(tmp_path)
 
 
+def test_cache_property_returns_cached_manager(fmu_dir: ProjectFMUDirectory) -> None:
+    """Cache manager should be memoized and ready for use."""
+    cache = fmu_dir.cache
+
+    assert cache is fmu_dir.cache
+    assert fmu_dir._cache_manager is cache
+    assert cache.max_revisions == 5  # noqa: PLR2004
+
+
+def test_set_cache_max_revisions_updates_manager(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Changing retention should update the existing cache manager."""
+    cache = fmu_dir.cache
+    fmu_dir.cache_max_revisions = 7
+
+    assert cache.max_revisions == 7  # noqa: PLR2004
+
+
 def test_get_config_value(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests get_config_value retrieves correctly from the config."""
     assert fmu_dir.get_config_value("version") == __version__

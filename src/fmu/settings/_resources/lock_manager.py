@@ -39,6 +39,8 @@ class LockNotFoundError(FileNotFoundError):
 class LockManager(PydanticResourceManager[LockInfo]):
     """Manages the .lock file."""
 
+    cache_enabled: bool = False
+
     def __init__(
         self: Self,
         fmu_dir: FMUDirectoryBase,
@@ -222,7 +224,10 @@ class LockManager(PydanticResourceManager[LockInfo]):
         self._acquired_at = None
         self._cache = None
 
-    def save(self: Self, data: LockInfo) -> None:
+    def save(
+        self: Self,
+        data: LockInfo,
+    ) -> None:
         """Save the lockfile in an NFS-atomic manner.
 
         This overrides save() from the Pydantic resource manager.
