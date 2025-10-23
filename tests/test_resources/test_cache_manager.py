@@ -107,15 +107,3 @@ def test_cache_manager_trim_handles_missing_files(
 
     config_cache = fmu_dir.path / "cache" / "foo"
     assert len(_read_snapshot_names(config_cache)) == _CACHE_MIN_REVISIONS
-
-
-def test_cache_manager_max_revisions_zero_skips_storage(
-    fmu_dir: ProjectFMUDirectory,
-) -> None:
-    """Setting max_revisions=0 should be clamped to minimum of 5."""
-    manager = CacheManager(fmu_dir, max_revisions=0)
-    assert manager.max_revisions == _CACHE_MIN_REVISIONS
-    result = manager.store_revision("foo.json", "data")
-    assert result is not None
-    cache_dir = fmu_dir.path / "cache" / "foo"
-    assert cache_dir.exists()

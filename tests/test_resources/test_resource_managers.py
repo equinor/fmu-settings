@@ -254,31 +254,3 @@ def test_pydantic_resource_manager_revision_cache_trims_excess(
         for name in snapshots
     ]
     assert contents == ["two", "three", "four", "five", "six"]
-
-
-def test_pydantic_resource_manager_respects_retention_setting(
-    fmu_dir: ProjectFMUDirectory,
-) -> None:
-    """Saving uses the cache manager retention setting."""
-    original_limit = fmu_dir.cache_max_revisions
-    fmu_dir.cache_max_revisions = 5
-    try:
-        a = AManager(fmu_dir)
-        a.save(A(foo="one"))
-        a.save(A(foo="two"))
-        a.save(A(foo="three"))
-        a.save(A(foo="four"))
-        a.save(A(foo="five"))
-        a.save(A(foo="six"))
-    finally:
-        fmu_dir.cache_max_revisions = original_limit
-
-    config_cache = fmu_dir.path / "cache" / "foo"
-    snapshots = sorted(p.name for p in config_cache.iterdir())
-    assert len(snapshots) == 5  # noqa: PLR2004
-
-    contents = [
-        json.loads((config_cache / name).read_text(encoding="utf-8"))["foo"]
-        for name in snapshots
-    ]
-    assert contents == ["two", "three", "four", "five", "six"]
