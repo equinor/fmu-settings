@@ -32,6 +32,10 @@ class LockError(Exception):
     """Raised when the lock cannot be acquired."""
 
 
+class LockNotFoundError(FileNotFoundError):
+    """Raised when the lock cannot be found."""
+
+
 class LockManager(PydanticResourceManager[LockInfo]):
     """Manages the .lock file."""
 
@@ -196,7 +200,7 @@ class LockManager(PydanticResourceManager[LockInfo]):
         if not self.exists:
             if self.is_acquired():
                 self.release()
-            raise LockError("Cannot refresh: lock file does not exist")
+            raise LockNotFoundError("Cannot refresh: lock file does not exist")
 
         lock_info = self._safe_load()
         if not lock_info or not self._is_mine(lock_info):
