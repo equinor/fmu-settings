@@ -19,6 +19,7 @@ from fmu.settings._resources.lock_manager import (
     DEFAULT_LOCK_TIMEOUT,
     LockError,
     LockManager,
+    LockNotFoundError,
 )
 from fmu.settings.models.lock_info import LockInfo
 
@@ -493,15 +494,21 @@ def test_refresh_works_as_expected(
 def test_refresh_without_lock_file(
     fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch
 ) -> None:
-    """Tests refresh when lock file is not present."""
-    lock = LockManager(fmu_dir)
-    with pytest.raises(LockError, match="does not exist"):
-        lock.refresh()
+    """Tests that if a user deletes anothers lock it's invalidated on a refresh."""
+    with pytest.raises(LockNotFoundError, match="does not exist"):
+        fmu_dir._lock.refresh()
 
-    lock.acquire()
-    lock.path.unlink()  # It was deleted or something.
-    with pytest.raises(LockError, match="does not exist"):
-        lock.refresh()
+    fmu_dir._lock.acquire()
+    assert fmu_dir._lock.is_acquired() is True
+
+    # Someone deletes the lock
+    fmu_dir._lock.path.unlink()
+
+    with pytest.raises(
+        LockNotFoundError, match="Cannot refresh: lock file does not exist"
+    ):
+        fmu_dir._lock.refresh()
+    assert fmu_dir._lock.is_acquired() is False
 
 
 def test_refresh_without_owning_lock(
@@ -649,18 +656,3 @@ def test_ensure_can_write_foreign_lock(fmu_dir: ProjectFMUDirectory) -> None:
         pytest.raises(PermissionError, match="Cannot write to .fmu directory"),
     ):
         lock.ensure_can_write()
-
-
-def test_manual_delete_invalidates_lock_file_on_refresh(
-    fmu_dir: ProjectFMUDirectory,
-) -> None:
-    """Tests that if a user deletes anothers lock it's invalidated on a refresh."""
-    fmu_dir._lock.acquire()
-    assert fmu_dir._lock.is_acquired() is True
-
-    # Someone deletes the lock
-    fmu_dir._lock.path.unlink()
-
-    with pytest.raises(LockError, match="Cannot refresh: lock file does not exist"):
-        fmu_dir._lock.refresh()
-    assert fmu_dir._lock.is_acquired() is False
