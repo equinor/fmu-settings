@@ -10,7 +10,6 @@ import pytest
 from pydantic import BaseModel
 
 from fmu.settings._fmu_dir import ProjectFMUDirectory
-from fmu.settings._resources.cache_manager import CacheManager
 from fmu.settings._resources.lock_manager import LockManager
 from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
 
@@ -230,34 +229,31 @@ def test_pydantic_resource_manager_save_stores_revision_when_enabled(
 
 
 def test_pydantic_resource_manager_revision_cache_trims_excess(
-    fmu_dir: ProjectFMUDirectory, monkeypatch: pytest.MonkeyPatch
+    fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Revision caching should retain only the configured number of snapshots."""
     original_limit = fmu_dir.cache_max_revisions
-    fmu_dir.cache_max_revisions = 2
+    fmu_dir.cache_max_revisions = 5
     try:
-        sequence = iter(["rev1.json", "rev2.json", "rev3.json"])
-        monkeypatch.setattr(
-            CacheManager,
-            "_snapshot_filename",
-            lambda self, config_file_path: next(sequence),
-        )
-
         a = AManager(fmu_dir)
         a.save(A(foo="one"))
         a.save(A(foo="two"))
         a.save(A(foo="three"))
+        a.save(A(foo="four"))
+        a.save(A(foo="five"))
+        a.save(A(foo="six"))
     finally:
         fmu_dir.cache_max_revisions = original_limit
 
     config_cache = fmu_dir.path / "cache" / "foo"
     snapshots = sorted(p.name for p in config_cache.iterdir())
-    assert snapshots == ["rev2.json", "rev3.json"]
+    assert len(snapshots) == 5  # noqa: PLR2004
 
-    assert (
-        json.loads((config_cache / "rev3.json").read_text(encoding="utf-8"))["foo"]
-        == "three"
-    )
+    contents = [
+        json.loads((config_cache / name).read_text(encoding="utf-8"))["foo"]
+        for name in snapshots
+    ]
+    assert contents == ["two", "three", "four", "five", "six"]
 
 
 def test_pydantic_resource_manager_respects_retention_setting(
@@ -265,22 +261,24 @@ def test_pydantic_resource_manager_respects_retention_setting(
 ) -> None:
     """Saving uses the cache manager retention setting."""
     original_limit = fmu_dir.cache_max_revisions
-    fmu_dir.cache_max_revisions = 3
+    fmu_dir.cache_max_revisions = 5
     try:
         a = AManager(fmu_dir)
         a.save(A(foo="one"))
         a.save(A(foo="two"))
         a.save(A(foo="three"))
         a.save(A(foo="four"))
+        a.save(A(foo="five"))
+        a.save(A(foo="six"))
     finally:
         fmu_dir.cache_max_revisions = original_limit
 
     config_cache = fmu_dir.path / "cache" / "foo"
     snapshots = sorted(p.name for p in config_cache.iterdir())
-    assert len(snapshots) == 3  # noqa: PLR2004
+    assert len(snapshots) == 5  # noqa: PLR2004
 
     contents = [
         json.loads((config_cache / name).read_text(encoding="utf-8"))["foo"]
         for name in snapshots
     ]
-    assert contents == ["two", "three", "four"]
+    assert contents == ["two", "three", "four", "five", "six"]

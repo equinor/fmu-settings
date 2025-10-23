@@ -17,6 +17,8 @@ logger: Final = null_logger(__name__)
 
 FMUConfigManager: TypeAlias = ProjectConfigManager | UserConfigManager
 
+CACHE_MIN_REVISIONS: Final[int] = 5
+
 
 class FMUDirectoryBase:
     """Provides access to a .fmu directory and operations on its contents."""
@@ -72,8 +74,15 @@ class FMUDirectoryBase:
 
     @cache_max_revisions.setter
     def cache_max_revisions(self: Self, value: int) -> None:
-        """Update the retention limit for revision snapshots."""
-        self._cache_manager.max_revisions = value
+        """Update the retention limit for revision snapshots.
+
+        Args:
+            value: The new maximum number of revisions to retain. Minimum value is 5.
+                Values below 5 are set to 5.
+        """
+        clamped_value = max(CACHE_MIN_REVISIONS, value)
+        self._cache_manager.max_revisions = clamped_value
+        self.set_config_value("cache_max_revisions", clamped_value)
 
     def get_config_value(self: Self, key: str, default: Any = None) -> Any:
         """Gets a configuration value by key.
@@ -239,6 +248,11 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         """Initializes a project-based .fmu directory."""
         self.config = ProjectConfigManager(self)
         super().__init__(base_path)
+        try:
+            max_revisions = self.config.get("cache_max_revisions", CACHE_MIN_REVISIONS)
+        except FileNotFoundError:
+            max_revisions = CACHE_MIN_REVISIONS
+        self._cache_manager.max_revisions = max_revisions
 
     def update_config(self: Self, updates: dict[str, Any]) -> ProjectConfig:
         """Updates multiple configuration values at once.
@@ -313,6 +327,11 @@ class UserFMUDirectory(FMUDirectoryBase):
         """Initializes a project-based .fmu directory."""
         self.config = UserConfigManager(self)
         super().__init__(Path.home())
+        try:
+            max_revisions = self.config.get("cache_max_revisions", CACHE_MIN_REVISIONS)
+        except FileNotFoundError:
+            max_revisions = CACHE_MIN_REVISIONS
+        self._cache_manager.max_revisions = max_revisions
 
     def update_config(self: Self, updates: dict[str, Any]) -> UserConfig:
         """Updates multiple configuration values at once.
