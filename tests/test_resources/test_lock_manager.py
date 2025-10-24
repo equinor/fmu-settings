@@ -288,7 +288,7 @@ def test_is_stale_load_fails(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests is_stale if loading the lock file fails."""
     lock = LockManager(fmu_dir)
     lock.acquire()
-    with patch.object(lock, "_safe_load", return_value=None):
+    with patch.object(lock, "safe_load", return_value=None):
         assert lock._is_stale() is True
 
 
@@ -413,6 +413,18 @@ def test_is_locked_by_other_process(
     with patch("os.getpid", return_value=-1234):
         lock.release()
     assert lock.is_locked() is False
+
+
+def test_is_locked_propagate_errors(
+    fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch
+) -> None:
+    """Tests that load with propagate errors raises."""
+    lock = LockManager(fmu_dir)
+    lock.path.write_text("a")
+    assert lock.is_locked() is False
+
+    with pytest.raises(ValueError, match="Invalid JSON"):
+        assert lock.is_locked(propagate_errors=True) is False
 
 
 def test_is_acquired_expected(
@@ -540,11 +552,11 @@ def test_safe_load(fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch) -> No
     lock = LockManager(fmu_dir)
     lock.acquire()
     assert lock._cache is not None
-    assert lock._safe_load() == lock._cache
+    assert lock.safe_load() == lock._cache
 
     lock.release()
     lock.path.write_text("a")
-    assert lock._safe_load() is None
+    assert lock.safe_load() is None
 
 
 def test_save_expected(fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch) -> None:
@@ -604,7 +616,7 @@ def test_ensure_can_write_invalid_lock(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests ensure_can_write ignores unreadable lock info."""
     lock = LockManager(fmu_dir)
     lock.path.write_text("garbage")
-    with patch.object(lock, "_safe_load", return_value=None):
+    with patch.object(lock, "safe_load", return_value=None):
         lock.ensure_can_write()
 
 
@@ -629,7 +641,7 @@ def test_ensure_can_write_stale_lock(fmu_dir: ProjectFMUDirectory) -> None:
     )
     lock.path.write_text(lock_info.model_dump_json(indent=2))
     with (
-        patch.object(lock, "_safe_load", return_value=lock_info),
+        patch.object(lock, "safe_load", return_value=lock_info),
         patch.object(lock, "is_acquired", return_value=False),
         patch.object(lock, "_is_stale", return_value=True),
     ):
