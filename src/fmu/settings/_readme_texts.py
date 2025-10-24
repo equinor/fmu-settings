@@ -1,7 +1,5 @@
 """Shared README content for .fmu directories."""
 
-from __future__ import annotations
-
 from textwrap import dedent
 from typing import Final
 
