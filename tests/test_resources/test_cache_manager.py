@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fmu.settings._resources.cache_manager import (
-    _CACHE_MIN_REVISIONS,
     _CACHEDIR_TAG_CONTENT,
     CacheManager,
 )
@@ -88,8 +87,8 @@ def test_cache_manager_trim_handles_missing_files(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Trimming gracefully handles concurrent removals."""
-    manager = CacheManager(fmu_dir, max_revisions=_CACHE_MIN_REVISIONS)
-    for i in range(_CACHE_MIN_REVISIONS + 2):
+    manager = CacheManager(fmu_dir, max_revisions=CacheManager.MIN_REVISIONS)
+    for i in range(CacheManager.MIN_REVISIONS + 2):
         manager.store_revision("foo.json", f"content_{i}")
 
     original_unlink = Path.unlink
@@ -106,4 +105,4 @@ def test_cache_manager_trim_handles_missing_files(
     manager.store_revision("foo.json", "final")
 
     config_cache = fmu_dir.path / "cache" / "foo"
-    assert len(_read_snapshot_names(config_cache)) == _CACHE_MIN_REVISIONS
+    assert len(_read_snapshot_names(config_cache)) == CacheManager.MIN_REVISIONS

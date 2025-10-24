@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Final, Self
 from uuid import uuid4
 
 from fmu.settings._logging import null_logger
@@ -21,11 +21,11 @@ _CACHEDIR_TAG_CONTENT: Final = (
     "#	https://bford.info/cachedir/spec.html"
 )
 
-_CACHE_MIN_REVISIONS: Final[int] = 5
-
 
 class CacheManager:
     """Stores complete file revisions under the `.fmu/cache` tree."""
+
+    MIN_REVISIONS: ClassVar[int] = 5
 
     def __init__(
         self: Self,
@@ -41,7 +41,7 @@ class CacheManager:
         """
         self._fmu_dir = fmu_dir
         self._cache_root = Path("cache")
-        self._max_revisions = max(_CACHE_MIN_REVISIONS, max_revisions)
+        self._max_revisions = max(self.MIN_REVISIONS, max_revisions)
 
     @property
     def max_revisions(self: Self) -> int:
@@ -56,7 +56,7 @@ class CacheManager:
             value: The new maximum number of revisions. Minimum value is 5.
                 Values below 5 are set to 5.
         """
-        self._max_revisions = max(_CACHE_MIN_REVISIONS, value)
+        self._max_revisions = max(self.MIN_REVISIONS, value)
 
     def store_revision(
         self: Self,
