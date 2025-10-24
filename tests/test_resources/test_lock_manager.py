@@ -523,6 +523,24 @@ def test_refresh_without_lock_file(
     assert fmu_dir._lock.is_acquired() is False
 
 
+def test_refresh_missing_lock_releases_owned_lock(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests refresh releases cached state when lock file is missing."""
+    lock = LockManager(fmu_dir)
+    lock.acquire()
+    lock.path.unlink()
+
+    with (
+        patch.object(lock, "is_acquired", return_value=True),
+        patch.object(lock, "release") as mock_release,
+        pytest.raises(LockNotFoundError, match="lock file does not exist"),
+    ):
+        lock.refresh()
+
+    mock_release.assert_called_once()
+
+
 def test_refresh_without_owning_lock(
     fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch
 ) -> None:

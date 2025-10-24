@@ -1,42 +1,16 @@
 """Initializes the .fmu directory."""
 
 from pathlib import Path
-from textwrap import dedent
 from typing import Any, Final
 
 from fmu.datamodels.fmu_results.global_configuration import GlobalConfiguration
 
 from ._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from ._logging import null_logger
+from ._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
 from .models.project_config import ProjectConfig
 
 logger: Final = null_logger(__name__)
-
-_README = dedent("""\
-    This directory contains static configuration data for your FMU project.
-
-    You should *not* manually modify files within this directory. Doing so may
-    result in erroneous behavior or erroneous data in your FMU project.
-
-    Changes to data stored within this directory must happen through the FMU
-    Settings application.
-
-    Run `fmu-settings` to do this.
-""")
-
-_USER_README = dedent("""\
-    This directory contains static data and configuration elements used by some
-    components in FMU. It may also contains sensitive access tokens that should not be
-    shared with others.
-
-    You should *not* manually modify files within this directory. Doing so may
-    result in erroneous behavior by some FMU components.
-
-    Changes to data stored within this directory must happen through the FMU
-    Settings application.
-
-    Run `fmu-settings` to do this.
-""")
 
 
 def _create_fmu_directory(base_path: Path) -> None:
@@ -99,7 +73,7 @@ def init_fmu_directory(
     _create_fmu_directory(base_path)
 
     fmu_dir = ProjectFMUDirectory(base_path)
-    fmu_dir.write_text_file("README", _README)
+    fmu_dir.write_text_file("README", PROJECT_README_CONTENT)
 
     fmu_dir.config.reset()
     if config_data:
@@ -132,7 +106,7 @@ def init_user_fmu_directory() -> UserFMUDirectory:
     _create_fmu_directory(Path.home())
 
     fmu_dir = UserFMUDirectory()
-    fmu_dir.write_text_file("README", _USER_README)
+    fmu_dir.write_text_file("README", USER_README_CONTENT)
 
     fmu_dir.config.reset()
     logger.debug(f"Successfully initialized .fmu directory at '{fmu_dir}'")

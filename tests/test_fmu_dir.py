@@ -1,6 +1,7 @@
 """Tests for the ProjectFMUDirectory class."""
 
 import json
+import shutil
 from pathlib import Path
 from unittest.mock import patch
 
@@ -9,6 +10,7 @@ from pytest import MonkeyPatch
 
 from fmu.settings import __version__, find_nearest_fmu_directory, get_fmu_directory
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
+from fmu.settings._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
 from fmu.settings._resources.lock_manager import LockManager
 
 
@@ -390,3 +392,67 @@ def test_acquire_lock_on_user_fmu(
     assert user_fmu_dir._lock.is_acquired()
     assert user_fmu_dir._lock.exists
     assert (user_fmu_dir.path / ".lock").exists()
+
+
+def test_restore_rebuilds_project_fmu_from_cache(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that restore should recreate missing files using cached config data."""
+    fmu_dir.update_config({"version": "123.4.5"})
+    cached_dump = json.loads((fmu_dir.path / "config.json").read_text())
+
+    shutil.rmtree(fmu_dir.path)
+    assert not fmu_dir.path.exists()
+
+    fmu_dir.restore()
+
+    assert fmu_dir.path.exists()
+    readme_path = fmu_dir.path / "README"
+    assert readme_path.exists()
+    assert readme_path.read_text() == PROJECT_README_CONTENT
+
+    restored_dump = json.loads((fmu_dir.path / "config.json").read_text())
+    assert restored_dump == cached_dump
+
+    cache_dir = fmu_dir.path / "cache" / "config"
+    assert cache_dir.is_dir()
+    assert any(cache_dir.iterdir())
+
+
+def test_restore_resets_when_cache_missing(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that restore should fall back to reset when no cached config exists."""
+    fmu_dir.config._cache = None
+    shutil.rmtree(fmu_dir.path)
+    assert not fmu_dir.path.exists()
+
+    with patch.object(
+        fmu_dir.config, "reset", wraps=fmu_dir.config.reset
+    ) as mock_reset:
+        fmu_dir.restore()
+
+    mock_reset.assert_called_once()
+    assert fmu_dir.path.exists()
+    readme_path = fmu_dir.path / "README"
+    assert readme_path.exists()
+    assert readme_path.read_text() == PROJECT_README_CONTENT
+    assert (fmu_dir.config.path).exists()
+
+
+def test_restore_rebuilds_user_fmu(user_fmu_dir: UserFMUDirectory) -> None:
+    """Tests that user FMU restore should recreate missing files using cached state."""
+    cached_dump = json.loads((user_fmu_dir.path / "config.json").read_text())
+
+    shutil.rmtree(user_fmu_dir.path)
+    assert not user_fmu_dir.path.exists()
+
+    user_fmu_dir.restore()
+
+    assert user_fmu_dir.path.exists()
+    readme_path = user_fmu_dir.path / "README"
+    assert readme_path.exists()
+    assert readme_path.read_text() == USER_README_CONTENT
+
+    restored_dump = json.loads((user_fmu_dir.path / "config.json").read_text())
+    assert restored_dump == cached_dump

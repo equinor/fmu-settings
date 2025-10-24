@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self, TypeAlias, cast
 
 from ._logging import null_logger
+from ._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
 from ._resources.cache_manager import CacheManager
 from ._resources.config_managers import (
     ProjectConfigManager,
@@ -24,6 +25,7 @@ class FMUDirectoryBase:
     config: FMUConfigManager
     _lock: LockManager
     _cache_manager: CacheManager
+    _README_CONTENT: str = ""
 
     def __init__(
         self: Self,
@@ -242,10 +244,33 @@ class FMUDirectoryBase:
         """
         return self.get_file_path(relative_path).exists()
 
+    def restore(self: Self) -> None:
+        """Attempt to reconstruct missing .fmu files from in-memory state."""
+        if not self.path.exists():
+            self.path.mkdir(parents=True, exist_ok=True)
+            logger.info("Recreated missing .fmu directory at %s", self.path)
+
+        readme_path = self.get_file_path("README")
+        if self._README_CONTENT and not readme_path.exists():
+            self.write_text_file("README", self._README_CONTENT)
+            logger.info("Restored README at %s", readme_path)
+
+        config_path = self.config.path
+        if not config_path.exists():
+            cached_model = getattr(self.config, "_cache", None)
+            if cached_model is not None:
+                self.config.save(cached_model)
+                logger.info("Restored config.json from cached model at %s", config_path)
+            else:
+                self.config.reset()
+                logger.info("Restored config.json from defaults at %s", config_path)
+
 
 class ProjectFMUDirectory(FMUDirectoryBase):
     if TYPE_CHECKING:
         config: ProjectConfigManager
+
+    _README_CONTENT: str = PROJECT_README_CONTENT
 
     def __init__(self, base_path: str | Path) -> None:
         """Initializes a project-based .fmu directory."""
@@ -327,6 +352,8 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 class UserFMUDirectory(FMUDirectoryBase):
     if TYPE_CHECKING:
         config: UserConfigManager
+
+    _README_CONTENT: str = USER_README_CONTENT
 
     def __init__(self) -> None:
         """Initializes a user .fmu directory."""

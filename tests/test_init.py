@@ -11,12 +11,11 @@ import pytest
 from fmu.settings import __version__
 from fmu.settings._global_config import find_global_config
 from fmu.settings._init import (
-    _README,
-    _USER_README,
     _create_fmu_directory,
     init_fmu_directory,
     init_user_fmu_directory,
 )
+from fmu.settings._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
 
@@ -128,7 +127,7 @@ def test_readme_is_written(tmp_path: Path, config_model: ProjectConfig) -> None:
 
     readme = fmu_dir.path / "README"
     assert readme.exists()
-    assert readme.read_text() == _README
+    assert readme.read_text() == PROJECT_README_CONTENT
 
 
 def test_init_user_fmu_directory(
@@ -178,4 +177,4 @@ def test_user_readme_is_written(tmp_path: Path, config_model: ProjectConfig) -> 
 
     readme = fmu_dir.path / "README"
     assert readme.exists()
-    assert readme.read_text() == _USER_README
+    assert readme.read_text() == USER_README_CONTENT
