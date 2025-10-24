@@ -88,7 +88,7 @@ class LockManager(PydanticResourceManager[LockInfo]):
                 return
 
             if not wait:
-                lock_info = self._safe_load()
+                lock_info = self.safe_load()
                 if lock_info:
                     raise LockError(
                         f"Lock file is held by {lock_info.user}@{lock_info.hostname} "
@@ -158,12 +158,16 @@ class LockManager(PydanticResourceManager[LockInfo]):
             with contextlib.suppress(OSError):
                 temp_path.unlink()
 
-    def is_locked(self: Self) -> bool:
+    def is_locked(self: Self, *, propagate_errors: bool = False) -> bool:
         """Returns whether or not the lock is locked by anyone.
 
         This does a force load on the lock file.
         """
-        lock_info = self._safe_load(force=True)
+        lock_info = (
+            self.load(force=True, store_cache=False)
+            if propagate_errors
+            else self.safe_load(force=True, store_cache=False)
+        )
         if not lock_info:
             return False
         return time.time() < lock_info.expires_at
@@ -172,15 +176,16 @@ class LockManager(PydanticResourceManager[LockInfo]):
         """Returns whether or not the lock is currently acquired by this instance."""
         if self._cache is None or self._acquired_at is None:
             return False
-        return self._is_mine(self._cache) and not self._is_stale()
+
+        current_lock = self.safe_load(force=True, store_cache=False)
+        if current_lock is None:
+            return False
+
+        return self._is_mine(current_lock) and not self._is_stale()
 
     def ensure_can_write(self: Self) -> None:
         """Raise PermissionError if another process currently holds the lock."""
-        try:
-            lock_info = self.load(force=True, store_cache=False)
-        except Exception:
-            lock_info = None
-
+        lock_info = self.safe_load(force=True, store_cache=False)
         if (
             self.exists
             and lock_info is not None
@@ -204,7 +209,7 @@ class LockManager(PydanticResourceManager[LockInfo]):
                 self.release()
             raise LockNotFoundError("Cannot refresh: lock file does not exist")
 
-        lock_info = self._safe_load()
+        lock_info = self.safe_load()
         if not lock_info or not self._is_mine(lock_info):
             raise LockError(
                 "Cannot refresh: lock file is held by another process or host."
@@ -216,7 +221,7 @@ class LockManager(PydanticResourceManager[LockInfo]):
     def release(self: Self) -> None:
         """Release the lock."""
         if self.exists:
-            lock_info = self._safe_load()
+            lock_info = self.safe_load()
             if lock_info and self._is_mine(lock_info):
                 with contextlib.suppress(ValueError):
                     self.path.unlink()
@@ -232,7 +237,7 @@ class LockManager(PydanticResourceManager[LockInfo]):
 
         This overrides save() from the Pydantic resource manager.
         """
-        lock_info = self._safe_load()
+        lock_info = self.safe_load()
         if not lock_info or not self._is_mine(lock_info):
             raise LockError(
                 "Failed to save lock: lock file is held by another process or host."
@@ -259,20 +264,22 @@ class LockManager(PydanticResourceManager[LockInfo]):
             and lock_info.acquired_at == self._acquired_at
         )
 
-    def _safe_load(self: Self, force: bool = False) -> LockInfo | None:
+    def safe_load(
+        self: Self, force: bool = False, store_cache: bool = False
+    ) -> LockInfo | None:
         """Load lock info, returning None if corrupted.
 
         Because this file does not exist in a static state, wrap around loading it.
         """
         try:
-            return self.load(force=force)
+            return self.load(force=force, store_cache=store_cache)
         except Exception:
             return None
 
     def _is_stale(self: Self, lock_info: LockInfo | None = None) -> bool:
         """Check if existing lock is stale (expired or process dead)."""
         if lock_info is None:
-            lock_info = self._safe_load()
+            lock_info = self.safe_load()
 
         if not lock_info:
             return True
