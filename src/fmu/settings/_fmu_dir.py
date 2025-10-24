@@ -25,12 +25,17 @@ class FMUDirectoryBase:
     _lock: LockManager
     _cache_manager: CacheManager
 
-    def __init__(self: Self, base_path: str | Path) -> None:
+    def __init__(
+        self: Self,
+        base_path: str | Path,
+        cache_revisions: int = CacheManager.MIN_REVISIONS,
+    ) -> None:
         """Initializes access to a .fmu directory.
 
         Args:
             base_path: The directory containing the .fmu directory or one of its parent
                 dirs
+            cache_revisions: Number of revisions to retain in the cache. Minimum is 5.
 
         Raises:
             FileExistsError: If .fmu exists but is not a directory
@@ -40,7 +45,7 @@ class FMUDirectoryBase:
         self.base_path = Path(base_path).resolve()
         logger.debug(f"Initializing FMUDirectory from '{base_path}'")
         self._lock = LockManager(self)
-        self._cache_manager = CacheManager(self, max_revisions=5)
+        self._cache_manager = CacheManager(self, max_revisions=cache_revisions)
 
         fmu_dir = self.base_path / ".fmu"
         if fmu_dir.exists():
@@ -72,8 +77,15 @@ class FMUDirectoryBase:
 
     @cache_max_revisions.setter
     def cache_max_revisions(self: Self, value: int) -> None:
-        """Update the retention limit for revision snapshots."""
-        self._cache_manager.max_revisions = value
+        """Update the retention limit for revision snapshots.
+
+        Args:
+            value: The new maximum number of revisions to retain. Minimum value is 5.
+                Values below 5 are set to 5.
+        """
+        clamped_value = max(CacheManager.MIN_REVISIONS, value)
+        self._cache_manager.max_revisions = clamped_value
+        self.set_config_value("cache_max_revisions", clamped_value)
 
     def get_config_value(self: Self, key: str, default: Any = None) -> Any:
         """Gets a configuration value by key.
@@ -238,7 +250,14 @@ class ProjectFMUDirectory(FMUDirectoryBase):
     def __init__(self, base_path: str | Path) -> None:
         """Initializes a project-based .fmu directory."""
         self.config = ProjectConfigManager(self)
-        super().__init__(base_path)
+        super().__init__(base_path, CacheManager.MIN_REVISIONS)
+        try:
+            max_revisions = self.config.get(
+                "cache_max_revisions", CacheManager.MIN_REVISIONS
+            )
+            self._cache_manager.max_revisions = max_revisions
+        except FileNotFoundError:
+            pass
 
     def update_config(self: Self, updates: dict[str, Any]) -> ProjectConfig:
         """Updates multiple configuration values at once.
@@ -310,9 +329,16 @@ class UserFMUDirectory(FMUDirectoryBase):
         config: UserConfigManager
 
     def __init__(self) -> None:
-        """Initializes a project-based .fmu directory."""
+        """Initializes a user .fmu directory."""
         self.config = UserConfigManager(self)
-        super().__init__(Path.home())
+        super().__init__(Path.home(), CacheManager.MIN_REVISIONS)
+        try:
+            max_revisions = self.config.get(
+                "cache_max_revisions", CacheManager.MIN_REVISIONS
+            )
+            self._cache_manager.max_revisions = max_revisions
+        except FileNotFoundError:
+            pass
 
     def update_config(self: Self, updates: dict[str, Any]) -> UserConfig:
         """Updates multiple configuration values at once.

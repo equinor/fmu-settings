@@ -39,6 +39,7 @@ def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
         "version": __version__,
         "created_at": unix_epoch_utc,
         "created_by": "user",
+        "cache_max_revisions": 5,
         "masterdata": None,
         "model": None,
         "access": None,
@@ -283,6 +284,7 @@ def config_dict_with_masterdata(
         "version": __version__,
         "created_at": unix_epoch_utc,
         "created_by": "user",
+        "cache_max_revisions": 5,
         "masterdata": masterdata_dict,
         "model": model_dict,
     }
@@ -308,6 +310,7 @@ def user_config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
     return {
         "version": __version__,
         "created_at": unix_epoch_utc,
+        "cache_max_revisions": 5,
         "user_api_keys": {
             "smda_subscription": None,
         },

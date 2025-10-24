@@ -23,6 +23,7 @@ class ProjectConfig(ResettableBaseModel):
     masterdata: Masterdata | None = Field(default=None)
     model: Model | None = Field(default=None)
     access: Access | None = Field(default=None)
+    cache_max_revisions: int = Field(default=5, ge=5)
 
     @classmethod
     def reset(cls: type[Self]) -> Self:
@@ -38,4 +39,5 @@ class ProjectConfig(ResettableBaseModel):
             masterdata=None,
             model=None,
             access=None,
+            cache_max_revisions=5,
         )

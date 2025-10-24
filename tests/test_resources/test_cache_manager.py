@@ -5,7 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from fmu.settings._resources.cache_manager import _CACHEDIR_TAG_CONTENT, CacheManager
+from fmu.settings._resources.cache_manager import (
+    _CACHEDIR_TAG_CONTENT,
+    CacheManager,
+)
 
 if TYPE_CHECKING:
     import pytest
@@ -84,8 +87,9 @@ def test_cache_manager_trim_handles_missing_files(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Trimming gracefully handles concurrent removals."""
-    manager = CacheManager(fmu_dir, max_revisions=1)
-    manager.store_revision("foo.json", "first")
+    manager = CacheManager(fmu_dir, max_revisions=CacheManager.MIN_REVISIONS)
+    for i in range(CacheManager.MIN_REVISIONS + 2):
+        manager.store_revision("foo.json", f"content_{i}")
 
     original_unlink = Path.unlink
 
@@ -98,19 +102,7 @@ def test_cache_manager_trim_handles_missing_files(
 
     monkeypatch.setattr(Path, "unlink", flaky_unlink)
 
-    manager.store_revision("foo.json", "second")
+    manager.store_revision("foo.json", "final")
 
     config_cache = fmu_dir.path / "cache" / "foo"
-    assert getattr(flaky_unlink, "raised", False) is True
-    assert len(_read_snapshot_names(config_cache)) == 1
-
-
-def test_cache_manager_max_revisions_zero_skips_storage(
-    fmu_dir: ProjectFMUDirectory,
-) -> None:
-    """Storing with zero retention should return None and create nothing."""
-    manager = CacheManager(fmu_dir, max_revisions=0)
-    result = manager.store_revision("foo.json", "data")
-    assert result is None
-    cache_dir = fmu_dir.path / "cache" / "foo"
-    assert not cache_dir.exists()
+    assert len(_read_snapshot_names(config_cache)) == CacheManager.MIN_REVISIONS

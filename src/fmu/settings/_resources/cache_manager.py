@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Final, Self
 from uuid import uuid4
 
 from fmu.settings._logging import null_logger
@@ -25,6 +25,8 @@ _CACHEDIR_TAG_CONTENT: Final = (
 class CacheManager:
     """Stores complete file revisions under the `.fmu/cache` tree."""
 
+    MIN_REVISIONS: ClassVar[int] = 5
+
     def __init__(
         self: Self,
         fmu_dir: FMUDirectoryBase,
@@ -35,10 +37,11 @@ class CacheManager:
         Args:
             fmu_dir: The FMUDirectory instance.
             max_revisions: Maximum number of revisions to retain. Default is 5.
+                Values below 5 are set to 5.
         """
         self._fmu_dir = fmu_dir
         self._cache_root = Path("cache")
-        self._max_revisions = max(0, max_revisions)
+        self._max_revisions = max(self.MIN_REVISIONS, max_revisions)
 
     @property
     def max_revisions(self: Self) -> int:
@@ -47,8 +50,13 @@ class CacheManager:
 
     @max_revisions.setter
     def max_revisions(self: Self, value: int) -> None:
-        """Update the per-resource revision retention."""
-        self._max_revisions = max(0, value)
+        """Update the per-resource revision retention.
+
+        Args:
+            value: The new maximum number of revisions. Minimum value is 5.
+                Values below 5 are set to 5.
+        """
+        self._max_revisions = max(self.MIN_REVISIONS, value)
 
     def store_revision(
         self: Self,
@@ -65,12 +73,8 @@ class CacheManager:
             encoding: Encoding used when persisting the snapshot. Defaults to UTF-8.
 
         Returns:
-            Absolute filesystem path to the stored snapshot, or ``None`` if caching is
-            disabled (``max_revisions`` equals zero).
+            Absolute filesystem path to the stored snapshot.
         """
-        if self.max_revisions == 0:
-            return None
-
         resource_file_path = Path(resource_file_path)
         cache_dir = self._ensure_resource_cache_dir(resource_file_path)
         snapshot_name = self._snapshot_filename(resource_file_path)
