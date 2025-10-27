@@ -10,7 +10,7 @@ from ._resources.config_managers import (
     ProjectConfigManager,
     UserConfigManager,
 )
-from ._resources.lock_manager import LockManager
+from ._resources.lock_manager import DEFAULT_LOCK_TIMEOUT, LockManager
 from .models.project_config import ProjectConfig
 from .models.user_config import UserConfig
 
@@ -31,6 +31,8 @@ class FMUDirectoryBase:
         self: Self,
         base_path: str | Path,
         cache_revisions: int = CacheManager.MIN_REVISIONS,
+        *,
+        lock_timeout_seconds: int = DEFAULT_LOCK_TIMEOUT,
     ) -> None:
         """Initializes access to a .fmu directory.
 
@@ -38,6 +40,7 @@ class FMUDirectoryBase:
             base_path: The directory containing the .fmu directory or one of its parent
                 dirs
             cache_revisions: Number of revisions to retain in the cache. Minimum is 5.
+            lock_timeout_seconds: Lock expiration time in seconds. Default 20 minutes.
 
         Raises:
             FileExistsError: If .fmu exists but is not a directory
@@ -46,7 +49,7 @@ class FMUDirectoryBase:
         """
         self.base_path = Path(base_path).resolve()
         logger.debug(f"Initializing FMUDirectory from '{base_path}'")
-        self._lock = LockManager(self)
+        self._lock = LockManager(self, timeout_seconds=lock_timeout_seconds)
         self._cache_manager = CacheManager(self, max_revisions=cache_revisions)
 
         fmu_dir = self.base_path / ".fmu"
@@ -272,10 +275,24 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
     _README_CONTENT: str = PROJECT_README_CONTENT
 
-    def __init__(self, base_path: str | Path) -> None:
-        """Initializes a project-based .fmu directory."""
+    def __init__(
+        self: Self,
+        base_path: str | Path,
+        *,
+        lock_timeout_seconds: int = DEFAULT_LOCK_TIMEOUT,
+    ) -> None:
+        """Initializes a project-based .fmu directory.
+
+        Args:
+            base_path: Project directory containing the .fmu folder.
+            lock_timeout_seconds: Lock expiration time in seconds. Default 20 minutes.
+        """
         self.config = ProjectConfigManager(self)
-        super().__init__(base_path, CacheManager.MIN_REVISIONS)
+        super().__init__(
+            base_path,
+            CacheManager.MIN_REVISIONS,
+            lock_timeout_seconds=lock_timeout_seconds,
+        )
         try:
             max_revisions = self.config.get(
                 "cache_max_revisions", CacheManager.MIN_REVISIONS
@@ -355,10 +372,22 @@ class UserFMUDirectory(FMUDirectoryBase):
 
     _README_CONTENT: str = USER_README_CONTENT
 
-    def __init__(self) -> None:
-        """Initializes a user .fmu directory."""
+    def __init__(
+        self: Self,
+        *,
+        lock_timeout_seconds: int = DEFAULT_LOCK_TIMEOUT,
+    ) -> None:
+        """Initializes a user .fmu directory.
+
+        Args:
+            lock_timeout_seconds: Lock expiration time in seconds. Default 20 minutes.
+        """
         self.config = UserConfigManager(self)
-        super().__init__(Path.home(), CacheManager.MIN_REVISIONS)
+        super().__init__(
+            Path.home(),
+            CacheManager.MIN_REVISIONS,
+            lock_timeout_seconds=lock_timeout_seconds,
+        )
         try:
             max_revisions = self.config.get(
                 "cache_max_revisions", CacheManager.MIN_REVISIONS

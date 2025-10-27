@@ -8,6 +8,7 @@ from fmu.datamodels.fmu_results.global_configuration import GlobalConfiguration
 from ._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from ._logging import null_logger
 from ._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
+from ._resources.lock_manager import DEFAULT_LOCK_TIMEOUT
 from .models.project_config import ProjectConfig
 
 logger: Final = null_logger(__name__)
@@ -45,6 +46,8 @@ def init_fmu_directory(
     base_path: str | Path,
     config_data: ProjectConfig | dict[str, Any] | None = None,
     global_config: GlobalConfiguration | None = None,
+    *,
+    lock_timeout_seconds: int = DEFAULT_LOCK_TIMEOUT,
 ) -> ProjectFMUDirectory:
     """Creates and initializes a .fmu directory.
 
@@ -57,6 +60,7 @@ def init_fmu_directory(
           data.
         global_config: Optional GlobaConfiguration instance with existing global config
           data.
+        lock_timeout_seconds: Lock expiration time in seconds. Default 20 minutes.
 
     Returns:
         Instance of FMUDirectory
@@ -72,7 +76,10 @@ def init_fmu_directory(
 
     _create_fmu_directory(base_path)
 
-    fmu_dir = ProjectFMUDirectory(base_path)
+    fmu_dir = ProjectFMUDirectory(
+        base_path,
+        lock_timeout_seconds=lock_timeout_seconds,
+    )
     fmu_dir.write_text_file("README", PROJECT_README_CONTENT)
 
     fmu_dir.config.reset()
@@ -89,8 +96,14 @@ def init_fmu_directory(
     return fmu_dir
 
 
-def init_user_fmu_directory() -> UserFMUDirectory:
+def init_user_fmu_directory(
+    *,
+    lock_timeout_seconds: int = DEFAULT_LOCK_TIMEOUT,
+) -> UserFMUDirectory:
     """Creates and initializes a user's $HOME/.fmu directory.
+
+    Args:
+        lock_timeout_seconds: Lock expiration time in seconds. Default 20 minutes.
 
     Returns:
         Instance of FMUDirectory
@@ -105,7 +118,7 @@ def init_user_fmu_directory() -> UserFMUDirectory:
 
     _create_fmu_directory(Path.home())
 
-    fmu_dir = UserFMUDirectory()
+    fmu_dir = UserFMUDirectory(lock_timeout_seconds=lock_timeout_seconds)
     fmu_dir.write_text_file("README", USER_README_CONTENT)
 
     fmu_dir.config.reset()
