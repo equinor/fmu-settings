@@ -347,11 +347,17 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         return None
 
     @classmethod
-    def find_nearest(cls: type[Self], start_path: str | Path = ".") -> Self:
+    def find_nearest(
+        cls: type[Self],
+        start_path: str | Path = ".",
+        *,
+        lock_timeout_seconds: int = DEFAULT_LOCK_TIMEOUT,
+    ) -> Self:
         """Factory method to find and open the nearest .fmu directory.
 
         Args:
             start_path: Path to start searching from. Default current working director
+            lock_timeout_seconds: Lock expiration time in seconds. Default 20 minutes.
 
         Returns:
             FMUDirectory instance
@@ -363,7 +369,7 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         fmu_dir_path = cls.find_fmu_directory(start_path)
         if fmu_dir_path is None:
             raise FileNotFoundError(f"No .fmu directory found at or above {start_path}")
-        return cls(fmu_dir_path.parent)
+        return cls(fmu_dir_path.parent, lock_timeout_seconds=lock_timeout_seconds)
 
 
 class UserFMUDirectory(FMUDirectoryBase):
@@ -412,12 +418,17 @@ class UserFMUDirectory(FMUDirectoryBase):
         return cast("UserConfig", super().update_config(updates))
 
 
-def get_fmu_directory(base_path: str | Path) -> ProjectFMUDirectory:
+def get_fmu_directory(
+    base_path: str | Path,
+    *,
+    lock_timeout_seconds: int = DEFAULT_LOCK_TIMEOUT,
+) -> ProjectFMUDirectory:
     """Initializes access to a .fmu directory.
 
     Args:
         base_path: The directory containing the .fmu directory or one of its parent
                    dirs
+        lock_timeout_seconds: Lock expiration time in seconds. Default 20 minutes.
 
     Returns:
         FMUDirectory instance
@@ -428,14 +439,19 @@ def get_fmu_directory(base_path: str | Path) -> ProjectFMUDirectory:
         PermissionError: If lacking permissions to read/write to the directory
 
     """
-    return ProjectFMUDirectory(base_path)
+    return ProjectFMUDirectory(base_path, lock_timeout_seconds=lock_timeout_seconds)
 
 
-def find_nearest_fmu_directory(start_path: str | Path = ".") -> ProjectFMUDirectory:
+def find_nearest_fmu_directory(
+    start_path: str | Path = ".",
+    *,
+    lock_timeout_seconds: int = DEFAULT_LOCK_TIMEOUT,
+) -> ProjectFMUDirectory:
     """Factory method to find and open the nearest .fmu directory.
 
     Args:
         start_path: Path to start searching from. Default current working directory
+        lock_timeout_seconds: Lock expiration time in seconds. Default 20 minutes.
 
     Returns:
         FMUDirectory instance
@@ -443,4 +459,6 @@ def find_nearest_fmu_directory(start_path: str | Path = ".") -> ProjectFMUDirect
     Raises:
         FileNotFoundError: If no .fmu directory is found
     """
-    return ProjectFMUDirectory.find_nearest(start_path)
+    return ProjectFMUDirectory.find_nearest(
+        start_path, lock_timeout_seconds=lock_timeout_seconds
+    )
