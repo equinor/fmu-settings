@@ -1,5 +1,6 @@
 """Tests for the ProjectFMUDirectory class."""
 
+import inspect
 import json
 import shutil
 from pathlib import Path
@@ -9,9 +10,13 @@ import pytest
 from pytest import MonkeyPatch
 
 from fmu.settings import __version__, find_nearest_fmu_directory, get_fmu_directory
-from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
+from fmu.settings._fmu_dir import (
+    FMUDirectoryBase,
+    ProjectFMUDirectory,
+    UserFMUDirectory,
+)
 from fmu.settings._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
-from fmu.settings._resources.lock_manager import LockManager
+from fmu.settings._resources.lock_manager import DEFAULT_LOCK_TIMEOUT, LockManager
 
 
 def test_init_existing_directory(fmu_dir: ProjectFMUDirectory) -> None:
@@ -456,3 +461,13 @@ def test_restore_rebuilds_user_fmu(user_fmu_dir: UserFMUDirectory) -> None:
 
     restored_dump = json.loads((user_fmu_dir.path / "config.json").read_text())
     assert restored_dump == cached_dump
+
+
+def test_fmu_directory_base_exposes_lock_timeout_kwarg() -> None:
+    """Tests that the kw-only lock timeout argument remains available."""
+    signature = inspect.signature(FMUDirectoryBase.__init__)
+    lock_timeout = signature.parameters.get("lock_timeout_seconds")
+
+    assert lock_timeout is not None, "lock_timeout_seconds kwarg missing from base init"
+    assert lock_timeout.kind is inspect.Parameter.KEYWORD_ONLY
+    assert lock_timeout.default == DEFAULT_LOCK_TIMEOUT
