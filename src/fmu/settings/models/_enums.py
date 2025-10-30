@@ -46,6 +46,6 @@ class ChangeType(StrEnum):
 class FilterType(StrEnum):
     """The supported types to filter on."""
 
+    date = "date"
     number = "number"
-    string = "string"
-    data = "date"
+    text = "text"

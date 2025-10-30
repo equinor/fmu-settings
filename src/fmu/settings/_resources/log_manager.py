@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, Self
 
-import pandas
+import pandas as pd
 from pydantic import ValidationError
 
 from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
+from fmu.settings.models._enums import FilterType
 from fmu.settings.models.log import Filter, Log, LogEntryType
 
 if TYPE_CHECKING:
@@ -22,7 +23,7 @@ class LogManager(PydanticResourceManager[Log[LogEntryType]], Generic[LogEntryTyp
         self: Self, fmu_dir: FMUDirectoryBase, model_class: type[Log[LogEntryType]]
     ) -> None:
         """Initializes the log resource manager."""
-        self._cached_dataframe: pandas.DataFrame | None = None
+        self._cached_dataframe: pd.DataFrame | None = None
         super().__init__(fmu_dir, model_class)
 
     def add_log_entry(self: Self, log_entry: LogEntryType) -> None:
@@ -44,41 +45,44 @@ class LogManager(PydanticResourceManager[Log[LogEntryType]], Generic[LogEntryTyp
     def filter_log(self: Self, filter: Filter) -> Log[LogEntryType]:
         """Filters the log resource with the provided filter."""
         if self._cached_dataframe is None:
-            if not self.exists:
-                raise FileNotFoundError(
-                    f"Resource file for '{self.__class__.__name__}' not found "
-                    f"at: '{self.path}'"
-                )
             log_model: Log[LogEntryType] = self.load()
-            df_log = pandas.DataFrame([entry.__dict__ for entry in log_model])
+            df_log = pd.DataFrame([entry.model_dump() for entry in log_model])
             self._cached_dataframe = df_log
         df_log = self._cached_dataframe
 
         match filter.operator:
             case "==":
-                filtered_df = df_log[df_log[filter.field_name] == filter.filter_value]
+                filtered_df = df_log[
+                    df_log[filter.field_name] == filter.parse_filter_value()
+                ]
             case "!=":
-                filtered_df = df_log[df_log[filter.field_name] != filter.filter_value]
+                filtered_df = df_log[
+                    df_log[filter.field_name] != filter.parse_filter_value()
+                ]
             case "<=":
-                if filter.filter_type == "str":
+                if filter.filter_type == FilterType.text:
                     raise ValueError(
-                        f"Invalid filter operator <= applied to 'str' field "
-                        f"{filter.field_name} when filterting log resource "
+                        f"Invalid filter operator <= applied to '{FilterType.text}' "
+                        f"field {filter.field_name} when filtering log resource "
                         f"{self.model_class.__name__} with value {filter.filter_value}."
                     )
-                filtered_df = df_log[df_log[filter.field_name] <= filter.filter_value]
+                filtered_df = df_log[
+                    df_log[filter.field_name] <= filter.parse_filter_value()
+                ]
             case ">=":
-                if filter.filter_type == "str":
+                if filter.filter_type == FilterType.text:
                     raise ValueError(
-                        f"Invalid filter operator >= applied to 'str' field "
-                        f"{filter.field_name} when filterting log resource "
+                        f"Invalid filter operator >= applied to '{FilterType.text}' "
+                        f"field {filter.field_name} when filtering log resource "
                         f"{self.model_class.__name__} with value {filter.filter_value}."
                     )
-                filtered_df = df_log[df_log[filter.field_name] >= filter.filter_value]
+                filtered_df = df_log[
+                    df_log[filter.field_name] >= filter.parse_filter_value()
+                ]
             case _:
                 raise ValueError(
-                    f"Invalid filter operator applied when "
-                    f"filterting log resource {self.model_class.__name__} "
+                    "Invalid filter operator applied when "
+                    f"filtering log resource {self.model_class.__name__} "
                 )
 
         filtered_dict = filtered_df.to_dict("records")

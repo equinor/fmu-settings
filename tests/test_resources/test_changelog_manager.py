@@ -5,12 +5,12 @@ import warnings
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-import pandas
+import pandas as pd
 import pytest
 
 from fmu.settings._fmu_dir import ProjectFMUDirectory
 from fmu.settings._resources.changelog_manager import ChangelogManager
-from fmu.settings.models._enums import ChangeType
+from fmu.settings.models._enums import ChangeType, FilterType
 from fmu.settings.models.change_info import ChangeInfo
 from fmu.settings.models.log import Filter, Log, LogFileName
 
@@ -187,7 +187,7 @@ def test_changelog_filter_equal_operator(
     filter: Filter = Filter(
         field_name="change_type",
         filter_value=ChangeType.add,
-        filter_type="str",
+        filter_type=FilterType.text,
         operator="==",
     )
     filtered_log = changelog_resource.filter_log(filter)
@@ -197,7 +197,7 @@ def test_changelog_filter_equal_operator(
     filter = Filter(
         field_name="user",
         filter_value="user_second_entry",
-        filter_type="str",
+        filter_type=FilterType.text,
         operator="==",
     )
     filtered_log = changelog_resource.filter_log(filter)
@@ -207,7 +207,7 @@ def test_changelog_filter_equal_operator(
     filter = Filter(
         field_name="timestamp",
         filter_value=str(DATE_TIME_NOW),
-        filter_type="datetime",
+        filter_type=FilterType.date,
         operator="==",
     )
     filtered_log = changelog_resource.filter_log(filter)
@@ -218,7 +218,7 @@ def test_changelog_filter_equal_operator(
     filter = Filter(
         field_name="change",
         filter_value="Changed field.",
-        filter_type="str",
+        filter_type=FilterType.text,
         operator="==",
     )
     filtered_log = changelog_resource.filter_log(filter)
@@ -244,7 +244,7 @@ def test_changelog_filter_not_equal_operator(
     filter: Filter = Filter(
         field_name="change_type",
         filter_value=ChangeType.add,
-        filter_type="str",
+        filter_type=FilterType.text,
         operator="!=",
     )
     filtered_log = changelog_resource.filter_log(filter)
@@ -255,7 +255,7 @@ def test_changelog_filter_not_equal_operator(
     filter = Filter(
         field_name="user",
         filter_value="user_second_entry",
-        filter_type="str",
+        filter_type=FilterType.text,
         operator="!=",
     )
     filtered_log = changelog_resource.filter_log(filter)
@@ -266,7 +266,7 @@ def test_changelog_filter_not_equal_operator(
     filter = Filter(
         field_name="timestamp",
         filter_value=str(DATE_TIME_NOW),
-        filter_type="datetime",
+        filter_type=FilterType.date,
         operator="!=",
     )
     filtered_log = changelog_resource.filter_log(filter)
@@ -275,7 +275,10 @@ def test_changelog_filter_not_equal_operator(
     assert all(entry.timestamp != DATE_TIME_NOW for entry in filtered_log)
 
     filter = Filter(
-        field_name="key", filter_value="masterdata", filter_type="str", operator="!="
+        field_name="key",
+        filter_value="masterdata",
+        filter_type=FilterType.text,
+        operator="!=",
     )
     filtered_log = changelog_resource.filter_log(filter)
     assert len(filtered_log) == 0
@@ -301,22 +304,22 @@ def test_changelog_filter_less_or_equal_operator(
     filter: Filter = Filter(
         field_name="change_type",
         filter_value=ChangeType.add,
-        filter_type="str",
+        filter_type=FilterType.text,
         operator="<=",
     )
     with pytest.raises(
-        ValueError, match="Invalid filter operator <= applied to 'str' field"
+        ValueError, match="Invalid filter operator <= applied to 'text' field"
     ):
         filtered_log = changelog_resource.filter_log(filter)
 
     filter = Filter(
         field_name="user",
         filter_value="user_third_entry",
-        filter_type="str",
+        filter_type=FilterType.text,
         operator="<=",
     )
     with pytest.raises(
-        ValueError, match="Invalid filter operator <= applied to 'str' field"
+        ValueError, match="Invalid filter operator <= applied to 'text' field"
     ):
         filtered_log = changelog_resource.filter_log(filter)
 
@@ -324,7 +327,7 @@ def test_changelog_filter_less_or_equal_operator(
     filter = Filter(
         field_name="timestamp",
         filter_value=str(yesterday),
-        filter_type="datetime",
+        filter_type=FilterType.date,
         operator="<=",
     )
     filtered_log = changelog_resource.filter_log(filter)
@@ -335,7 +338,7 @@ def test_changelog_filter_less_or_equal_operator(
     filter = Filter(
         field_name="timestamp",
         filter_value=str(DATE_TIME_NOW - timedelta(days=3)),
-        filter_type="datetime",
+        filter_type=FilterType.date,
         operator="<=",
     )
     filtered_log = changelog_resource.filter_log(filter)
@@ -362,22 +365,22 @@ def test_changelog_filter_greater_or_equal_operator(
     filter: Filter = Filter(
         field_name="change_type",
         filter_value=ChangeType.add,
-        filter_type="str",
+        filter_type=FilterType.text,
         operator=">=",
     )
     with pytest.raises(
-        ValueError, match="Invalid filter operator >= applied to 'str' field"
+        ValueError, match="Invalid filter operator >= applied to 'text' field"
     ):
         filtered_log = changelog_resource.filter_log(filter)
 
     filter = Filter(
         field_name="user",
         filter_value="user_third_entry",
-        filter_type="str",
+        filter_type=FilterType.text,
         operator=">=",
     )
     with pytest.raises(
-        ValueError, match="Invalid filter operator >= applied to 'str' field"
+        ValueError, match="Invalid filter operator >= applied to 'text' field"
     ):
         filtered_log = changelog_resource.filter_log(filter)
 
@@ -385,7 +388,7 @@ def test_changelog_filter_greater_or_equal_operator(
     filter = Filter(
         field_name="timestamp",
         filter_value=str(yesterday),
-        filter_type="datetime",
+        filter_type=FilterType.date,
         operator=">=",
     )
     filtered_log = changelog_resource.filter_log(filter)
@@ -396,7 +399,7 @@ def test_changelog_filter_greater_or_equal_operator(
     filter = Filter(
         field_name="timestamp",
         filter_value=str(DATE_TIME_NOW + timedelta(days=1)),
-        filter_type="datetime",
+        filter_type=FilterType.date,
         operator=">=",
     )
     filtered_log = changelog_resource.filter_log(filter)
@@ -415,7 +418,7 @@ def test_changelog_dataframe_cached_after_filtering(
     filter: Filter = Filter(
         field_name="change_type",
         filter_value=ChangeType.add,
-        filter_type="str",
+        filter_type=FilterType.text,
         operator="==",
     )
     changelog_resource.filter_log(filter)
@@ -429,7 +432,7 @@ def test_changelog_dataframe_cache_cleared(
     changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
     assert changelog_resource._cached_dataframe is None
 
-    changelog_resource._cached_dataframe = pandas.DataFrame(["some_data"])
+    changelog_resource._cached_dataframe = pd.DataFrame(["some_data"])
     assert changelog_resource._cached_dataframe is not None
 
     changelog_resource.add_log_entry(change_entry)

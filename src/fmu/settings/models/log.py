@@ -1,9 +1,12 @@
 """Module for the log file and related models."""
 
+from datetime import datetime
 from enum import StrEnum
 from typing import Any, Literal, Self, TypeVar
 
 from pydantic import BaseModel, Field, RootModel
+
+from fmu.settings.models._enums import FilterType
 
 LogEntryType = TypeVar("LogEntryType", bound=BaseModel)
 
@@ -35,8 +38,22 @@ class Filter(BaseModel):
 
     field_name: str
     filter_value: str
-    filter_type: Literal["str", "number", "datetime"]
+    filter_type: FilterType
     operator: Literal[">=", "<=", "==", "!="]
+
+    def parse_filter_value(self: Self) -> str | datetime | int:
+        """Parse filter value to its type."""
+        match self.filter_type:
+            case FilterType.date:
+                return datetime.fromisoformat(self.filter_value)
+            case FilterType.number:
+                return int(self.filter_value)
+            case FilterType.text:
+                return self.filter_value
+            case _:
+                raise ValueError(
+                    "Invalid filter type supplied when parsing filter value."
+                )
 
 
 class LogFileName(StrEnum):
