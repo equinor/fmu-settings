@@ -43,8 +43,9 @@ class ChangeType(StrEnum):
     reset = "reset"
 
 
-class FileName(StrEnum):
-    """The files in the .fmu directory."""
+class FilterType(StrEnum):
+    """The supported types to filter on."""
 
-    config = "config.json"
-    changelog = "changelog.json"
+    date = "date"
+    number = "number"
+    text = "text"
