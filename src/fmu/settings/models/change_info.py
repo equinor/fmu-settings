@@ -2,7 +2,6 @@
 
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, Field
 
@@ -18,5 +17,5 @@ class ChangeInfo(BaseModel):
     path: Path
     change: str
     hostname: str
-    file: Literal["config.json"]
+    file: str
     key: str
