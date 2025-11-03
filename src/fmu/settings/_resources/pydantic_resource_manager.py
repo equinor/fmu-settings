@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.types import ResettableBaseModel
 
 if TYPE_CHECKING:
@@ -54,6 +56,30 @@ class PydanticResourceManager(Generic[PydanticResource]):
     def exists(self: Self) -> bool:
         """Returns whether or not the resource exists."""
         return self.path.exists()
+
+    @staticmethod
+    def _get_dot_notation_key(
+        resource_dict: dict[str, Any], key: str, default: Any = None
+    ) -> Any:
+        """Get a value from the resource by a dot-notation key.
+
+        Args:
+            resource_dict: The resource dictionary to get the value from
+            key: The key to the value in the resource
+            default: Value to return if key is not found. Default None
+
+        Returns:
+            The value or default
+        """
+        parts = key.split(".")
+        value = resource_dict
+        for part in parts:
+            if isinstance(value, dict) and part in value:
+                value = value[part]
+            else:
+                return default
+
+        return value
 
     def load(
         self: Self, force: bool = False, store_cache: bool = True
@@ -129,29 +155,6 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
         """Initializes the resource manager."""
         super().__init__(fmu_dir, resource)
 
-    def _get_dot_notation_key(
-        self: Self, resource_dict: dict[str, Any], key: str, default: Any = None
-    ) -> Any:
-        """Sets the value to a dot-notation key.
-
-        Args:
-            resource_dict: The resource dictionary we are modifying (by reference)
-            key: The key to set
-            default: Value to return if key is not found. Default None
-
-        Returns:
-            The value or default
-        """
-        parts = key.split(".")
-        value = resource_dict
-        for part in parts:
-            if isinstance(value, dict) and part in value:
-                value = value[part]
-            else:
-                return default
-
-        return value
-
     def get(self: Self, key: str, default: Any = None) -> Any:
         """Gets a resource value by key.
 
@@ -215,6 +218,7 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
         try:
             resource = self.load()
             resource_dict = resource.model_dump()
+            old_resource_dict = copy.deepcopy(resource_dict)
 
             if "." in key:
                 self._set_dot_notation_key(resource_dict, key, value)
@@ -223,6 +227,14 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
 
             updated_resource = resource.model_validate(resource_dict)
             self.save(updated_resource)
+
+            if self.model_class == ProjectConfig:
+                self.fmu_dir._changelog.log_updates_to_changelog(
+                    updates={key: value},
+                    old_resource_dict=old_resource_dict,
+                    file="config.json",
+                )
+
         except ValidationError as e:
             raise ValueError(
                 f"Invalid value set for '{self.__class__.__name__}' with "
@@ -250,6 +262,7 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
         try:
             resource = self.load()
             resource_dict = resource.model_dump()
+            old_resource_dict = copy.deepcopy(resource_dict)
 
             flat_updates = {k: v for k, v in updates.items() if "." not in k}
             resource_dict.update(flat_updates)
@@ -260,6 +273,12 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
 
             updated_resource = resource.model_validate(resource_dict)
             self.save(updated_resource)
+
+            if self.model_class == ProjectConfig:
+                self.fmu_dir._changelog.log_updates_to_changelog(
+                    updates, old_resource_dict, "config.json"
+                )
+
         except ValidationError as e:
             raise ValueError(
                 f"Invalid value set for '{self.__class__.__name__}' with "

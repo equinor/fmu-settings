@@ -1,5 +1,6 @@
 """Tests for fmu.resources.config."""
 
+import copy
 import json
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,7 @@ from fmu.settings._resources.config_managers import (
     ProjectConfigManager,
     UserConfigManager,
 )
+from fmu.settings.models._enums import ChangeType
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
 
@@ -231,6 +233,18 @@ def test_update_config(fmu_dir: ProjectFMUDirectory) -> None:
         fmu_dir.config.update(bad_updates)
 
 
+def test_update_config_writes_to_changelog(fmu_dir: ProjectFMUDirectory) -> None:
+    """Tests that config updates are written to changelog."""
+    fmu_dir.config.update({"created_by": "user2", "version": "200.0.0", "new.field": 0})
+    changelog = fmu_dir._changelog.load()
+    expected_log_entries = 3
+    assert len(changelog) == expected_log_entries
+    assert changelog[0].change_type == ChangeType.update
+    assert changelog[0].key == "created_by"
+    assert changelog[2].change_type == ChangeType.add
+    assert changelog[2].key == "new.field"
+
+
 def test_set_smda(
     fmu_dir: ProjectFMUDirectory, masterdata_dict: dict[str, Any]
 ) -> None:
@@ -253,6 +267,27 @@ def test_set_smda(
     assert fmu_dir.config._cache.masterdata is not None
     assert fmu_dir.config._cache.masterdata.smda == smda_model
     assert config_on_disk_model == fmu_dir.config._cache
+
+
+def test_set_config_writes_to_changelog(
+    fmu_dir: ProjectFMUDirectory, masterdata_dict: dict[str, Any]
+) -> None:
+    """Tests setting a config value writes update to changelog."""
+    fmu_dir.set_config_value("masterdata", masterdata_dict)
+    changelog = fmu_dir._changelog.load()
+    assert changelog[0].key == "masterdata"
+    assert changelog[0].change_type == ChangeType.add
+
+    field = fmu_dir.get_config_value("masterdata.smda.field")
+    new_field = copy.deepcopy(field)
+    new_field[0]["identifier"] = "test"
+
+    fmu_dir.set_config_value("masterdata.smda.field", new_field)
+    changelog = fmu_dir._changelog.load()
+    expected_log_entries = 2
+    assert len(changelog) == expected_log_entries
+    assert changelog[1].key == "masterdata.smda.field"
+    assert changelog[1].change_type == ChangeType.update
 
 
 def test_set_model_invalid_fails(
