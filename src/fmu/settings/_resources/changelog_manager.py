@@ -32,11 +32,11 @@ class ChangelogManager(LogManager[ChangeInfo]):
         """Returns the relative path to the log file."""
         return Path("logs") / LogFileName.changelog
 
-    def log_updates_to_changelog(
+    def log_update_to_changelog(
         self: Self,
         updates: dict[str, Any],
         old_resource_dict: dict[str, Any],
-        file: str,
+        relative_path: Path,
     ) -> None:
         """Logs the updates to a resource to the changelog."""
         for key, new_value in updates.items():
@@ -75,7 +75,7 @@ class ChangelogManager(LogManager[ChangeInfo]):
                 path=self.fmu_dir.path,
                 change=change_string,
                 hostname=socket.gethostname(),
-                file=file,
+                file=str(relative_path),
                 key=key,
             )
             self.add_log_entry(change_entry)
