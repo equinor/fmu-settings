@@ -13,7 +13,7 @@ PROJECT_README_CONTENT: Final[str] = dedent(
     Changes to data stored within this directory must happen through the FMU
     Settings application.
 
-    Run `fmu-settings` to do this.
+    Run `fmu settings` to do this.
     """
 )
 
@@ -29,6 +29,6 @@ USER_README_CONTENT: Final[str] = dedent(
     Changes to data stored within this directory must happen through the FMU
     Settings application.
 
-    Run `fmu-settings` to do this.
+    Run `fmu settings` to do this.
     """
 )
