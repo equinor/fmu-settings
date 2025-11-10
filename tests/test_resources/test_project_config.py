@@ -241,8 +241,10 @@ def test_update_config_writes_to_changelog(fmu_dir: ProjectFMUDirectory) -> None
     assert len(changelog) == expected_log_entries
     assert changelog[0].change_type == ChangeType.update
     assert changelog[0].key == "created_by"
+    assert changelog[0].file == "config.json"
     assert changelog[2].change_type == ChangeType.add
     assert changelog[2].key == "new.field"
+    assert changelog[2].file == "config.json"
 
 
 def test_set_smda(
@@ -276,7 +278,8 @@ def test_set_config_writes_to_changelog(
     fmu_dir.set_config_value("masterdata", masterdata_dict)
     changelog = fmu_dir._changelog.load()
     assert changelog[0].key == "masterdata"
-    assert changelog[0].change_type == ChangeType.add
+    assert changelog[0].change_type == ChangeType.update
+    assert changelog[0].file == "config.json"
 
     field = fmu_dir.get_config_value("masterdata.smda.field")
     new_field = copy.deepcopy(field)
@@ -288,6 +291,7 @@ def test_set_config_writes_to_changelog(
     assert len(changelog) == expected_log_entries
     assert changelog[1].key == "masterdata.smda.field"
     assert changelog[1].change_type == ChangeType.update
+    assert changelog[1].file == "config.json"
 
 
 def test_set_model_invalid_fails(

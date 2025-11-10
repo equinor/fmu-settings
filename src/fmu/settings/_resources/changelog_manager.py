@@ -38,34 +38,39 @@ class ChangelogManager(LogManager[ChangeInfo]):
         old_resource_dict: dict[str, Any],
         relative_path: Path,
     ) -> None:
-        """Logs the updates to a resource to the changelog."""
+        """Logs the update of a resource to the changelog."""
+        _MISSING_KEY = object()
         for key, new_value in updates.items():
             change_type = ChangeType.update
             if "." in key:
                 old_value = self._get_dot_notation_key(
-                    resource_dict=old_resource_dict, key=key
+                    resource_dict=old_resource_dict, key=key, default=_MISSING_KEY
                 )
             else:
-                old_value = old_resource_dict.get(key)
-            if old_value is not None:
-                if isinstance(old_value, BaseModel) and isinstance(
-                    new_value, BaseModel
-                ):
-                    old_value_string = str(old_value.model_dump())
-                    new_value_string = str(new_value.model_dump())
-                else:
-                    old_value_string = str(old_value)
-                    new_value_string = str(new_value)
+                old_value = old_resource_dict.get(key, _MISSING_KEY)
+
+            if old_value != _MISSING_KEY:
+                old_value_string = (
+                    str(old_value.model_dump())
+                    if isinstance(old_value, BaseModel)
+                    else str(old_value)
+                )
+                new_value_string = (
+                    str(new_value.model_dump())
+                    if isinstance(new_value, BaseModel)
+                    else str(new_value)
+                )
                 change_string = (
                     f"Updated field '{key}'. Old value: {old_value_string}"
                     f" -> New value: {new_value_string}"
                 )
             else:
                 change_type = ChangeType.add
-                if isinstance(new_value, BaseModel):
-                    new_value_string = str(new_value.model_dump())
-                else:
-                    new_value_string = str(new_value)
+                new_value_string = (
+                    str(new_value.model_dump())
+                    if isinstance(new_value, BaseModel)
+                    else str(new_value)
+                )
                 change_string = f"Added field '{key}'. New value: {new_value_string}"
 
             change_entry = ChangeInfo(
