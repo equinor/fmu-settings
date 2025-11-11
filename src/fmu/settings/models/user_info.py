@@ -1,4 +1,4 @@
-"""Model for the log entries in the the eventlog file."""
+"""Model for the log entries in the the userlog file."""
 
 from datetime import UTC, datetime
 

@@ -1,4 +1,4 @@
-"""Manages an .fmu eventlog file."""
+"""Manages an .fmu userlog file."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ class UserlogManager(LogManager[UserInfo]):
         """Initializes the User log resource manager."""
         super().__init__(fmu_dir, Log[UserInfo])
 
-        # If eventlog.json exists from previous session, cache it and then delete it
+        # If userlog.json exists from previous session, cache it and then delete it
         # We want a fresh log each time
         if self.exists:
             content = self.fmu_dir.read_text_file(self.relative_path)
@@ -33,4 +33,4 @@ class UserlogManager(LogManager[UserInfo]):
     @property
     def relative_path(self: Self) -> Path:
         """Returns the relative path to the log file."""
-        return Path("logs") / LogFileName.eventlog
+        return Path("logs") / LogFileName.userlog
