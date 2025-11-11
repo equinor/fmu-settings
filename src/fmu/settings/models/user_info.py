@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 
-class EventInfo(BaseModel):
+class UserInfo(BaseModel):
     """Log entry model for fmu-settings LogManager."""
 
     model_config = ConfigDict(extra="allow")
