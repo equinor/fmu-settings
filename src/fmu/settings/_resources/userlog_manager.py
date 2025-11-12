@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
@@ -26,9 +27,11 @@ class UserlogManager(LogManager[UserInfo]):
         # If userlog.json exists from previous session, cache it and then delete it
         # We want a fresh log each time
         if self.exists:
+            self.fmu_dir._lock.ensure_can_write()
             content = self.fmu_dir.read_text_file(self.relative_path)
             self.fmu_dir.cache.store_revision(self.relative_path, content)
-            self.path.unlink()
+            with contextlib.suppress(FileNotFoundError):
+                self.path.unlink()
 
     @property
     def relative_path(self: Self) -> Path:
