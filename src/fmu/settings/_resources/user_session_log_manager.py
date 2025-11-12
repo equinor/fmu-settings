@@ -1,4 +1,4 @@
-"""Manages an .fmu userlog file."""
+"""Manages an .fmu user_session_log file."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
 from fmu.settings._resources.log_manager import LogManager
+from fmu.settings.models.event_info import EventInfo
 from fmu.settings.models.log import Log, LogFileName
-from fmu.settings.models.user_info import UserInfo
 
 if TYPE_CHECKING:
     # Avoid circular dependency for type hint in __init__ only
@@ -17,12 +17,12 @@ if TYPE_CHECKING:
     )
 
 
-class UserlogManager(LogManager[UserInfo]):
+class UserSessionLogManager(LogManager[EventInfo]):
     """Manages the .fmu userlog file."""
 
     def __init__(self: Self, fmu_dir: FMUDirectoryBase) -> None:
         """Initializes the User log resource manager."""
-        super().__init__(fmu_dir, Log[UserInfo])
+        super().__init__(fmu_dir, Log[EventInfo])
 
         # If userlog.json exists from previous session, cache it and then delete it
         # We want a fresh log each time
@@ -36,4 +36,4 @@ class UserlogManager(LogManager[UserInfo]):
     @property
     def relative_path(self: Self) -> Path:
         """Returns the relative path to the log file."""
-        return Path("logs") / LogFileName.userlog
+        return Path("logs") / LogFileName.user_session_log

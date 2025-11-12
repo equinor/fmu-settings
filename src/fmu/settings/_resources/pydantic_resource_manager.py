@@ -24,7 +24,7 @@ MutablePydanticResource = TypeVar("MutablePydanticResource", bound=ResettableBas
 class PydanticResourceManager(Generic[PydanticResource]):
     """Base class for managing resources represented by Pydantic models."""
 
-    cache_enabled: bool = True
+    automatic_caching: bool = True
 
     def __init__(
         self: Self, fmu_dir: FMUDirectoryBase, model_class: type[PydanticResource]
@@ -140,7 +140,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
         json_data = model.model_dump_json(by_alias=True, indent=2)
         self.fmu_dir.write_text_file(self.relative_path, json_data)
 
-        if self.cache_enabled and self.exists:
+        if self.automatic_caching and self.exists:
             self.fmu_dir.cache.store_revision(self.relative_path, json_data)
 
         self._cache = model
