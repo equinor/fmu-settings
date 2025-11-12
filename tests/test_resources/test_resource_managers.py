@@ -191,8 +191,8 @@ def test_pydantic_resource_manager_save_does_not_cache_when_disabled(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Saving without cache enabled should not create cache artifacts."""
-    original_default = AManager.cache_enabled
-    AManager.cache_enabled = False
+    original_default = AManager.automatic_caching
+    AManager.automatic_caching = False
     cache_root = fmu_dir.path / "cache"
     try:
         if cache_root.exists():
@@ -200,7 +200,7 @@ def test_pydantic_resource_manager_save_does_not_cache_when_disabled(
         a = AManager(fmu_dir)
         a.save(A(foo="bar"))
     finally:
-        AManager.cache_enabled = original_default
+        AManager.automatic_caching = original_default
 
     assert not cache_root.exists()
 

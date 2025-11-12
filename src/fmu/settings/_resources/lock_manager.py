@@ -39,7 +39,7 @@ class LockNotFoundError(FileNotFoundError):
 class LockManager(PydanticResourceManager[LockInfo]):
     """Manages the .lock file."""
 
-    cache_enabled: bool = False
+    automatic_caching: bool = False
 
     def __init__(
         self: Self,

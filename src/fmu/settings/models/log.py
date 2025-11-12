@@ -60,3 +60,4 @@ class LogFileName(StrEnum):
     """The log files in the .fmu directory."""
 
     changelog = "changelog.json"
+    user_session_log = "user_session_log.json"

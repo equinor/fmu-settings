@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 class LogManager(PydanticResourceManager[Log[LogEntryType]], Generic[LogEntryType]):
     """Manages the .fmu log files."""
 
+    automatic_caching: bool = False
+
     def __init__(
         self: Self, fmu_dir: FMUDirectoryBase, model_class: type[Log[LogEntryType]]
     ) -> None:
