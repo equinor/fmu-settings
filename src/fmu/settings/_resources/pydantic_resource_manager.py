@@ -229,10 +229,10 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
             self.save(updated_resource)
 
             if self.model_class == ProjectConfig:
-                self.fmu_dir._changelog.log_updates_to_changelog(
+                self.fmu_dir._changelog.log_update_to_changelog(
                     updates={key: value},
                     old_resource_dict=old_resource_dict,
-                    file="config.json",
+                    relative_path=self.relative_path,
                 )
 
         except ValidationError as e:
@@ -275,8 +275,8 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
             self.save(updated_resource)
 
             if self.model_class == ProjectConfig:
-                self.fmu_dir._changelog.log_updates_to_changelog(
-                    updates, old_resource_dict, "config.json"
+                self.fmu_dir._changelog.log_update_to_changelog(
+                    updates, old_resource_dict, self.relative_path
                 )
 
         except ValidationError as e:

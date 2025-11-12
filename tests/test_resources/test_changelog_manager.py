@@ -1,12 +1,15 @@
 """Tests for ChangelogManager."""
 
 import copy
+import uuid
 import warnings
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
+from fmu.datamodels.fmu_results.fields import StratigraphicColumn
 
 from fmu.settings._fmu_dir import ProjectFMUDirectory
 from fmu.settings._resources.changelog_manager import ChangelogManager
@@ -437,3 +440,181 @@ def test_changelog_dataframe_cache_cleared(
 
     changelog_resource.add_log_entry(change_entry)
     assert changelog_resource._cached_dataframe is None
+
+
+def test_log_update_to_changelog_when_flat_dict(fmu_dir: ProjectFMUDirectory) -> None:
+    """Tests that updates of flat dictionaries are logged as expected.
+
+    Checks that the key, change_type and change fields are logged with correct values.
+    """
+    changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
+
+    first_key = "first_key"
+    first_value = "first_test_value"
+    old_resource_dict = {first_key: first_value, "some_key": "some_value"}
+
+    updated_value = "updated_value"
+    added_key = "added_key"
+    added_value = "added_value"
+    updates: dict[str, Any] = {
+        first_key: updated_value,
+        added_key: added_value,
+    }
+
+    changelog_resource.log_update_to_changelog(
+        updates, old_resource_dict, Path("config.json")
+    )
+
+    changelog: Log[ChangeInfo] = changelog_resource.load()
+    expected_log_entries = 2
+    assert len(changelog) == expected_log_entries
+
+    expected_change_string = (
+        f"Updated field '{first_key}'. Old value: {first_value}"
+        f" -> New value: {updated_value}"
+    )
+    assert changelog[0].change_type == ChangeType.update
+    assert changelog[0].change == expected_change_string
+
+    expected_change_string = f"Added field '{added_key}'. New value: {added_value}"
+    assert changelog[1].change_type == ChangeType.add
+    assert expected_change_string == changelog[1].change
+
+
+def test_log_update_to_changelog_when_nested_dict(
+    fmu_dir: ProjectFMUDirectory, masterdata_dict: dict[str, Any]
+) -> None:
+    """Tests that updates of nested dictionaries are logged as expected.
+
+    Checks that the key, change_type and change fields are logged with correct values.
+    """
+    changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
+
+    updated_country = [
+        {
+            "identifier": "Norge",
+            "uuid": "00000000-0000-0000-0000-000000000000",
+        }
+    ]
+
+    first_key = "smda.country"
+    new_key = "new_key"
+    new_nested_key = "new.nested.key"
+    updates: dict[str, Any] = {
+        first_key: updated_country,
+        new_key: "new_value",
+        new_nested_key: "new_nested_value",
+    }
+
+    changelog_resource.log_update_to_changelog(
+        updates, masterdata_dict, Path("config.json")
+    )
+
+    changelog: Log[ChangeInfo] = changelog_resource.load()
+    expected_log_entries = 3
+    assert len(changelog) == expected_log_entries
+
+    expected_old_value = str(masterdata_dict["smda"]["country"])
+    expected_change_string = (
+        f"Updated field '{first_key}'. Old value: {expected_old_value}"
+        f" -> New value: {str(updated_country)}"
+    )
+
+    assert changelog[0].change_type == ChangeType.update
+    assert changelog[0].change == expected_change_string
+
+    expected_change_string = f"Added field '{new_key}'. New value: new_value"
+    assert changelog[1].change_type == ChangeType.add
+    assert expected_change_string == changelog[1].change
+
+    expected_change_string = (
+        f"Added field '{new_nested_key}'. New value: new_nested_value"
+    )
+    assert changelog[2].change_type == ChangeType.add
+    assert expected_change_string == changelog[2].change
+
+
+def test_log_update_to_changelog_when_none_values(fmu_dir: ProjectFMUDirectory) -> None:
+    """Tests that updates with None values are logged as expected.
+
+    Checks that the key, change_type and change fields are logged with correct values.
+    """
+    first_key = "first_key"
+    first_value = "first_test_value"
+    second_key = "some_key"
+    old_resource_dict = {first_key: first_value, second_key: None}
+
+    updated_value = "updated_value"
+    added_key = "added_key"
+    updates: dict[str, Any] = {
+        first_key: None,
+        second_key: updated_value,
+        added_key: None,
+    }
+
+    changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
+    changelog_resource.log_update_to_changelog(
+        updates, old_resource_dict, Path("config.json")
+    )
+
+    changelog: Log[ChangeInfo] = changelog_resource.load()
+    expected_log_entries = 3
+    assert len(changelog) == expected_log_entries
+
+    assert changelog[0].change_type == ChangeType.update
+    expected_change_string = (
+        f"Updated field '{first_key}'. Old value: {first_value}"
+        f" -> New value: {str(None)}"
+    )
+    assert changelog[0].change == expected_change_string
+
+    assert changelog[1].change_type == ChangeType.update
+    expected_change_string = (
+        f"Updated field '{second_key}'. Old value: {str(None)}"
+        f" -> New value: {updated_value}"
+    )
+    assert changelog[1].change == expected_change_string
+
+    assert changelog[2].change_type == ChangeType.add
+    expected_change_string = f"Added field '{added_key}'. New value: {str(None)}"
+    assert changelog[2].change_type == ChangeType.add
+    assert expected_change_string == changelog[2].change
+
+
+def test_log_update_to_changelog_when_base_model_values(
+    fmu_dir: ProjectFMUDirectory, masterdata_dict: dict[str, Any]
+) -> None:
+    """Tests that updates to BaseModel objects are logged as expected.
+
+    Checks that the key, change_type and change fields are logged with correct values.
+    """
+    strat_column = StratigraphicColumn(identifier="test_strat", uuid=uuid.uuid4())
+
+    test_update = "smda.stratigraphic_column"
+    test_add = "new.field"
+    updates: dict[str, Any] = {test_update: strat_column, test_add: strat_column}
+
+    changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
+    changelog_resource.log_update_to_changelog(
+        updates, masterdata_dict, Path("config.json")
+    )
+
+    changelog: Log[ChangeInfo] = changelog_resource.load()
+    expected_log_entries = 2
+    assert len(changelog) == expected_log_entries
+
+    assert changelog[0].key == test_update
+    assert changelog[0].change_type == ChangeType.update
+    old_value = masterdata_dict["smda"]["stratigraphic_column"]
+    expected_change_string = (
+        f"Updated field '{test_update}'. Old value: {str(old_value)}"
+        f" -> New value: {str(strat_column.model_dump())}"
+    )
+    assert expected_change_string == changelog[0].change
+
+    assert changelog[1].key == test_add
+    assert changelog[1].change_type == ChangeType.add
+    expected_change_string = (
+        f"Added field '{test_add}'. New value: {str(strat_column.model_dump())}"
+    )
+    assert expected_change_string == changelog[1].change
