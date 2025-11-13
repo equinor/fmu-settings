@@ -173,17 +173,13 @@ class CacheManager:
         cutoff = datetime.now(UTC) - timedelta(days=retention_days)
 
         for revision in revisions:
-            # Parse timestamp from filename
             try:
-                timestamp_str = revision.stem.split("-")[0]  # Get YYYYMMDDTHHmmss.fZ
-                file_time = datetime.strptime(timestamp_str, "%Y%m%dT%H%M%S.%fZ")
-                file_time = file_time.replace(tzinfo=UTC)
-
-                if file_time < cutoff:
-                    revision.unlink()
-                    logger.debug("Deleted old revision: %s", revision)
-            except (ValueError, IndexError):
-                logger.warning(
-                    "Skipping file with unexpected format: %s", revision.name
-                )
+                mtime_timestamp = revision.stat().st_mtime
+                file_time = datetime.fromtimestamp(mtime_timestamp, tz=UTC)
+            except (OSError, ValueError):
+                logger.warning("Skipping file with unreadable mtime: %s", revision.name)
                 continue
+
+            if file_time < cutoff:
+                revision.unlink()
+                logger.debug("Deleted old revision: %s", revision)

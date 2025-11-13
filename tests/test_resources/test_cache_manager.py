@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -135,8 +136,14 @@ def test_cache_manager_trim_by_age_removes_old_files(
     old_filename = old_time.strftime("%Y%m%dT%H%M%S.%fZ") + "-abc12345.json"
     recent_filename = recent_time.strftime("%Y%m%dT%H%M%S.%fZ") + "-def67890.json"
 
-    (config_cache / old_filename).write_text("old content", encoding="utf-8")
-    (config_cache / recent_filename).write_text("recent content", encoding="utf-8")
+    old_file = config_cache / old_filename
+    recent_file = config_cache / recent_filename
+    old_file.write_text("old content", encoding="utf-8")
+    recent_file.write_text("recent content", encoding="utf-8")
+    old_mtime = old_time.timestamp()
+    recent_mtime = recent_time.timestamp()
+    os.utime(old_file, (old_mtime, old_mtime))
+    os.utime(recent_file, (recent_mtime, recent_mtime))
 
     manager.trim_by_age("foo.json", retention_days=30)
 
@@ -160,8 +167,14 @@ def test_cache_manager_trim_by_age_uses_default_retention(
     old_filename = old_time.strftime("%Y%m%dT%H%M%S.%fZ") + "-abc12345.json"
     recent_filename = recent_time.strftime("%Y%m%dT%H%M%S.%fZ") + "-def67890.json"
 
-    (config_cache / old_filename).write_text("old content", encoding="utf-8")
-    (config_cache / recent_filename).write_text("recent content", encoding="utf-8")
+    old_file = config_cache / old_filename
+    recent_file = config_cache / recent_filename
+    old_file.write_text("old content", encoding="utf-8")
+    recent_file.write_text("recent content", encoding="utf-8")
+    old_mtime = old_time.timestamp()
+    recent_mtime = recent_time.timestamp()
+    os.utime(old_file, (old_mtime, old_mtime))
+    os.utime(recent_file, (recent_mtime, recent_mtime))
 
     manager.trim_by_age("foo.json")
 
@@ -183,8 +196,12 @@ def test_cache_manager_trim_by_age_skips_malformed_files(
     old_filename = old_time.strftime("%Y%m%dT%H%M%S.%fZ") + "-abc12345.json"
     malformed_filename = "malformed_file.json"
 
-    (config_cache / old_filename).write_text("old content", encoding="utf-8")
-    (config_cache / malformed_filename).write_text("malformed", encoding="utf-8")
+    old_file = config_cache / old_filename
+    malformed_file = config_cache / malformed_filename
+    old_file.write_text("old content", encoding="utf-8")
+    malformed_file.write_text("malformed", encoding="utf-8")
+    old_mtime = old_time.timestamp()
+    os.utime(old_file, (old_mtime, old_mtime))
 
     manager.trim_by_age("foo.json", retention_days=30)
 
