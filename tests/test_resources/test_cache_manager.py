@@ -1,19 +1,16 @@
 """Tests for the cache manager utilities."""
 
-from __future__ import annotations
-
+import os
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+import pytest
+
+from fmu.settings._fmu_dir import ProjectFMUDirectory
 from fmu.settings._resources.cache_manager import (
     _CACHEDIR_TAG_CONTENT,
     CacheManager,
 )
-
-if TYPE_CHECKING:
-    import pytest
-
-    from fmu.settings._fmu_dir import ProjectFMUDirectory
 
 
 def _read_snapshot_names(config_cache: Path) -> list[str]:
@@ -106,3 +103,111 @@ def test_cache_manager_trim_handles_missing_files(
 
     config_cache = fmu_dir.path / "cache" / "foo"
     assert len(_read_snapshot_names(config_cache)) == CacheManager.MIN_REVISIONS
+
+
+def test_cache_manager_skip_trim_parameter(fmu_dir: ProjectFMUDirectory) -> None:
+    """store_revision with skip_trim=True does not enforce count-based limit."""
+    manager = CacheManager(fmu_dir, max_revisions=3)
+    for i in range(5):
+        manager.store_revision("foo.json", f"content_{i}", skip_trim=True)
+
+    config_cache = fmu_dir.path / "cache" / "foo"
+    snapshots = _read_snapshot_names(config_cache)
+    assert len(snapshots) == 5  # noqa: PLR2004
+
+
+def test_cache_manager_trim_by_age_removes_old_files(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """trim_by_age removes snapshots older than retention_days."""
+    manager = CacheManager(fmu_dir)
+    config_cache = fmu_dir.path / "cache" / "foo"
+    config_cache.mkdir(parents=True, exist_ok=True)
+
+    now = datetime.now(UTC)
+    old_time = now - timedelta(days=35)
+    recent_time = now - timedelta(days=10)
+
+    old_filename = old_time.strftime("%Y%m%dT%H%M%S.%fZ") + "-abc12345.json"
+    recent_filename = recent_time.strftime("%Y%m%dT%H%M%S.%fZ") + "-def67890.json"
+
+    old_file = config_cache / old_filename
+    recent_file = config_cache / recent_filename
+    old_file.write_text("old content", encoding="utf-8")
+    recent_file.write_text("recent content", encoding="utf-8")
+    old_mtime = old_time.timestamp()
+    recent_mtime = recent_time.timestamp()
+    os.utime(old_file, (old_mtime, old_mtime))
+    os.utime(recent_file, (recent_mtime, recent_mtime))
+
+    manager.trim_by_age("foo.json", retention_days=30)
+
+    remaining = _read_snapshot_names(config_cache)
+    assert len(remaining) == 1
+    assert remaining[0] == recent_filename
+
+
+def test_cache_manager_trim_by_age_uses_default_retention(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """trim_by_age uses RETENTION_DAYS when retention_days is None."""
+    manager = CacheManager(fmu_dir)
+    config_cache = fmu_dir.path / "cache" / "foo"
+    config_cache.mkdir(parents=True, exist_ok=True)
+
+    now = datetime.now(UTC)
+    old_time = now - timedelta(days=CacheManager.RETENTION_DAYS + 5)
+    recent_time = now - timedelta(days=10)
+
+    old_filename = old_time.strftime("%Y%m%dT%H%M%S.%fZ") + "-abc12345.json"
+    recent_filename = recent_time.strftime("%Y%m%dT%H%M%S.%fZ") + "-def67890.json"
+
+    old_file = config_cache / old_filename
+    recent_file = config_cache / recent_filename
+    old_file.write_text("old content", encoding="utf-8")
+    recent_file.write_text("recent content", encoding="utf-8")
+    old_mtime = old_time.timestamp()
+    recent_mtime = recent_time.timestamp()
+    os.utime(old_file, (old_mtime, old_mtime))
+    os.utime(recent_file, (recent_mtime, recent_mtime))
+
+    manager.trim_by_age("foo.json")
+
+    remaining = _read_snapshot_names(config_cache)
+    assert len(remaining) == 1
+    assert remaining[0] == recent_filename
+
+
+def test_cache_manager_trim_by_age_skips_malformed_files(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """trim_by_age skips files with unexpected format."""
+    manager = CacheManager(fmu_dir)
+    config_cache = fmu_dir.path / "cache" / "foo"
+    config_cache.mkdir(parents=True, exist_ok=True)
+
+    now = datetime.now(UTC)
+    old_time = now - timedelta(days=35)
+    old_filename = old_time.strftime("%Y%m%dT%H%M%S.%fZ") + "-abc12345.json"
+    malformed_filename = "malformed_file.json"
+
+    old_file = config_cache / old_filename
+    malformed_file = config_cache / malformed_filename
+    old_file.write_text("old content", encoding="utf-8")
+    malformed_file.write_text("malformed", encoding="utf-8")
+    old_mtime = old_time.timestamp()
+    os.utime(old_file, (old_mtime, old_mtime))
+
+    manager.trim_by_age("foo.json", retention_days=30)
+
+    remaining = _read_snapshot_names(config_cache)
+    assert len(remaining) == 1
+    assert remaining[0] == malformed_filename
+
+
+def test_cache_manager_trim_by_age_no_cache_directory(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """trim_by_age handles missing cache directory gracefully."""
+    manager = CacheManager(fmu_dir)
+    manager.trim_by_age("foo.json", retention_days=30)

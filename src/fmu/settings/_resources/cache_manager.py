@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Final, Self
 from uuid import uuid4
@@ -26,6 +26,7 @@ class CacheManager:
     """Stores complete file revisions under the `.fmu/cache` tree."""
 
     MIN_REVISIONS: ClassVar[int] = 5
+    RETENTION_DAYS: ClassVar[int] = 30
 
     def __init__(
         self: Self,
@@ -63,6 +64,7 @@ class CacheManager:
         resource_file_path: Path | str,
         content: str,
         encoding: str = "utf-8",
+        skip_trim: bool = False,
     ) -> Path | None:
         """Write a full snapshot of the resource file to the cache directory.
 
@@ -71,6 +73,7 @@ class CacheManager:
                 ``config.json``) of the resource file being cached.
             content: Serialized payload to store.
             encoding: Encoding used when persisting the snapshot. Defaults to UTF-8.
+            skip_trim: If True, skip count-based trimming. Default is False.
 
         Returns:
             Absolute filesystem path to the stored snapshot.
@@ -86,7 +89,8 @@ class CacheManager:
         )
         logger.debug("Stored revision snapshot at %s", snapshot_path)
 
-        self._trim(cache_dir)
+        if not skip_trim:
+            self._trim(cache_dir)
         return snapshot_path
 
     def list_revisions(self: Self, resource_file_path: Path | str) -> list[Path]:
@@ -151,3 +155,31 @@ class CacheManager:
                 old_revision.unlink()
             except FileNotFoundError:
                 continue
+
+    def trim_by_age(
+        self: Self, resource_file_path: Path | str, retention_days: int | None = None
+    ) -> None:
+        """Remove snapshots older than retention_days.
+
+        Args:
+            resource_file_path: Relative path within the ``.fmu`` directory (e.g.,
+                ``logs/user_session_log.json``) whose cache entries should be trimmed.
+            retention_days: Maximum age in days to retain snapshots.
+                If None, uses CacheManager.RETENTION_DAYS (default: 30 days).
+        """
+        if retention_days is None:
+            retention_days = self.RETENTION_DAYS
+        revisions = self.list_revisions(resource_file_path)
+        cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+
+        for revision in revisions:
+            try:
+                mtime_timestamp = revision.stat().st_mtime
+                file_time = datetime.fromtimestamp(mtime_timestamp, tz=UTC)
+            except (OSError, ValueError):
+                logger.warning("Skipping file with unreadable mtime: %s", revision.name)
+                continue
+
+            if file_time < cutoff:
+                revision.unlink()
+                logger.debug("Deleted old revision: %s", revision)
