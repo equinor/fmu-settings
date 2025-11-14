@@ -1,21 +1,16 @@
 """Tests for the cache manager utilities."""
 
-from __future__ import annotations
-
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+import pytest
+
+from fmu.settings._fmu_dir import ProjectFMUDirectory
 from fmu.settings._resources.cache_manager import (
     _CACHEDIR_TAG_CONTENT,
     CacheManager,
 )
-
-if TYPE_CHECKING:
-    import pytest
-
-    from fmu.settings._fmu_dir import ProjectFMUDirectory
 
 
 def _read_snapshot_names(config_cache: Path) -> list[str]:
