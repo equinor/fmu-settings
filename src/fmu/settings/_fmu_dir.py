@@ -404,6 +404,70 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
         return sorted(rms_projects)
 
+    def get_dir_diff(
+        self: Self, new_dir: Path
+    ) -> dict[str, list[tuple[str, Any, Any]]]:
+        """Get the resource differences between two .fmu directories.
+
+        Compare all resources in the two .fmu directories and
+        return a dict with the diff for each resource.
+
+        Resources that are not present in both .fmu directories will not be diffed.
+        """
+        new_fmu_dir = get_fmu_directory(new_dir)
+        changes_in_dir: dict[str, list[tuple[str, Any, Any]]] = {}
+        for resource in vars(self):
+            match resource:
+                case "config":
+                    try:
+                        current_resource: ProjectConfigManager = getattr(self, resource)
+                        new_resource: ProjectConfigManager = getattr(
+                            new_fmu_dir, resource
+                        )
+                    except AttributeError:
+                        continue
+                case _:
+                    continue
+
+            if current_resource.exists and new_resource.exists:
+                changes = current_resource.get_resource_diff(new_resource.load())
+            else:
+                continue
+
+            changes_in_dir[resource] = changes
+        return changes_in_dir
+
+    def sync_dir(self: Self, new_dir: Path) -> dict[str, Any]:
+        """Sync the resources in two .fmu directories.
+
+        Compare all resources in the two .fmu directories and merges all updates
+        in the new .fmu directory into the current .fmu directory.
+
+        Resources that are not present in both .fmu directories will not be synced.
+        """
+        new_fmu_dir = get_fmu_directory(new_dir)
+        updates: dict[str, Any] = {}
+        for resource in dir(self):
+            match resource:
+                case "config":
+                    try:
+                        current_resource: ProjectConfigManager = getattr(self, resource)
+                        new_resource: ProjectConfigManager = getattr(
+                            new_fmu_dir, resource
+                        )
+                    except AttributeError:
+                        continue
+                case _:
+                    continue
+
+            if current_resource.exists and new_resource and new_resource.exists:
+                updated_resource = current_resource.merge_resource(new_resource.load())
+            else:
+                continue
+
+            updates[resource] = updated_resource
+        return updates
+
 
 class UserFMUDirectory(FMUDirectoryBase):
     if TYPE_CHECKING:
