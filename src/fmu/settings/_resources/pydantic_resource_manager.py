@@ -148,18 +148,18 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
     @staticmethod
     def get_model_diff(
-        current_model: BaseModel, incomming_model: BaseModel, prefix: str = ""
+        current_model: BaseModel, incoming_model: BaseModel, prefix: str = ""
     ) -> list[tuple[str, Any, Any]]:
         """Recursively get differences between two Pydantic models.
 
         Returns:
             A list of differences between the models on field level.
         """
-        if type(incomming_model) is not type(current_model):
+        if type(incoming_model) is not type(current_model):
             raise ValueError(
                 "Models must be of the same type. Current model is of type "
                 f"'{current_model.__class__.__name__}', incoming model of type "
-                f"'{incomming_model.__class__.__name__}'."
+                f"'{incoming_model.__class__.__name__}'."
             )
 
         IGNORED_FIELDS: Final[list[str]] = ["created_at", "created_by"]
@@ -170,7 +170,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
                 continue
 
             current_value = getattr(current_model, field_name)
-            incoming_value = getattr(incomming_model, field_name)
+            incoming_value = getattr(incoming_model, field_name)
 
             field_path = f"{prefix}.{field_name}" if prefix else field_name
 
@@ -205,8 +205,8 @@ class PydanticResourceManager(Generic[PydanticResource]):
         current_resource = self.load()
         if type(incoming_resource) is not type(current_resource):
             raise TypeError(
-                f"Resources to diff must the same type. Current resource is of type "
-                f"'{self.model_class.__name__}', incoming resource of type "
+                f"Resources to diff must be of the same type. Current resource is of "
+                f"type '{self.model_class.__name__}', incoming resource of type "
                 f"'{incoming_resource.__class__.__name__}'."
             )
         return self.get_model_diff(current_resource, incoming_resource)
@@ -389,6 +389,6 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
         except TypeError as e:
             raise TypeError(
                 f"Merging pydantic resource failed. The incoming resource must be of "
-                f"'type {self.model_class.__name__}'. The provided model was of type "
+                f"type '{self.model_class.__name__}'. The provided model was of type "
                 f"'{incoming_resource.__class__.__name__}'."
             ) from e
