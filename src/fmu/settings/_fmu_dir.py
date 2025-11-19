@@ -375,6 +375,35 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             raise FileNotFoundError(f"No .fmu directory found at or above {start_path}")
         return cls(fmu_dir_path.parent, lock_timeout_seconds=lock_timeout_seconds)
 
+    def find_rms_projects(self: Self) -> list[Path]:
+        """Searches for RMS project directories under the project root.
+
+        RMS projects are identified by the presence of both .master and rms.ini
+        files within a directory under rms/model/.
+
+        Returns:
+            List of Path objects to RMS project directories, sorted alphabetically.
+            Returns empty list if none found.
+        """
+        project_root = self.base_path
+        rms_projects: set[Path] = set()
+
+        for model_dir in project_root.rglob("rms/model"):
+            if not model_dir.is_dir():
+                continue
+
+            for candidate in model_dir.iterdir():
+                if not candidate.is_dir():
+                    continue
+
+                master_file = candidate / ".master"
+                ini_file = candidate / "rms.ini"
+
+                if master_file.is_file() and ini_file.is_file():
+                    rms_projects.add(candidate)
+
+        return sorted(rms_projects)
+
 
 class UserFMUDirectory(FMUDirectoryBase):
     if TYPE_CHECKING:

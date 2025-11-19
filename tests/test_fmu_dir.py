@@ -471,3 +471,144 @@ def test_fmu_directory_base_exposes_lock_timeout_kwarg() -> None:
     assert lock_timeout is not None, "lock_timeout_seconds kwarg missing from base init"
     assert lock_timeout.kind is inspect.Parameter.KEYWORD_ONLY
     assert lock_timeout.default == DEFAULT_LOCK_TIMEOUT
+
+
+def test_find_rms_projects_none_found(fmu_dir: ProjectFMUDirectory) -> None:
+    """Test finding RMS projects when none exist."""
+    projects = fmu_dir.find_rms_projects()
+    assert projects == []
+
+
+def test_find_rms_projects_single(fmu_dir: ProjectFMUDirectory) -> None:
+    """Test finding a single RMS project."""
+    rms_project = fmu_dir.base_path / "rms" / "model" / "test.rms"
+    rms_project.mkdir(parents=True)
+    (rms_project / ".master").write_text("master content")
+    (rms_project / "rms.ini").write_text("[RMS]")
+
+    projects = fmu_dir.find_rms_projects()
+
+    assert len(projects) == 1
+    assert projects[0] == rms_project
+
+
+def test_find_rms_projects_multiple(fmu_dir: ProjectFMUDirectory) -> None:
+    """Test finding multiple RMS projects."""
+    rms_project_1 = (
+        fmu_dir.base_path
+        / "resmod"
+        / "ff"
+        / "25.0.0"
+        / "rms"
+        / "model"
+        / "drogon.rms14.2.2"
+    )
+    rms_project_1.mkdir(parents=True)
+    (rms_project_1 / ".master").write_text("master content")
+    (rms_project_1 / "rms.ini").write_text("[RMS]")
+
+    rms_project_2 = (
+        fmu_dir.base_path
+        / "resmod"
+        / "ff"
+        / "24.0.0"
+        / "rms"
+        / "model"
+        / "drogon.rms14.1.0"
+    )
+    rms_project_2.mkdir(parents=True)
+    (rms_project_2 / ".master").write_text("master content")
+    (rms_project_2 / "rms.ini").write_text("[RMS]")
+
+    projects = fmu_dir.find_rms_projects()
+
+    assert len(projects) == 2  # noqa: PLR2004
+    assert all("drogon.rms" in str(p) for p in projects)
+    assert any("14.2.2" in str(p) for p in projects)
+    assert any("14.1.0" in str(p) for p in projects)
+
+    for project in projects:
+        assert (project / ".master").is_file()
+        assert (project / "rms.ini").is_file()
+
+
+def test_find_rms_projects_incomplete_missing_master(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Test that projects missing .master file are not included."""
+    incomplete = fmu_dir.base_path / "rms" / "model" / "incomplete"
+    incomplete.mkdir(parents=True)
+    (incomplete / "rms.ini").write_text("[RMS]")
+
+    projects = fmu_dir.find_rms_projects()
+    assert projects == []
+
+
+def test_find_rms_projects_incomplete_missing_ini(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Test that projects missing rms.ini file are not included."""
+    incomplete = fmu_dir.base_path / "rms" / "model" / "incomplete"
+    incomplete.mkdir(parents=True)
+    (incomplete / ".master").write_text("master content")
+
+    projects = fmu_dir.find_rms_projects()
+    assert projects == []
+
+
+def test_find_rms_projects_ignores_files_in_model_dir(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Test that files in rms/model are ignored, only directories checked."""
+    model_dir = fmu_dir.base_path / "rms" / "model"
+    model_dir.mkdir(parents=True)
+    (model_dir / "not_a_directory.txt").write_text("some file")
+
+    rms_project = model_dir / "valid.rms"
+    rms_project.mkdir()
+    (rms_project / ".master").write_text("content")
+    (rms_project / "rms.ini").write_text("[RMS]")
+
+    projects = fmu_dir.find_rms_projects()
+
+    assert len(projects) == 1
+    assert projects[0] == rms_project
+
+
+def test_find_rms_projects_ignores_non_directory_model(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Test that rms/model as a file is ignored."""
+    rms_dir = fmu_dir.base_path / "rms"
+    rms_dir.mkdir()
+    (rms_dir / "model").write_text("not a directory")
+
+    valid_model = fmu_dir.base_path / "other" / "rms" / "model"
+    valid_model.mkdir(parents=True)
+    rms_project = valid_model / "test.rms"
+    rms_project.mkdir()
+    (rms_project / ".master").write_text("content")
+    (rms_project / "rms.ini").write_text("[RMS]")
+
+    projects = fmu_dir.find_rms_projects()
+
+    assert len(projects) == 1
+    assert projects[0] == rms_project
+
+
+def test_find_rms_projects_with_config_path(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Test storing and retrieving RMS project path in config."""
+    rms_project = fmu_dir.base_path / "rms" / "model" / "my.rms"
+    rms_project.mkdir(parents=True)
+    (rms_project / ".master").write_text("content")
+    (rms_project / "rms.ini").write_text("[RMS]")
+
+    fmu_dir.set_config_value("rms_project_path", rms_project)
+
+    stored_path = fmu_dir.get_config_value("rms_project_path")
+    assert stored_path == rms_project
+
+    fmu_dir2 = ProjectFMUDirectory(fmu_dir.base_path)
+    assert fmu_dir2.get_config_value("rms_project_path") == rms_project
