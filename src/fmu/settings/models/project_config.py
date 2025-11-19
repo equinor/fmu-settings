@@ -2,6 +2,7 @@
 
 import getpass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Self
 
 from pydantic import AwareDatetime, Field
@@ -24,6 +25,7 @@ class ProjectConfig(ResettableBaseModel):
     model: Model | None = Field(default=None)
     access: Access | None = Field(default=None)
     cache_max_revisions: int = Field(default=5, ge=5)
+    rms_project_path: Path | None = Field(default=None)
 
     @classmethod
     def reset(cls: type[Self]) -> Self:
@@ -40,4 +42,5 @@ class ProjectConfig(ResettableBaseModel):
             model=None,
             access=None,
             cache_max_revisions=5,
+            rms_project_path=None,
         )
