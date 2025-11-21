@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
+from builtins import TypeError
+from typing import TYPE_CHECKING, Any, Final, Generic, Self, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -144,6 +145,71 @@ class PydanticResourceManager(Generic[PydanticResource]):
             self.fmu_dir.cache.store_revision(self.relative_path, json_data)
 
         self._cache = model
+
+    @staticmethod
+    def get_model_diff(
+        current_model: BaseModel, incoming_model: BaseModel, prefix: str = ""
+    ) -> list[tuple[str, Any, Any]]:
+        """Recursively get differences between two Pydantic models.
+
+        Returns:
+            A list of differences between the models on field level.
+        """
+        if type(incoming_model) is not type(current_model):
+            raise ValueError(
+                "Models must be of the same type. Current model is of type "
+                f"'{current_model.__class__.__name__}', incoming model of type "
+                f"'{incoming_model.__class__.__name__}'."
+            )
+
+        IGNORED_FIELDS: Final[list[str]] = ["created_at", "created_by"]
+        changes: list[tuple[str, Any, Any]] = []
+
+        for field_name in type(current_model).model_fields:
+            if field_name in IGNORED_FIELDS:
+                continue
+
+            current_value = getattr(current_model, field_name)
+            incoming_value = getattr(incoming_model, field_name)
+
+            field_path = f"{prefix}.{field_name}" if prefix else field_name
+
+            if current_value is None and incoming_value is not None:
+                changes.append((field_path, None, incoming_value))
+            elif current_value is not None and incoming_value is None:
+                changes.append((field_path, current_value, None))
+            elif isinstance(current_value, BaseModel) and isinstance(
+                incoming_value, BaseModel
+            ):
+                changes.extend(
+                    PydanticResourceManager.get_model_diff(
+                        current_value, incoming_value, field_path
+                    )
+                )
+            elif isinstance(current_value, list) and isinstance(incoming_value, list):
+                if current_value != incoming_value:
+                    changes.append((field_path, current_value, incoming_value))
+            elif current_value != incoming_value:
+                changes.append((field_path, current_value, incoming_value))
+
+        return changes
+
+    def get_resource_diff(
+        self: Self, incoming_resource: BaseModel
+    ) -> list[tuple[str, Any, Any]]:
+        """Get differences between current and incoming Pydantic resource.
+
+        Returns:
+            A list of differences between the resources.
+        """
+        current_resource = self.load()
+        if type(incoming_resource) is not type(current_resource):
+            raise TypeError(
+                f"Resources to diff must be of the same type. Current resource is of "
+                f"type '{self.model_class.__name__}', incoming resource of type "
+                f"'{incoming_resource.__class__.__name__}'."
+            )
+        return self.get_model_diff(current_resource, incoming_resource)
 
 
 class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticResource]):
@@ -301,3 +367,28 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
         resource = self.model_class.reset()
         self.save(resource)
         return resource
+
+    def merge_resource(
+        self: Self, incoming_resource: BaseModel
+    ) -> MutablePydanticResource:
+        """Merge an incoming Pydantic resource into the current resource model.
+
+        All changes in the incoming resource will be applied.
+
+        Returns:
+            The updated resource object
+        """
+        try:
+            changes: list[tuple[str, Any, Any]] = self.get_resource_diff(
+                incoming_resource
+            )
+            updates: dict[str, Any] = {}
+            for change in changes:
+                updates[change[0]] = change[2]
+            return self.update(updates)
+        except TypeError as e:
+            raise TypeError(
+                f"Merging pydantic resource failed. The incoming resource must be of "
+                f"type '{self.model_class.__name__}'. The provided model was of type "
+                f"'{incoming_resource.__class__.__name__}'."
+            ) from e
