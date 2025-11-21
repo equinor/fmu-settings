@@ -447,7 +447,7 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         """
         new_fmu_dir = get_fmu_directory(new_dir)
         updates: dict[str, Any] = {}
-        for resource in dir(self):
+        for resource in vars(self):
             match resource:
                 case "config":
                     try:
