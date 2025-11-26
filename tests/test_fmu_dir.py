@@ -579,15 +579,37 @@ def test_find_rms_projects_ignores_files_in_model_dir(
     assert projects[0] == rms_project
 
 
-def test_find_rms_projects_ignores_non_directory_model(
+def test_find_rms_projects_ignores_rms_model_as_file(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Test that rms/model as a file is ignored."""
     rms_dir = fmu_dir.base_path / "rms"
     rms_dir.mkdir()
     (rms_dir / "model").write_text("not a directory")
 
-    valid_model = fmu_dir.base_path / "other" / "rms" / "model"
+    project = fmu_dir.find_rms_projects()
+
+    assert len(project) == 0
+
+
+def test_find_rms_projects_ignores_model_directory_in_subfolders_of_project_root(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    invalid_model_location = fmu_dir.base_path / "subfolder" / "rms" / "model"
+    invalid_model_location.mkdir(parents=True)
+    rms_project = invalid_model_location / "test.rms"
+    rms_project.mkdir()
+    (rms_project / ".master").write_text("content")
+    (rms_project / "rms.ini").write_text("[RMS]")
+
+    projects = fmu_dir.find_rms_projects()
+
+    assert len(projects) == 0
+
+
+def test_find_rms_projects_finds_model_directory_in_project_root(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    valid_model = fmu_dir.base_path / "rms" / "model"
     valid_model.mkdir(parents=True)
     rms_project = valid_model / "test.rms"
     rms_project.mkdir()
