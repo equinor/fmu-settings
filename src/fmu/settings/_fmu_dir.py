@@ -379,7 +379,7 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         """Searches for RMS project directories under the project root.
 
         RMS projects are identified by the presence of both .master and rms.ini
-        files within a directory under rms/model/.
+        files within rms/model/.
 
         Returns:
             List of Path objects to RMS project directories, sorted alphabetically.
@@ -390,15 +390,11 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         rms_projects: set[Path] = set()
 
         if model_root.is_dir():
-            for candidate in model_root.iterdir():
-                if not candidate.is_dir():
-                    continue
+            master_file = model_root / ".master"
+            ini_file = model_root / "rms.ini"
 
-                master_file = candidate / ".master"
-                ini_file = candidate / "rms.ini"
-
-                if master_file.is_file() and ini_file.is_file():
-                    rms_projects.add(candidate)
+            if master_file.is_file() and ini_file.is_file():
+                rms_projects.add(model_root)
 
         return sorted(rms_projects)
 
