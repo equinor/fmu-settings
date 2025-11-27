@@ -485,7 +485,7 @@ def test_find_rms_projects_none_found(fmu_dir: ProjectFMUDirectory) -> None:
 
 def test_find_rms_projects_single(fmu_dir: ProjectFMUDirectory) -> None:
     """Test finding a single RMS project."""
-    rms_project = fmu_dir.base_path / "rms" / "model"
+    rms_project = fmu_dir.base_path / "rms" / "model" / "test.rms"
     rms_project.mkdir(parents=True)
     (rms_project / ".master").write_text("master content")
     (rms_project / "rms.ini").write_text("[RMS]")
@@ -496,13 +496,31 @@ def test_find_rms_projects_single(fmu_dir: ProjectFMUDirectory) -> None:
     assert projects[0] == rms_project
 
 
+def test_find_rms_projects_multiple(fmu_dir: ProjectFMUDirectory) -> None:
+    """Test finding multiple RMS projects."""
+    rms_project_1 = fmu_dir.base_path / "rms" / "model" / "drogon.rms14.2.2"
+    rms_project_1.mkdir(parents=True)
+    (rms_project_1 / ".master").write_text("master content")
+    (rms_project_1 / "rms.ini").write_text("[RMS]")
+
+    rms_project_2 = fmu_dir.base_path / "rms" / "model" / "drogon.rms14.1.0"
+    rms_project_2.mkdir(parents=True)
+    (rms_project_2 / ".master").write_text("master content")
+    (rms_project_2 / "rms.ini").write_text("[RMS]")
+
+    projects = fmu_dir.find_rms_projects()
+
+    assert len(projects) == 2  # noqa: PLR2004
+    assert set(projects) == {rms_project_1, rms_project_2}
+
+
 def test_find_rms_projects_incomplete_missing_master(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Test that projects missing .master file are not included."""
-    model_root = fmu_dir.base_path / "rms" / "model"
-    model_root.mkdir(parents=True)
-    (model_root / "rms.ini").write_text("[RMS]")
+    incomplete = fmu_dir.base_path / "rms" / "model" / "incomplete"
+    incomplete.mkdir(parents=True)
+    (incomplete / "rms.ini").write_text("[RMS]")
 
     projects = fmu_dir.find_rms_projects()
     assert projects == []
@@ -512,9 +530,9 @@ def test_find_rms_projects_incomplete_missing_ini(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Test that projects missing rms.ini file are not included."""
-    model_root = fmu_dir.base_path / "rms" / "model"
-    model_root.mkdir(parents=True)
-    (model_root / ".master").write_text("master content")
+    incomplete = fmu_dir.base_path / "rms" / "model" / "incomplete"
+    incomplete.mkdir(parents=True)
+    (incomplete / ".master").write_text("master content")
 
     projects = fmu_dir.find_rms_projects()
     assert projects == []
@@ -527,13 +545,15 @@ def test_find_rms_projects_ignores_files_in_model_dir(
     model_dir = fmu_dir.base_path / "rms" / "model"
     model_dir.mkdir(parents=True)
     (model_dir / "not_a_directory.txt").write_text("some file")
-    (model_dir / ".master").write_text("content")
-    (model_dir / "rms.ini").write_text("[RMS]")
+    rms_project = model_dir / "valid.rms"
+    rms_project.mkdir()
+    (rms_project / ".master").write_text("content")
+    (rms_project / "rms.ini").write_text("[RMS]")
 
     projects = fmu_dir.find_rms_projects()
 
     assert len(projects) == 1
-    assert projects[0] == model_dir
+    assert projects[0] == rms_project
 
 
 def test_find_rms_projects_ignores_rms_model_as_file(
@@ -567,7 +587,7 @@ def test_find_rms_projects_with_config_path(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Test storing and retrieving RMS project path in config."""
-    rms_project = fmu_dir.base_path / "rms" / "model"
+    rms_project = fmu_dir.base_path / "rms" / "model" / "my.rms"
     rms_project.mkdir(parents=True)
     (rms_project / ".master").write_text("content")
     (rms_project / "rms.ini").write_text("[RMS]")
