@@ -498,28 +498,12 @@ def test_find_rms_projects_single(fmu_dir: ProjectFMUDirectory) -> None:
 
 def test_find_rms_projects_multiple(fmu_dir: ProjectFMUDirectory) -> None:
     """Test finding multiple RMS projects."""
-    rms_project_1 = (
-        fmu_dir.base_path
-        / "resmod"
-        / "ff"
-        / "25.0.0"
-        / "rms"
-        / "model"
-        / "drogon.rms14.2.2"
-    )
+    rms_project_1 = fmu_dir.base_path / "rms" / "model" / "drogon.rms14.2.2"
     rms_project_1.mkdir(parents=True)
     (rms_project_1 / ".master").write_text("master content")
     (rms_project_1 / "rms.ini").write_text("[RMS]")
 
-    rms_project_2 = (
-        fmu_dir.base_path
-        / "resmod"
-        / "ff"
-        / "24.0.0"
-        / "rms"
-        / "model"
-        / "drogon.rms14.1.0"
-    )
+    rms_project_2 = fmu_dir.base_path / "rms" / "model" / "drogon.rms14.1.0"
     rms_project_2.mkdir(parents=True)
     (rms_project_2 / ".master").write_text("master content")
     (rms_project_2 / "rms.ini").write_text("[RMS]")
@@ -527,13 +511,7 @@ def test_find_rms_projects_multiple(fmu_dir: ProjectFMUDirectory) -> None:
     projects = fmu_dir.find_rms_projects()
 
     assert len(projects) == 2  # noqa: PLR2004
-    assert all("drogon.rms" in str(p) for p in projects)
-    assert any("14.2.2" in str(p) for p in projects)
-    assert any("14.1.0" in str(p) for p in projects)
-
-    for project in projects:
-        assert (project / ".master").is_file()
-        assert (project / "rms.ini").is_file()
+    assert set(projects) == {rms_project_1, rms_project_2}
 
 
 def test_find_rms_projects_incomplete_missing_master(
@@ -563,11 +541,10 @@ def test_find_rms_projects_incomplete_missing_ini(
 def test_find_rms_projects_ignores_files_in_model_dir(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Test that files in rms/model are ignored, only directories checked."""
+    """Test that extra files in rms/model do not affect detection."""
     model_dir = fmu_dir.base_path / "rms" / "model"
     model_dir.mkdir(parents=True)
     (model_dir / "not_a_directory.txt").write_text("some file")
-
     rms_project = model_dir / "valid.rms"
     rms_project.mkdir()
     (rms_project / ".master").write_text("content")
@@ -579,25 +556,31 @@ def test_find_rms_projects_ignores_files_in_model_dir(
     assert projects[0] == rms_project
 
 
-def test_find_rms_projects_ignores_non_directory_model(
+def test_find_rms_projects_ignores_rms_model_as_file(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Test that rms/model as a file is ignored."""
+    """Test that rms/model path that is a file is ignored."""
     rms_dir = fmu_dir.base_path / "rms"
     rms_dir.mkdir()
     (rms_dir / "model").write_text("not a directory")
 
-    valid_model = fmu_dir.base_path / "other" / "rms" / "model"
-    valid_model.mkdir(parents=True)
-    rms_project = valid_model / "test.rms"
-    rms_project.mkdir()
-    (rms_project / ".master").write_text("content")
-    (rms_project / "rms.ini").write_text("[RMS]")
+    project = fmu_dir.find_rms_projects()
+
+    assert len(project) == 0
+
+
+def test_find_rms_projects_ignores_model_directory_in_subfolders_of_project_root(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Test that rms/model under subfolders of the root is ignored."""
+    invalid_model_location = fmu_dir.base_path / "subfolder" / "rms" / "model"
+    invalid_model_location.mkdir(parents=True)
+    (invalid_model_location / ".master").write_text("content")
+    (invalid_model_location / "rms.ini").write_text("[RMS]")
 
     projects = fmu_dir.find_rms_projects()
 
-    assert len(projects) == 1
-    assert projects[0] == rms_project
+    assert len(projects) == 0
 
 
 def test_find_rms_projects_with_config_path(

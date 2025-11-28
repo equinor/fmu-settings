@@ -386,13 +386,11 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             Returns empty list if none found.
         """
         project_root = self.base_path
+        model_root = project_root / "rms/model"
         rms_projects: set[Path] = set()
 
-        for model_dir in project_root.rglob("rms/model"):
-            if not model_dir.is_dir():
-                continue
-
-            for candidate in model_dir.iterdir():
+        if model_root.is_dir():
+            for candidate in model_root.iterdir():
                 if not candidate.is_dir():
                     continue
 
