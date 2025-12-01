@@ -592,13 +592,13 @@ def test_find_rms_projects_with_config_path(
     (rms_project / ".master").write_text("content")
     (rms_project / "rms.ini").write_text("[RMS]")
 
-    fmu_dir.set_config_value("rms_project_path", rms_project)
+    fmu_dir.set_config_value("rms", {"path": str(rms_project), "version": "14.2.2"})
 
-    stored_path = fmu_dir.get_config_value("rms_project_path")
-    assert stored_path == rms_project
+    stored_rms = fmu_dir.get_config_value("rms")
+    assert stored_rms.path == rms_project
 
     fmu_dir2 = ProjectFMUDirectory(fmu_dir.base_path)
-    assert fmu_dir2.get_config_value("rms_project_path") == rms_project
+    assert fmu_dir2.get_config_value("rms").path == rms_project
 
 
 def test_fmu_directory_base_get_dir_diff_with_other_fmu_dir(

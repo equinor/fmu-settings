@@ -43,7 +43,7 @@ def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
         "masterdata": None,
         "model": None,
         "access": None,
-        "rms_project_path": None,
+        "rms": None,
     }
 
 

@@ -5,11 +5,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Self
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 from fmu.datamodels.fmu_results.fields import Access, Masterdata, Model
 from fmu.settings import __version__
 from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa: TC001
+
+
+class RmsProject(BaseModel):
+    """RMS project configuration."""
+
+    path: Path
+    version: str
 
 
 class ProjectConfig(ResettableBaseModel):
@@ -25,7 +32,7 @@ class ProjectConfig(ResettableBaseModel):
     model: Model | None = Field(default=None)
     access: Access | None = Field(default=None)
     cache_max_revisions: int = Field(default=5, ge=5)
-    rms_project_path: Path | None = Field(default=None)
+    rms: RmsProject | None = Field(default=None)
 
     @classmethod
     def reset(cls: type[Self]) -> Self:
@@ -42,5 +49,5 @@ class ProjectConfig(ResettableBaseModel):
             model=None,
             access=None,
             cache_max_revisions=5,
-            rms_project_path=None,
+            rms=None,
         )
