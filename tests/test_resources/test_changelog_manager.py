@@ -618,3 +618,176 @@ def test_log_update_to_changelog_when_base_model_values(
         f"Added field '{test_add}'. New value: {str(strat_column.model_dump())}"
     )
     assert expected_change_string == changelog[1].change
+
+
+def test_changelog_get_latest_change_timestamp(
+    fmu_dir: ProjectFMUDirectory, change_entry_list: list[ChangeInfo]
+) -> None:
+    """Tests that the timestamp of the latest added log entry is returned."""
+    changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
+    for change_entry in change_entry_list:
+        changelog_resource.add_log_entry(change_entry)
+
+    expected_latest_timestamp = change_entry_list[-1].timestamp
+    assert (
+        changelog_resource._get_latest_change_timestamp() == expected_latest_timestamp
+    )
+
+
+def test_changelog_get_changelog_diff_with_other_changelog(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+    change_entry: ChangeInfo,
+    change_entry_list: list[ChangeInfo],
+) -> None:
+    """Tests that the new entries from the incoming changelog are returned.
+
+    When getting a diff between two changelogs, all change entries in the incoming
+    changelog newer than the log entries in the current changelog, should be returned.
+    """
+    current_changelog: ChangelogManager = ChangelogManager(fmu_dir)
+    current_changelog.add_log_entry(change_entry)
+    incoming_changelog: ChangelogManager = ChangelogManager(extra_fmu_dir)
+    for entry in change_entry_list:
+        incoming_changelog.add_log_entry(entry)
+
+    diff = current_changelog.get_changelog_diff(incoming_changelog)
+
+    expected_diff_entries = 2
+    assert len(diff) == expected_diff_entries
+    assert diff[0] == change_entry_list[2]
+    assert diff[1] == change_entry_list[3]
+
+    starting_point = change_entry.timestamp
+    for entry in diff:
+        assert entry.timestamp >= starting_point
+    assert change_entry_list[0].timestamp < starting_point
+    assert change_entry_list[1].timestamp < starting_point
+
+
+def test_changelog_get_changelog_diff_with_old_changelog(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+    change_entry: ChangeInfo,
+) -> None:
+    """Tests that the diff is empty when all incoming changes are old.
+
+    When the latest change in the current changelog is newer than the entries
+    in the incomming changelog, the result should be an empty Log object.
+    """
+    current_changelog: ChangelogManager = ChangelogManager(fmu_dir)
+    current_changelog.add_log_entry(change_entry)
+
+    incoming_changelog: ChangelogManager = ChangelogManager(extra_fmu_dir)
+    incoming_changelog.add_log_entry(
+        ChangeInfo(
+            timestamp=DATE_TIME_NOW - timedelta(seconds=2),
+            change_type=ChangeType.add,
+            user="old_test",
+            path=Path("/test_folder"),
+            file="config.json",
+            change="Added new field to smda masterdata two seconds ago",
+            hostname="hostname",
+            key="masterdata",
+        ),
+    )
+    incoming_changelog.add_log_entry(
+        ChangeInfo(
+            timestamp=DATE_TIME_NOW - timedelta(seconds=3),
+            change_type=ChangeType.add,
+            user="older_test",
+            path=Path("/test_folder"),
+            file="config.json",
+            change="Added new field to smda masterdata three seconds ago.",
+            hostname="hostname",
+            key="masterdata",
+        )
+    )
+
+    diff = current_changelog.get_changelog_diff(incoming_changelog)
+    assert len(diff) == 0
+
+
+def test_changelog_get_changelog_diff_with_other_changelog_raises(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+    change_entry: ChangeInfo,
+) -> None:
+    """Exception is raised when any of the changelog resources to diff does not exist.
+
+    When trying to diff two changelog resources, the changelog file must
+    exist in both directories in order to make a diff.
+    """
+    current_changelog: ChangelogManager = ChangelogManager(fmu_dir)
+    incoming_changelog: ChangelogManager = ChangelogManager(extra_fmu_dir)
+
+    expected_exc_msg = (
+        "Changelog resources to diff must exist in both directories: "
+        "Current changelog resource exists: {}. "
+        "Incoming changelog resource exists: {}."
+    )
+    with pytest.raises(
+        FileNotFoundError, match=expected_exc_msg.format("False", "False")
+    ):
+        current_changelog.get_changelog_diff(incoming_changelog)
+
+    current_changelog.add_log_entry(change_entry)
+    with pytest.raises(
+        FileNotFoundError, match=expected_exc_msg.format("True", "False")
+    ):
+        current_changelog.get_changelog_diff(incoming_changelog)
+
+    with pytest.raises(
+        FileNotFoundError, match=expected_exc_msg.format("False", "True")
+    ):
+        incoming_changelog.get_changelog_diff(current_changelog)
+
+
+def test_changelog_merge_changelog_with_other_changelog(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+    change_entry: ChangeInfo,
+    change_entry_list: list[ChangeInfo],
+) -> None:
+    """Tests merging a changelog resource with an incoming changelog.
+
+    When merging two changelogs, all log entries from the incoming changelog newer
+    than the log entries in the current changelog are added.
+    """
+    current_changelog: ChangelogManager = ChangelogManager(fmu_dir)
+    current_changelog.add_log_entry(change_entry)
+    incoming_changelog: ChangelogManager = ChangelogManager(extra_fmu_dir)
+    for entry in change_entry_list:
+        incoming_changelog.add_log_entry(entry)
+
+    updated_changelog = current_changelog.merge_changelog(incoming_changelog)
+
+    expected_entries = 3
+    assert len(updated_changelog) == expected_entries
+    assert updated_changelog[0] == change_entry
+    assert updated_changelog[1] == change_entry_list[2]
+    assert updated_changelog[2] == change_entry_list[3]
+
+    current_log = current_changelog.load(force=True)
+    assert updated_changelog == current_log
+
+
+def test_changelog_merge_changes_into_current_changelog(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+    change_entry: ChangeInfo,
+    change_entry_list: list[ChangeInfo],
+) -> None:
+    """Tests that all log entries in the change object are added to the changelog."""
+    current_changelog: ChangelogManager = ChangelogManager(fmu_dir)
+    current_changelog.add_log_entry(change_entry)
+
+    new_changelog: ChangelogManager = ChangelogManager(extra_fmu_dir)
+    for entry in change_entry_list:
+        new_changelog.add_log_entry(entry)
+    change = change_entry_list
+    updated_changelog = current_changelog.merge_changes(change)
+
+    expected_entries = 5
+    assert len(updated_changelog) == expected_entries
+    assert updated_changelog == current_changelog.load()

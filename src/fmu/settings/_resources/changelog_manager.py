@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any, Self
 from pydantic import BaseModel
 
 from fmu.settings._resources.log_manager import LogManager
-from fmu.settings.models._enums import ChangeType
+from fmu.settings.models._enums import ChangeType, FilterType
 from fmu.settings.models.change_info import ChangeInfo
-from fmu.settings.models.log import Log, LogFileName
+from fmu.settings.models.log import Filter, Log, LogFileName
 
 if TYPE_CHECKING:
     # Avoid circular dependency for type hint in __init__ only
@@ -84,3 +84,52 @@ class ChangelogManager(LogManager[ChangeInfo]):
                 key=key,
             )
             self.add_log_entry(change_entry)
+
+    def _get_latest_change_timestamp(self: Self) -> datetime:
+        """Get the timestamp of the latest change entry in the changelog."""
+        return self.load()[-1].timestamp
+
+    def get_changelog_diff(
+        self: Self, incoming_changelog: ChangelogManager
+    ) -> Log[ChangeInfo]:
+        """Get new entries from the incoming changelog.
+
+        All log entries from the incoming changelog newer than the
+        log entries in the current changelog are returned.
+        """
+        if self.exists and incoming_changelog.exists:
+            starting_point = self._get_latest_change_timestamp()
+            return incoming_changelog.filter_log(
+                Filter(
+                    field_name="timestamp",
+                    filter_value=str(starting_point),
+                    filter_type=FilterType.date,
+                    operator=">=",
+                )
+            )
+        raise FileNotFoundError(
+            "Changelog resources to diff must exist in both directories: "
+            f"Current changelog resource exists: {self.exists}. "
+            f"Incoming changelog resource exists: {incoming_changelog.exists}."
+        )
+
+    def merge_changelog(
+        self: Self, incoming_changelog: ChangelogManager
+    ) -> Log[ChangeInfo]:
+        """Add new entries from the incoming changelog to the current changelog.
+
+        All log entries from the incoming changelog newer than the
+        log entries in the current changelog are added.
+        """
+        new_log_entries = self.get_changelog_diff(incoming_changelog)
+        self.merge_changes(new_log_entries.root)
+        return self.load()
+
+    def merge_changes(self: Self, change: list[ChangeInfo]) -> Log[ChangeInfo]:
+        """Merge a list of changes into the current changelog.
+
+        All log entries in the change object are added to the changelog.
+        """
+        for entry in change:
+            self.add_log_entry(entry)
+        return self.load()

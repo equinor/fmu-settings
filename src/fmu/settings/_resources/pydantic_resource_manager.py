@@ -195,21 +195,29 @@ class PydanticResourceManager(Generic[PydanticResource]):
         return changes
 
     def get_resource_diff(
-        self: Self, incoming_resource: BaseModel
+        self: Self, incoming_resource: PydanticResourceManager[PydanticResource]
     ) -> list[tuple[str, Any, Any]]:
         """Get differences between current and incoming Pydantic resource.
 
         Returns:
             A list of differences between the resources.
         """
-        current_resource = self.load()
-        if type(incoming_resource) is not type(current_resource):
-            raise TypeError(
-                f"Resources to diff must be of the same type. Current resource is of "
-                f"type '{self.model_class.__name__}', incoming resource of type "
-                f"'{incoming_resource.__class__.__name__}'."
-            )
-        return self.get_model_diff(current_resource, incoming_resource)
+        if self.exists and incoming_resource.exists:
+            current_model = self.load()
+            incoming_model = incoming_resource.load()
+            if type(current_model) is not type(incoming_model):
+                raise TypeError(
+                    f"Resources to diff must be of the same type. Current resource is "
+                    f"of type '{self.model_class.__name__}', incoming resource of type "
+                    f"'{incoming_model.__class__.__name__}'."
+                )
+            return self.get_model_diff(current_model, incoming_model)
+        raise FileNotFoundError(
+            "Resources to diff must exist in both directories: "
+            f"Current resource {str(self.relative_path)} exists: {self.exists}. "
+            f"Incoming resource {str(incoming_resource.relative_path)} exists: "
+            f"{incoming_resource.exists}."
+        )
 
 
 class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticResource]):
@@ -369,7 +377,8 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
         return resource
 
     def merge_resource(
-        self: Self, incoming_resource: BaseModel
+        self: Self,
+        incoming_resource: MutablePydanticResourceManager[MutablePydanticResource],
     ) -> MutablePydanticResource:
         """Merge an incoming Pydantic resource into the current resource model.
 
@@ -382,13 +391,25 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
             changes: list[tuple[str, Any, Any]] = self.get_resource_diff(
                 incoming_resource
             )
-            updates: dict[str, Any] = {}
-            for change in changes:
-                updates[change[0]] = change[2]
-            return self.update(updates)
+            return self.merge_changes(changes)
         except TypeError as e:
             raise TypeError(
                 f"Merging pydantic resource failed. The incoming resource must be of "
                 f"type '{self.model_class.__name__}'. The provided model was of type "
-                f"'{incoming_resource.__class__.__name__}'."
+                f"'{incoming_resource.model_class.__name__}'."
             ) from e
+
+    def merge_changes(
+        self: Self, changes: list[tuple[str, Any, Any]]
+    ) -> MutablePydanticResource:
+        """Merge a list of changes into the current resource model.
+
+        All changes will overwrite the current values.
+
+        Returns:
+            The updated resource object
+        """
+        updates: dict[str, Any] = {}
+        for change in changes:
+            updates[change[0]] = change[2]
+        return self.update(updates)

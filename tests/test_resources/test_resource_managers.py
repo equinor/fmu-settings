@@ -285,14 +285,15 @@ def test_pydantic_resource_manager_revision_cache_trims_excess(
 
 
 def test_pydantic_resource_manager_get_resource_diff(
-    fmu_dir: ProjectFMUDirectory,
+    fmu_dir: ProjectFMUDirectory, extra_fmu_dir: ProjectFMUDirectory
 ) -> None:
     """Tests the happy path of getting a diff with another Pydantic resource."""
-    test_manager = PydanticManagerTest(fmu_dir)
-    test_manager.save(PydanticResourceTest(foo="current_value"))
-    test_incoming_resource = PydanticResourceTest(foo="incoming_value")
+    current_resource = PydanticManagerTest(fmu_dir)
+    current_resource.save(PydanticResourceTest(foo="current_value"))
+    incoming_resource = PydanticManagerTest(extra_fmu_dir)
+    incoming_resource.save(PydanticResourceTest(foo="incoming_value"))
 
-    diff = test_manager.get_resource_diff(test_incoming_resource)
+    diff = current_resource.get_resource_diff(incoming_resource)
 
     assert len(diff) == 1
     assert diff[0][0] == "foo"
@@ -301,12 +302,14 @@ def test_pydantic_resource_manager_get_resource_diff(
 
 
 def test_pydantic_resource_manager_get_resource_diff_raises_when_other_type(
-    fmu_dir: ProjectFMUDirectory,
+    fmu_dir: ProjectFMUDirectory, extra_fmu_dir: ProjectFMUDirectory
 ) -> None:
-    """Tests that a TypeError is raised when to diffing a different resource type."""
-    test_manager = PydanticManagerTest(fmu_dir)
-    test_manager.save(PydanticResourceTest(foo="current_value"))
-    test_incoming_resource = MutablePydanticResourceTest(foo="incoming_value")
+    """Tests that a TypeError is raised when diffing a different resource type."""
+    current_resource = PydanticManagerTest(fmu_dir)
+    current_resource.save(PydanticResourceTest(foo="current_value"))
+
+    incoming_resource = MutablePydanticManagerTest(extra_fmu_dir)
+    incoming_resource.save(MutablePydanticResourceTest(foo="incoming_value"))
 
     with pytest.raises(
         TypeError,
@@ -316,7 +319,40 @@ def test_pydantic_resource_manager_get_resource_diff_raises_when_other_type(
             "'MutablePydanticResourceTest'."
         ),
     ):
-        test_manager.get_resource_diff(test_incoming_resource)
+        current_resource.get_resource_diff(incoming_resource)  # type: ignore
+
+
+def test_pydantic_resource_manager_get_resource_diff_raises_when_no_file(
+    fmu_dir: ProjectFMUDirectory, extra_fmu_dir: ProjectFMUDirectory
+) -> None:
+    """FileNotFoundError is raised when one of the resources to diff doesn't exits.
+
+    When trying to diff two resources, the resource must
+    exist in both directories in order to make a diff.
+    """
+    current_resource = PydanticManagerTest(fmu_dir)
+    incoming_resource = PydanticManagerTest(extra_fmu_dir)
+    expected_exc_msg = (
+        "Resources to diff must exist in both directories: "
+        "Current resource foo.json exists: {}. "
+        "Incoming resource foo.json exists: {}."
+    )
+
+    with pytest.raises(
+        FileNotFoundError, match=expected_exc_msg.format("False", "False")
+    ):
+        current_resource.get_resource_diff(incoming_resource)
+
+    incoming_resource.save(PydanticResourceTest(foo="incoming_value"))
+    with pytest.raises(
+        FileNotFoundError, match=expected_exc_msg.format("False", "True")
+    ):
+        current_resource.get_resource_diff(incoming_resource)
+
+    with pytest.raises(
+        FileNotFoundError, match=expected_exc_msg.format("True", "False")
+    ):
+        incoming_resource.get_resource_diff(current_resource)
 
 
 def test_pydantic_resource_manager_get_model_diff(fmu_dir: ProjectFMUDirectory) -> None:
@@ -459,24 +495,26 @@ def test_pydantic_resource_manager_get_diff_when_value_is_none(
 
 
 def test_mutable_resource_manager_merge_other_resource(
-    fmu_dir: ProjectFMUDirectory,
+    fmu_dir: ProjectFMUDirectory, extra_fmu_dir: ProjectFMUDirectory
 ) -> None:
-    """Tests merging a Pydantic resource into the managers resource."""
-    test_manager = MutablePydanticManagerTest(fmu_dir)
-    test_manager.save(MutablePydanticResourceTest(foo="current_value"))
-    test_incoming_resource = MutablePydanticResourceTest(foo="incoming_value")
+    """Tests merging a Pydantic resource into the current resource."""
+    current_resource = MutablePydanticManagerTest(fmu_dir)
+    current_resource.save(MutablePydanticResourceTest(foo="current_value"))
+    incoming_resource = MutablePydanticManagerTest(extra_fmu_dir)
+    incoming_resource.save(MutablePydanticResourceTest(foo="incoming_value"))
 
-    updated_resource = test_manager.merge_resource(test_incoming_resource)
-    assert updated_resource == test_incoming_resource
+    updated_resource = current_resource.merge_resource(incoming_resource)
+    assert updated_resource == incoming_resource.load()
 
 
 def test_mutable_resource_manager_merge_resource_raises_when_other_type(
-    fmu_dir: ProjectFMUDirectory,
+    fmu_dir: ProjectFMUDirectory, extra_fmu_dir: ProjectFMUDirectory
 ) -> None:
     """Tests that a TypeError is raised when merging a different resource type."""
-    test_manager = MutablePydanticManagerTest(fmu_dir)
-    test_manager.save(MutablePydanticResourceTest(foo="current_value"))
-    test_incoming_resource = PydanticResourceTest(foo="incoming_value")
+    current_resource = MutablePydanticManagerTest(fmu_dir)
+    current_resource.save(MutablePydanticResourceTest(foo="current_value"))
+    incoming_resource = PydanticManagerTest(extra_fmu_dir)
+    incoming_resource.save(PydanticResourceTest(foo="incoming_value"))
 
     with pytest.raises(
         TypeError,
@@ -486,4 +524,4 @@ def test_mutable_resource_manager_merge_resource_raises_when_other_type(
             "'PydanticResourceTest'."
         ),
     ):
-        test_manager.merge_resource(test_incoming_resource)
+        current_resource.merge_resource(incoming_resource)  # type: ignore
