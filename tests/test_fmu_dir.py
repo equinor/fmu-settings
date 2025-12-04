@@ -20,6 +20,9 @@ from fmu.settings._fmu_dir import (
 from fmu.settings._init import init_fmu_directory
 from fmu.settings._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
 from fmu.settings._resources.lock_manager import DEFAULT_LOCK_TIMEOUT, LockManager
+from fmu.settings.models._enums import ChangeType
+from fmu.settings.models.change_info import ChangeInfo
+from fmu.settings.models.log import Log
 from fmu.settings.models.project_config import ProjectConfig
 
 
@@ -640,7 +643,6 @@ def test_fmu_directory_base_get_dir_diff_only_diff_whitelisted_resources(
 
     assert len(diff_fmu_dir) == 1
     assert diff_fmu_dir["config"]
-    assert "_changelog" not in diff_fmu_dir
     assert "_lock" not in diff_fmu_dir
 
 
@@ -700,7 +702,7 @@ def test_fmu_directory_base_sync_dir_only_whitelisted_resources(
 
     updates = fmu_dir.sync_dir(new_dir)
 
-    assert "changelog" not in updates
+    assert "_lock" not in updates
     assert len(updates) == 1
     assert updates["config"]
     assert not fmu_dir._lock.exists
@@ -719,3 +721,178 @@ def test_fmu_directory_base_sync_dir_skip_when_resource_not_exist(
 
     updates = fmu_dir.sync_dir(new_fmu_dir.parent)
     assert len(updates) == 0
+
+
+def test_fmu_directory_base_sync_runtime_variables(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that runtime variables are synced as part of .fmu directory sync.
+
+    When resources in the .fmu directory are synced,
+    runtime variables should be synced accordingly.
+    """
+    new_fmu_dir = extra_fmu_dir
+    new_cache_max_revisions = 10
+    old_cache_max_revisions = fmu_dir.config.load().cache_max_revisions
+    assert fmu_dir.cache_max_revisions != new_cache_max_revisions
+    assert fmu_dir.cache_max_revisions == fmu_dir.config.load().cache_max_revisions
+
+    new_config = new_fmu_dir.config.load()
+    new_config.cache_max_revisions = new_cache_max_revisions
+    new_fmu_dir.config.save(new_config)
+
+    updates = fmu_dir.sync_dir(new_fmu_dir.base_path)
+    assert "config" in updates
+    assert updates["config"].cache_max_revisions == new_cache_max_revisions
+    assert fmu_dir.cache_max_revisions == new_cache_max_revisions
+    assert fmu_dir.cache.max_revisions == new_cache_max_revisions
+
+    config = fmu_dir.config.load()
+    assert config.cache_max_revisions is new_cache_max_revisions
+    config.cache_max_revisions = old_cache_max_revisions
+    fmu_dir.config.save(config)
+    assert (
+        fmu_dir.config.load(force=True).cache_max_revisions == old_cache_max_revisions
+    )
+    assert fmu_dir.cache_max_revisions == new_cache_max_revisions
+    assert fmu_dir.cache.max_revisions == new_cache_max_revisions
+
+    fmu_dir._sync_runtime_variables()
+
+    assert fmu_dir.cache_max_revisions == old_cache_max_revisions
+    assert fmu_dir.cache.max_revisions == old_cache_max_revisions
+
+
+def test_fmu_directory_base_get_dir_diff_with_changelog(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests getting the changelog diff with another .fmu directory."""
+    log_entry = ChangeInfo(
+        change_type=ChangeType.add,
+        user="fmu_dir_user",
+        path=Path("/some_path"),
+        change="some change",
+        hostname="host",
+        file="config",
+        key="test_key",
+    )
+    fmu_dir._changelog.add_log_entry(log_entry)
+    assert len(fmu_dir._changelog.load()) == 1
+    assert fmu_dir._changelog.load()[0] == log_entry
+
+    new_fmu_dir = extra_fmu_dir
+    new_log_entry = ChangeInfo(
+        change_type=ChangeType.add,
+        user="new_fmu_dir_user",
+        path=Path("/some_new_path"),
+        change="new change",
+        hostname="new_host",
+        file="config",
+        key="new_test_key",
+    )
+    new_fmu_dir._changelog.add_log_entry(new_log_entry)
+    assert len(new_fmu_dir._changelog.load()) == 1
+    assert new_fmu_dir._changelog.load()[0] == new_log_entry
+
+    dir_diff = fmu_dir.get_dir_diff(new_fmu_dir.base_path)
+
+    expected_no_of_resources = 2
+    assert len(dir_diff) == expected_no_of_resources
+    assert dir_diff["config"] == []
+    assert "_changelog" in dir_diff
+    changelog_diff = dir_diff["_changelog"]
+
+    assert len(changelog_diff) == 1
+    assert changelog_diff[0][0] == "root"
+    assert changelog_diff[0][1] is None
+    assert isinstance(changelog_diff[0][2], Log)
+    assert len(changelog_diff[0][2]) == 1
+    assert changelog_diff[0][2].root[0] == new_log_entry
+
+
+def test_fmu_directory_base_sync_dir_with_changelog(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests syncing changelog with another .fmu directory."""
+    log_entry = ChangeInfo(
+        change_type=ChangeType.add,
+        user="fmu_dir_user",
+        path=Path("/some_path"),
+        change="some change",
+        hostname="host",
+        file="config",
+        key="test_key",
+    )
+    fmu_dir._changelog.add_log_entry(log_entry)
+    assert len(fmu_dir._changelog.load()) == 1
+    assert fmu_dir._changelog.load()[0] == log_entry
+
+    new_fmu_dir = extra_fmu_dir
+    new_log_entry = ChangeInfo(
+        change_type=ChangeType.add,
+        user="new_fmu_dir_user",
+        path=Path("/some_new_path"),
+        change="new change",
+        hostname="new_host",
+        file="config",
+        key="new_test_key",
+    )
+    new_fmu_dir._changelog.add_log_entry(new_log_entry)
+    assert len(new_fmu_dir._changelog.load()) == 1
+    assert new_fmu_dir._changelog.load()[0] == new_log_entry
+
+    updated_resources = fmu_dir.sync_dir(new_fmu_dir.base_path)
+
+    assert len(updated_resources) == 1
+    assert "_changelog" in updated_resources
+    updated_changelog: Log[ChangeInfo] = updated_resources["_changelog"]
+    expected_log_length = 2
+    assert len(updated_changelog) == expected_log_length
+    assert updated_changelog.root[0] == log_entry
+    assert updated_changelog.root[1] == new_log_entry
+
+
+def test_fmu_directory_base_sync_dir_with_config_and_changelog(
+    fmu_dir: ProjectFMUDirectory,
+    masterdata_dict: dict[str, Any],
+    extra_fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests syncing with another .fmu directory with both config and changelog."""
+    assert fmu_dir.config.load().masterdata is None
+    fmu_dir.set_config_value("masterdata", masterdata_dict)
+    assert fmu_dir.config.load().masterdata is not None
+    assert len(fmu_dir._changelog.load()) == 1
+    assert fmu_dir._changelog.load()[0].change_type == ChangeType.update
+
+    new_fmu_dir = extra_fmu_dir
+    new_log_entry = ChangeInfo(
+        change_type=ChangeType.add,
+        user="test",
+        path=Path("/some_path"),
+        change="test change",
+        hostname="host",
+        file="config",
+        key="synced_entry",
+    )
+    new_fmu_dir._changelog.add_log_entry(new_log_entry)
+    assert len(new_fmu_dir._changelog.load()) == 1
+    assert new_fmu_dir._changelog.load()[0] == new_log_entry
+
+    updated_resources = fmu_dir.sync_dir(new_fmu_dir.base_path)
+
+    expected_no_of_resources = 2
+    assert len(updated_resources) == expected_no_of_resources
+    assert "config" in updated_resources
+    assert fmu_dir.config.load().masterdata is None
+
+    assert "_changelog" in updated_resources
+    updated_changelog: Log[ChangeInfo] = updated_resources["_changelog"]
+    expected_log_length = 3
+    assert len(updated_changelog) == expected_log_length
+    assert updated_changelog[0].key == "masterdata"
+    assert updated_changelog[1].key == "masterdata"
+    assert updated_changelog[2].key == "synced_entry"
+    assert updated_changelog[2] == new_log_entry

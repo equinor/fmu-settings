@@ -416,24 +416,29 @@ def test_save(fmu_dir: ProjectFMUDirectory, config_dict: dict[str, Any]) -> None
 
 def test_project_config_diff_with_other_config(
     fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
     config_model: ProjectConfig,
 ) -> None:
     """Tests getting the diff between the project config and another config resource."""
     current_cache_max_revisions = 5
     assert fmu_dir.config.load().cache_max_revisions == current_cache_max_revisions
+
+    incoming_config = ProjectConfigManager(extra_fmu_dir)
     new_cache_max_revisions = 10
     config_model.cache_max_revisions = new_cache_max_revisions
+    incoming_config.save(config_model)
 
-    diff = fmu_dir.config.get_resource_diff(config_model)
+    diff = fmu_dir.config.get_resource_diff(incoming_config)
     assert len(diff) == 1
     assert diff == [("cache_max_revisions", 5, 10)]
 
     masterdata: Masterdata = Masterdata.model_validate(masterdata_dict)
     config_with_masterdata = copy.deepcopy(config_model)
     config_with_masterdata.masterdata = masterdata
+    incoming_config.save(config_with_masterdata)
 
-    diff = fmu_dir.config.get_resource_diff(config_with_masterdata)
+    diff = fmu_dir.config.get_resource_diff(incoming_config)
     expected_length = 2
     assert len(diff) == expected_length
     assert diff[0] == ("masterdata", None, masterdata)
@@ -445,8 +450,9 @@ def test_project_config_diff_with_other_config(
     stratigraphic_column = StratigraphicColumn(identifier="test_id", uuid=uuid.uuid4())
     assert config_with_strat_col.masterdata is not None
     config_with_strat_col.masterdata.smda.stratigraphic_column = stratigraphic_column
+    incoming_config.save(config_with_strat_col)
 
-    diff = fmu_dir.config.get_resource_diff(config_with_strat_col)
+    diff = fmu_dir.config.get_resource_diff(incoming_config)
     current_config = fmu_dir.config.load()
     assert current_config.masterdata is not None
     current_strat_col = current_config.masterdata.smda.stratigraphic_column
@@ -466,16 +472,20 @@ def test_project_config_diff_with_other_config(
 
 def test_project_config_merge_with_other_config(
     fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
     config_model: ProjectConfig,
 ) -> None:
     """Tests merging the project config with another config resource."""
     current_cache_max_revisions = 5
     assert fmu_dir.config.load().cache_max_revisions == current_cache_max_revisions
+
+    incoming_config = ProjectConfigManager(extra_fmu_dir)
     new_cache_max_revisions = 10
     config_model.cache_max_revisions = new_cache_max_revisions
+    incoming_config.save(config_model)
 
-    updated_resource = fmu_dir.config.merge_resource(config_model)
+    updated_resource = fmu_dir.config.merge_resource(incoming_config)
     assert fmu_dir.config.load() == updated_resource
     assert updated_resource.cache_max_revisions == new_cache_max_revisions
 
@@ -483,8 +493,9 @@ def test_project_config_merge_with_other_config(
     config_with_masterdata = copy.deepcopy(config_model)
     config_with_masterdata.masterdata = masterdata
     assert fmu_dir.config.load().masterdata is None
+    incoming_config.save(config_with_masterdata)
 
-    updated_resource = fmu_dir.config.merge_resource(config_with_masterdata)
+    updated_resource = fmu_dir.config.merge_resource(incoming_config)
     assert fmu_dir.config.load().masterdata
     assert fmu_dir.config.load() == updated_resource
     assert updated_resource.masterdata == masterdata
@@ -493,8 +504,9 @@ def test_project_config_merge_with_other_config(
     stratigraphic_column = StratigraphicColumn(identifier="test_id", uuid=uuid.uuid4())
     assert config_with_strat_col.masterdata is not None
     config_with_strat_col.masterdata.smda.stratigraphic_column = stratigraphic_column
+    incoming_config.save(config_with_strat_col)
 
-    updated_resource = fmu_dir.config.merge_resource(config_with_strat_col)
+    updated_resource = fmu_dir.config.merge_resource(incoming_config)
     assert fmu_dir.config.load() == updated_resource
     assert updated_resource.masterdata is not None
     assert updated_resource.masterdata.smda.stratigraphic_column == stratigraphic_column

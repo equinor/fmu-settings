@@ -340,6 +340,23 @@ def fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
         return init_fmu_directory(tmp_path)
 
 
+@pytest.fixture(scope="function")
+def extra_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
+    """Create an extra ProjectFMUDirectory instance for testing of diff and sync."""
+    extra_fmu_path = tmp_path / Path("extra_fmu")
+    extra_fmu_path.mkdir(parents=True)
+    with (
+        patch(
+            "fmu.settings.models.project_config.getpass.getuser",
+            return_value="user",
+        ),
+        patch("fmu.settings.models.project_config.datetime") as mock_datetime,
+    ):
+        mock_datetime.now.return_value = unix_epoch_utc
+        mock_datetime.datetime.now.return_value = unix_epoch_utc
+        return init_fmu_directory(extra_fmu_path)
+
+
 @pytest.fixture
 def user_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> UserFMUDirectory:
     """Create an ProjectFMUDirectory instance for testing."""

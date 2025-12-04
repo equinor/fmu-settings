@@ -402,6 +402,12 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
         return sorted(rms_projects)
 
+    def _sync_runtime_variables(self: Self) -> None:
+        """Sync runtime variables with config file."""
+        max_revisions_from_config = self.config.load().cache_max_revisions
+        if self._cache_manager.max_revisions != max_revisions_from_config:
+            self._cache_manager.max_revisions = max_revisions_from_config
+
     def get_dir_diff(
         self: Self, new_dir: Path
     ) -> dict[str, list[tuple[str, Any, Any]]]:
@@ -413,57 +419,63 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         Resources that are not present in both .fmu directories will not be diffed.
         """
         new_fmu_dir = get_fmu_directory(new_dir)
-        changes_in_dir: dict[str, list[tuple[str, Any, Any]]] = {}
+        dir_diff: dict[str, list[tuple[str, Any, Any]]] = {}
+
         for resource in vars(self):
-            match resource:
-                case "config":
-                    try:
+            try:
+                match resource:
+                    case "config":
                         current_resource: ProjectConfigManager = getattr(self, resource)
                         new_resource: ProjectConfigManager = getattr(
                             new_fmu_dir, resource
                         )
-                    except AttributeError:
-                        continue
-                case _:
-                    continue
+                        changes = current_resource.get_resource_diff(new_resource)
+                    case "_changelog":
+                        current_changelog: ChangelogManager = getattr(self, resource)
+                        new_changelog: ChangelogManager = getattr(new_fmu_dir, resource)
+                        changes = [
+                            (
+                                "root",
+                                None,
+                                current_changelog.get_changelog_diff(new_changelog),
+                            )
+                        ]
 
-            if current_resource.exists and new_resource.exists:
-                changes = current_resource.get_resource_diff(new_resource.load())
-            else:
+                    case _:
+                        continue
+            except AttributeError:
+                continue
+            except FileNotFoundError:
                 continue
 
-            changes_in_dir[resource] = changes
-        return changes_in_dir
+            dir_diff[resource] = changes
+        return dir_diff
 
     def sync_dir(self: Self, new_dir: Path) -> dict[str, Any]:
         """Sync the resources in two .fmu directories.
 
-        Compare all resources in the two .fmu directories and merges all updates
+        Compare all resources in the two .fmu directories and merge all changes
         in the new .fmu directory into the current .fmu directory.
 
         Resources that are not present in both .fmu directories will not be synced.
         """
-        new_fmu_dir = get_fmu_directory(new_dir)
+        changes_in_dir = self.get_dir_diff(new_dir)
         updates: dict[str, Any] = {}
-        for resource in vars(self):
-            match resource:
-                case "config":
-                    try:
-                        current_resource: ProjectConfigManager = getattr(self, resource)
-                        new_resource: ProjectConfigManager = getattr(
-                            new_fmu_dir, resource
-                        )
-                    except AttributeError:
-                        continue
-                case _:
-                    continue
-
-            if current_resource.exists and new_resource and new_resource.exists:
-                updated_resource = current_resource.merge_resource(new_resource.load())
-            else:
+        for resource, changes in changes_in_dir.items():
+            if len(changes) == 0:
                 continue
 
+            updated_resource: Any
+            if resource == "config":
+                current_config: ProjectConfigManager = getattr(self, resource)
+                updated_resource = current_config.merge_changes(changes)
+                self._sync_runtime_variables()
+            elif resource == "_changelog":
+                current_changelog: ChangelogManager = getattr(self, resource)
+                updated_resource = current_changelog.merge_changes(changes[0][2].root)
+
             updates[resource] = updated_resource
+
         return updates
 
 
