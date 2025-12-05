@@ -52,6 +52,17 @@ class LogManager(PydanticResourceManager[Log[LogEntryType]], Generic[LogEntryTyp
             self._cached_dataframe = df_log
         df_log = self._cached_dataframe
 
+        if filter.filter_type == FilterType.text and filter.operator not in {
+            "==",
+            "!=",
+        }:
+            raise ValueError(
+                f"Invalid filter operator {filter.operator} applied to "
+                f"'{FilterType.text}' field {filter.field_name} when filtering "
+                f"log resource {self.model_class.__name__} "
+                f"with value {filter.filter_value}."
+            )
+
         match filter.operator:
             case "==":
                 filtered_df = df_log[
@@ -62,24 +73,20 @@ class LogManager(PydanticResourceManager[Log[LogEntryType]], Generic[LogEntryTyp
                     df_log[filter.field_name] != filter.parse_filter_value()
                 ]
             case "<=":
-                if filter.filter_type == FilterType.text:
-                    raise ValueError(
-                        f"Invalid filter operator <= applied to '{FilterType.text}' "
-                        f"field {filter.field_name} when filtering log resource "
-                        f"{self.model_class.__name__} with value {filter.filter_value}."
-                    )
                 filtered_df = df_log[
                     df_log[filter.field_name] <= filter.parse_filter_value()
                 ]
+            case "<":
+                filtered_df = df_log[
+                    df_log[filter.field_name] < filter.parse_filter_value()
+                ]
             case ">=":
-                if filter.filter_type == FilterType.text:
-                    raise ValueError(
-                        f"Invalid filter operator >= applied to '{FilterType.text}' "
-                        f"field {filter.field_name} when filtering log resource "
-                        f"{self.model_class.__name__} with value {filter.filter_value}."
-                    )
                 filtered_df = df_log[
                     df_log[filter.field_name] >= filter.parse_filter_value()
+                ]
+            case ">":
+                filtered_df = df_log[
+                    df_log[filter.field_name] > filter.parse_filter_value()
                 ]
             case _:
                 raise ValueError(

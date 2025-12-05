@@ -409,6 +409,127 @@ def test_changelog_filter_greater_or_equal_operator(
     assert len(filtered_log) == 0
 
 
+def test_changelog_filter_greater_than_operator(
+    fmu_dir: ProjectFMUDirectory, change_entry_list: list[ChangeInfo]
+) -> None:
+    """Tests filtering changelog with > operator.
+
+    The filter should return all changelog entries where the value of the field
+    `field_name` is greater than the filter value. Attempts to filter
+    strings with the > operator should raise an exception.
+    """
+    changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
+    for change_entry in change_entry_list:
+        changelog_resource.add_log_entry(change_entry)
+
+    changelog: Log[ChangeInfo] = changelog_resource.load()
+    expected_log_entries = 4
+    assert len(changelog) == expected_log_entries
+
+    filter: Filter = Filter(
+        field_name="change_type",
+        filter_value=ChangeType.add,
+        filter_type=FilterType.text,
+        operator=">",
+    )
+    with pytest.raises(
+        ValueError, match="Invalid filter operator > applied to 'text' field"
+    ):
+        filtered_log = changelog_resource.filter_log(filter)
+
+    filter = Filter(
+        field_name="user",
+        filter_value="user_third_entry",
+        filter_type=FilterType.text,
+        operator=">",
+    )
+    with pytest.raises(
+        ValueError, match="Invalid filter operator > applied to 'text' field"
+    ):
+        filtered_log = changelog_resource.filter_log(filter)
+
+    yesterday = DATE_TIME_NOW - timedelta(days=1)
+    filter = Filter(
+        field_name="timestamp",
+        filter_value=str(yesterday),
+        filter_type=FilterType.date,
+        operator=">",
+    )
+    filtered_log = changelog_resource.filter_log(filter)
+    expected_log_entries = 2
+    assert len(filtered_log) == expected_log_entries
+    assert all(entry.timestamp > yesterday for entry in filtered_log)
+
+    filter = Filter(
+        field_name="timestamp",
+        filter_value=str(DATE_TIME_NOW),
+        filter_type=FilterType.date,
+        operator=">",
+    )
+    filtered_log = changelog_resource.filter_log(filter)
+    assert len(filtered_log) == 0
+
+
+def test_changelog_filter_less_than_operator(
+    fmu_dir: ProjectFMUDirectory, change_entry_list: list[ChangeInfo]
+) -> None:
+    """Tests filtering changelog with < operator.
+
+    The filter should return all changelog entries where the value of the field
+    `field_name` is less than the filter value. Attempts to filter
+    strings with the < operator should raise an exception.
+    """
+    changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
+    for change_entry in change_entry_list:
+        changelog_resource.add_log_entry(change_entry)
+
+    changelog: Log[ChangeInfo] = changelog_resource.load()
+    expected_log_entries = 4
+    assert len(changelog) == expected_log_entries
+
+    filter: Filter = Filter(
+        field_name="change_type",
+        filter_value=ChangeType.add,
+        filter_type=FilterType.text,
+        operator="<",
+    )
+    with pytest.raises(
+        ValueError, match="Invalid filter operator < applied to 'text' field"
+    ):
+        filtered_log = changelog_resource.filter_log(filter)
+
+    filter = Filter(
+        field_name="user",
+        filter_value="user_third_entry",
+        filter_type=FilterType.text,
+        operator="<",
+    )
+    with pytest.raises(
+        ValueError, match="Invalid filter operator < applied to 'text' field"
+    ):
+        filtered_log = changelog_resource.filter_log(filter)
+
+    yesterday = DATE_TIME_NOW - timedelta(days=1)
+    filter = Filter(
+        field_name="timestamp",
+        filter_value=str(yesterday),
+        filter_type=FilterType.date,
+        operator="<",
+    )
+    filtered_log = changelog_resource.filter_log(filter)
+    assert len(filtered_log) == 1
+
+    filter = Filter(
+        field_name="timestamp",
+        filter_value=str(DATE_TIME_NOW + timedelta(days=1)),
+        filter_type=FilterType.date,
+        operator="<",
+    )
+    filtered_log = changelog_resource.filter_log(filter)
+    expected_log_entries = 4
+    assert len(filtered_log) == expected_log_entries
+
+
 def test_changelog_dataframe_cached_after_filtering(
     fmu_dir: ProjectFMUDirectory, change_entry: ChangeInfo
 ) -> None:
@@ -637,7 +758,6 @@ def test_changelog_get_latest_change_timestamp(
 def test_changelog_get_changelog_diff_with_other_changelog(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
-    change_entry: ChangeInfo,
     change_entry_list: list[ChangeInfo],
 ) -> None:
     """Tests that the new entries from the incoming changelog are returned.
@@ -646,7 +766,18 @@ def test_changelog_get_changelog_diff_with_other_changelog(
     changelog newer than the log entries in the current changelog, should be returned.
     """
     current_changelog: ChangelogManager = ChangelogManager(fmu_dir)
-    current_changelog.add_log_entry(change_entry)
+    current_changelog.add_log_entry(
+        ChangeInfo(
+            timestamp=DATE_TIME_NOW - timedelta(days=1),
+            change_type=ChangeType.add,
+            user="old_test",
+            path=Path("/test_folder"),
+            file="config.json",
+            change="Added new field to smda masterdata one day ago",
+            hostname="hostname",
+            key="masterdata",
+        ),
+    )
     incoming_changelog: ChangelogManager = ChangelogManager(extra_fmu_dir)
     for entry in change_entry_list:
         incoming_changelog.add_log_entry(entry)
@@ -658,11 +789,11 @@ def test_changelog_get_changelog_diff_with_other_changelog(
     assert diff[0] == change_entry_list[2]
     assert diff[1] == change_entry_list[3]
 
-    starting_point = change_entry.timestamp
+    starting_point = current_changelog._get_latest_change_timestamp()
     for entry in diff:
-        assert entry.timestamp >= starting_point
-    assert change_entry_list[0].timestamp < starting_point
-    assert change_entry_list[1].timestamp < starting_point
+        assert entry.timestamp > starting_point
+    assert change_entry_list[0].timestamp <= starting_point
+    assert change_entry_list[1].timestamp <= starting_point
 
 
 def test_changelog_get_changelog_diff_with_old_changelog(
@@ -746,7 +877,6 @@ def test_changelog_get_changelog_diff_with_other_changelog_raises(
 def test_changelog_merge_changelog_with_other_changelog(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
-    change_entry: ChangeInfo,
     change_entry_list: list[ChangeInfo],
 ) -> None:
     """Tests merging a changelog resource with an incoming changelog.
@@ -755,7 +885,18 @@ def test_changelog_merge_changelog_with_other_changelog(
     than the log entries in the current changelog are added.
     """
     current_changelog: ChangelogManager = ChangelogManager(fmu_dir)
-    current_changelog.add_log_entry(change_entry)
+    existing_entry = ChangeInfo(
+        timestamp=DATE_TIME_NOW - timedelta(days=1),
+        change_type=ChangeType.add,
+        user="old_test",
+        path=Path("/test_folder"),
+        file="config.json",
+        change="Added new field to smda masterdata one day ago",
+        hostname="hostname",
+        key="masterdata",
+    )
+    current_changelog.add_log_entry(existing_entry)
+
     incoming_changelog: ChangelogManager = ChangelogManager(extra_fmu_dir)
     for entry in change_entry_list:
         incoming_changelog.add_log_entry(entry)
@@ -764,7 +905,7 @@ def test_changelog_merge_changelog_with_other_changelog(
 
     expected_entries = 3
     assert len(updated_changelog) == expected_entries
-    assert updated_changelog[0] == change_entry
+    assert updated_changelog[0] == existing_entry
     assert updated_changelog[1] == change_entry_list[2]
     assert updated_changelog[2] == change_entry_list[3]
 
