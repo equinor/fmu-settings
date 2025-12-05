@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import copy
-import getpass
 import json
 from builtins import TypeError
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Final, Generic, Self, TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -140,13 +138,6 @@ class PydanticResourceManager(Generic[PydanticResource]):
             model: Validated Pydantic model instance.
         """
         self.fmu_dir._lock.ensure_can_write()
-
-        if hasattr(model, "last_modified_at"):
-            model_dict = model.model_dump()
-            model_dict["last_modified_at"] = datetime.now(UTC)
-            if hasattr(model, "last_modified_by"):
-                model_dict["last_modified_by"] = getpass.getuser()
-            model = self.model_class.model_validate(model_dict)
 
         json_data = model.model_dump_json(by_alias=True, indent=2)
         self.fmu_dir.write_text_file(self.relative_path, json_data)
@@ -379,8 +370,7 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
                 f"at: '{self.path}' when setting updates {updates}"
             ) from e
 
-        assert self._cache is not None
-        return self._cache
+        return self.load()
 
     def reset(self: Self) -> MutablePydanticResource:
         """Resets the resources to defaults.
@@ -390,8 +380,7 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
         """
         resource = self.model_class.reset()
         self.save(resource)
-        assert self._cache is not None
-        return self._cache
+        return resource
 
     def merge_resource(
         self: Self,

@@ -339,17 +339,15 @@ def fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
             return_value="user",
         ),
         patch(
-            "fmu.settings._resources.pydantic_resource_manager.getpass.getuser",
+            "fmu.settings._resources.config_managers.getpass.getuser",
             return_value="user",
         ),
         patch("fmu.settings.models.project_config.datetime") as mock_datetime,
-        patch(
-            "fmu.settings._resources.pydantic_resource_manager.datetime"
-        ) as mock_prm_datetime,
+        patch("fmu.settings._resources.config_managers.datetime") as mock_cm_datetime,
     ):
         mock_datetime.now.return_value = unix_epoch_utc
         mock_datetime.datetime.now.return_value = unix_epoch_utc
-        mock_prm_datetime.now.return_value = unix_epoch_utc
+        mock_cm_datetime.now.return_value = unix_epoch_utc
         return init_fmu_directory(tmp_path)
 
 
@@ -364,17 +362,15 @@ def extra_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirecto
             return_value="user",
         ),
         patch(
-            "fmu.settings._resources.pydantic_resource_manager.getpass.getuser",
+            "fmu.settings._resources.config_managers.getpass.getuser",
             return_value="user",
         ),
         patch("fmu.settings.models.project_config.datetime") as mock_datetime,
-        patch(
-            "fmu.settings._resources.pydantic_resource_manager.datetime"
-        ) as mock_prm_datetime,
+        patch("fmu.settings._resources.config_managers.datetime") as mock_cm_datetime,
     ):
         mock_datetime.now.return_value = unix_epoch_utc
         mock_datetime.datetime.now.return_value = unix_epoch_utc
-        mock_prm_datetime.now.return_value = unix_epoch_utc
+        mock_cm_datetime.now.return_value = unix_epoch_utc
         return init_fmu_directory(extra_fmu_path)
 
 
@@ -384,12 +380,10 @@ def user_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> UserFMUDirectory:
     with (
         patch("pathlib.Path.home", return_value=tmp_path),
         patch("fmu.settings.models.user_config.datetime") as mock_datetime,
-        patch(
-            "fmu.settings._resources.pydantic_resource_manager.datetime"
-        ) as mock_prm_datetime,
+        patch("fmu.settings._resources.config_managers.datetime") as mock_cm_datetime,
     ):
         mock_datetime.now.return_value = unix_epoch_utc
         mock_datetime.datetime.now.return_value = unix_epoch_utc
-        mock_prm_datetime.now.return_value = unix_epoch_utc
+        mock_cm_datetime.now.return_value = unix_epoch_utc
 
         return init_user_fmu_directory()
