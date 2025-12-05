@@ -39,6 +39,8 @@ def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
         "version": __version__,
         "created_at": unix_epoch_utc,
         "created_by": "user",
+        "last_modified_at": unix_epoch_utc,
+        "last_modified_by": "user",
         "cache_max_revisions": 5,
         "masterdata": None,
         "model": None,
@@ -285,6 +287,8 @@ def config_dict_with_masterdata(
         "version": __version__,
         "created_at": unix_epoch_utc,
         "created_by": "user",
+        "last_modified_at": unix_epoch_utc,
+        "last_modified_by": "user",
         "cache_max_revisions": 5,
         "masterdata": masterdata_dict,
         "model": model_dict,
@@ -311,6 +315,7 @@ def user_config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
     return {
         "version": __version__,
         "created_at": unix_epoch_utc,
+        "last_modified_at": unix_epoch_utc,
         "cache_max_revisions": 5,
         "user_api_keys": {
             "smda_subscription": None,
@@ -333,10 +338,18 @@ def fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
             "fmu.settings.models.project_config.getpass.getuser",
             return_value="user",
         ),
+        patch(
+            "fmu.settings._resources.pydantic_resource_manager.getpass.getuser",
+            return_value="user",
+        ),
         patch("fmu.settings.models.project_config.datetime") as mock_datetime,
+        patch(
+            "fmu.settings._resources.pydantic_resource_manager.datetime"
+        ) as mock_prm_datetime,
     ):
         mock_datetime.now.return_value = unix_epoch_utc
         mock_datetime.datetime.now.return_value = unix_epoch_utc
+        mock_prm_datetime.now.return_value = unix_epoch_utc
         return init_fmu_directory(tmp_path)
 
 
@@ -350,10 +363,18 @@ def extra_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirecto
             "fmu.settings.models.project_config.getpass.getuser",
             return_value="user",
         ),
+        patch(
+            "fmu.settings._resources.pydantic_resource_manager.getpass.getuser",
+            return_value="user",
+        ),
         patch("fmu.settings.models.project_config.datetime") as mock_datetime,
+        patch(
+            "fmu.settings._resources.pydantic_resource_manager.datetime"
+        ) as mock_prm_datetime,
     ):
         mock_datetime.now.return_value = unix_epoch_utc
         mock_datetime.datetime.now.return_value = unix_epoch_utc
+        mock_prm_datetime.now.return_value = unix_epoch_utc
         return init_fmu_directory(extra_fmu_path)
 
 
@@ -363,8 +384,12 @@ def user_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> UserFMUDirectory:
     with (
         patch("pathlib.Path.home", return_value=tmp_path),
         patch("fmu.settings.models.user_config.datetime") as mock_datetime,
+        patch(
+            "fmu.settings._resources.pydantic_resource_manager.datetime"
+        ) as mock_prm_datetime,
     ):
         mock_datetime.now.return_value = unix_epoch_utc
         mock_datetime.datetime.now.return_value = unix_epoch_utc
+        mock_prm_datetime.now.return_value = unix_epoch_utc
 
         return init_user_fmu_directory()

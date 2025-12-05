@@ -6,11 +6,13 @@ sparse to handle things specific to the user configuration.
 """
 
 import json
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import SecretStr
 
 from fmu.settings._fmu_dir import UserFMUDirectory
+from fmu.settings.models.user_config import UserConfig
 
 
 def test_set_smda_subscription_key_validates(user_fmu_dir: UserFMUDirectory) -> None:
@@ -75,3 +77,25 @@ def test_obfuscate_secrets(user_fmu_dir: UserFMUDirectory) -> None:
     )
     secret_config_json = secret_config.model_dump_json()
     assert '{"smda_subscription":"**********"}' in secret_config_json
+
+
+def test_user_config_reset_has_none_last_modified_at() -> None:
+    """Tests that reset() creates a user config with None for last_modified_at."""
+    config = UserConfig.reset()
+
+    assert config.last_modified_at is None
+    assert config.created_at is not None
+
+
+def test_user_config_last_modified_at_set_on_save(
+    user_fmu_dir: UserFMUDirectory,
+) -> None:
+    """Tests that last_modified_at is set when saving user config."""
+    user_fmu_dir.config.set("cache_max_revisions", 10)
+
+    updated_config = user_fmu_dir.config.load()
+    assert updated_config.last_modified_at is not None
+
+    now = datetime.now(UTC)
+    one_min_ago = now - timedelta(minutes=1)
+    assert one_min_ago <= updated_config.last_modified_at <= now

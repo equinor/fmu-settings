@@ -424,6 +424,9 @@ def test_restore_rebuilds_project_fmu_from_cache(
     assert readme_path.read_text() == PROJECT_README_CONTENT
 
     restored_dump = json.loads((fmu_dir.path / "config.json").read_text())
+
+    cached_dump.pop("last_modified_at", None)
+    restored_dump.pop("last_modified_at", None)
     assert restored_dump == cached_dump
 
     cache_dir = fmu_dir.path / "cache" / "config"
@@ -467,6 +470,9 @@ def test_restore_rebuilds_user_fmu(user_fmu_dir: UserFMUDirectory) -> None:
     assert readme_path.read_text() == USER_README_CONTENT
 
     restored_dump = json.loads((user_fmu_dir.path / "config.json").read_text())
+
+    cached_dump.pop("last_modified_at", None)
+    restored_dump.pop("last_modified_at", None)
     assert restored_dump == cached_dump
 
 
