@@ -877,10 +877,13 @@ def test_fmu_directory_base_sync_dir_with_changelog(
     assert len(updated_resources) == 1
     assert "_changelog" in updated_resources
     updated_changelog: Log[ChangeInfo] = updated_resources["_changelog"]
-    expected_log_length = 2
+    expected_log_length = 3
     assert len(updated_changelog) == expected_log_length
-    assert updated_changelog.root[0] == log_entry
-    assert updated_changelog.root[1] == new_log_entry
+    assert updated_changelog[0] == log_entry
+    assert updated_changelog[1] == new_log_entry
+    assert updated_changelog[2].change_type == ChangeType.merge
+    assert "_changelog" in updated_changelog[2].change
+    assert updated_changelog[2].path == fmu_dir.path
 
 
 def test_fmu_directory_base_sync_dir_with_config_and_changelog(
@@ -918,9 +921,12 @@ def test_fmu_directory_base_sync_dir_with_config_and_changelog(
 
     assert "_changelog" in updated_resources
     updated_changelog: Log[ChangeInfo] = updated_resources["_changelog"]
-    expected_log_length = 3
+    expected_log_length = 4
     assert len(updated_changelog) == expected_log_length
     assert updated_changelog[0].key == "masterdata"
     assert updated_changelog[1].key == "masterdata"
     assert updated_changelog[2].key == "synced_entry"
     assert updated_changelog[2] == new_log_entry
+    assert updated_changelog[3].change_type == ChangeType.merge
+    assert "config" in updated_changelog[3].file
+    assert "_changelog" in updated_changelog[3].file
