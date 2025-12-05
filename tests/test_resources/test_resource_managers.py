@@ -398,11 +398,16 @@ def test_pydantic_resource_manager_get_model_diff_ignore_fields(
         metadata: str
         created_at: AwareDatetime = datetime.now(UTC)
         created_by: str = "tester"
+        last_modified_at: AwareDatetime | None = None
+        last_modified_by: str | None = None
 
     test_manager = PydanticManagerTest(fmu_dir)
     current_model = ExamplePydanticModel(data="some_data", metadata="some_metadata")
     incoming_model = ExamplePydanticModel(
-        data="some_newer_data", metadata="some_newer_metadata"
+        data="some_newer_data",
+        metadata="some_newer_metadata",
+        last_modified_at=datetime.now(UTC),
+        last_modified_by="other_tester",
     )
     model_diff = test_manager.get_model_diff(current_model, incoming_model)
 

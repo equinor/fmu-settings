@@ -43,6 +43,7 @@ class UserConfig(ResettableBaseModel):
 
     version: VersionStr
     created_at: AwareDatetime
+    last_modified_at: AwareDatetime | None = None
     cache_max_revisions: int = Field(default=5, ge=5)
     user_api_keys: UserAPIKeys
     recent_project_directories: RecentProjectDirectories
@@ -53,6 +54,7 @@ class UserConfig(ResettableBaseModel):
         return cls(
             version=__version__,
             created_at=datetime.now(UTC),
+            last_modified_at=None,
             cache_max_revisions=5,
             user_api_keys=UserAPIKeys(),
             recent_project_directories=[],

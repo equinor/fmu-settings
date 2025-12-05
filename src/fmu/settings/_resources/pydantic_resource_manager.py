@@ -138,6 +138,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
             model: Validated Pydantic model instance.
         """
         self.fmu_dir._lock.ensure_can_write()
+
         json_data = model.model_dump_json(by_alias=True, indent=2)
         self.fmu_dir.write_text_file(self.relative_path, json_data)
 
@@ -162,7 +163,12 @@ class PydanticResourceManager(Generic[PydanticResource]):
                 f"'{incoming_model.__class__.__name__}'."
             )
 
-        IGNORED_FIELDS: Final[list[str]] = ["created_at", "created_by"]
+        IGNORED_FIELDS: Final[list[str]] = [
+            "created_at",
+            "created_by",
+            "last_modified_at",
+            "last_modified_by",
+        ]
         changes: list[tuple[str, Any, Any]] = []
 
         for field_name in type(current_model).model_fields:
@@ -364,7 +370,7 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
                 f"at: '{self.path}' when setting updates {updates}"
             ) from e
 
-        return updated_resource
+        return self.load()
 
     def reset(self: Self) -> MutablePydanticResource:
         """Resets the resources to defaults.

@@ -3,9 +3,10 @@
 import copy
 import json
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from fmu.datamodels.fmu_results.fields import (
@@ -403,7 +404,8 @@ def test_save(fmu_dir: ProjectFMUDirectory, config_dict: dict[str, Any]) -> None
     new_config = ProjectConfig.model_validate(config_dict)
     fmu_dir.config.save(new_config)
 
-    assert fmu_dir.config._cache == new_config
+    assert fmu_dir.config._cache is not None
+    assert fmu_dir.config._cache.created_by == new_config.created_by
     with open(fmu_dir.config.path, encoding="utf-8") as f:
         new_config_dict = json.loads(f.read())
 
@@ -411,6 +413,15 @@ def test_save(fmu_dir: ProjectFMUDirectory, config_dict: dict[str, Any]) -> None
     new_config_dict["created_at"] = datetime.fromisoformat(
         new_config_dict["created_at"]
     )
+    new_config_dict["last_modified_at"] = datetime.fromisoformat(
+        new_config_dict["last_modified_at"]
+    )
+
+    assert new_config_dict["last_modified_at"] is not None
+    assert new_config_dict["last_modified_by"] is not None
+
+    config_dict["last_modified_at"] = new_config_dict["last_modified_at"]
+    config_dict["last_modified_by"] = new_config_dict["last_modified_by"]
     assert config_dict == new_config_dict
 
 
@@ -510,3 +521,38 @@ def test_project_config_merge_with_other_config(
     assert fmu_dir.config.load() == updated_resource
     assert updated_resource.masterdata is not None
     assert updated_resource.masterdata.smda.stratigraphic_column == stratigraphic_column
+
+
+def test_project_config_reset_has_none_last_modified_fields() -> None:
+    """Tests that reset() creates a config with None for last_modified fields."""
+    with patch(
+        "fmu.settings.models.project_config.getpass.getuser",
+        return_value="test_user",
+    ):
+        config = ProjectConfig.reset()
+
+    assert config.last_modified_at is None
+    assert config.last_modified_by is None
+    assert config.created_by == "test_user"
+    assert config.created_at is not None
+
+
+def test_project_config_last_modified_set_and_updated_on_save(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that last_modified fields are set and updated on each save."""
+    fmu_dir.config.set("cache_max_revisions", 10)
+    first_config = fmu_dir.config.load()
+
+    assert first_config.last_modified_at is not None
+    assert first_config.last_modified_by is not None
+
+    now = datetime.now(UTC)
+    one_min_ago = now - timedelta(minutes=1)
+    assert one_min_ago <= first_config.last_modified_at <= now
+
+    fmu_dir.config.set("cache_max_revisions", 15)
+    second_config = fmu_dir.config.load()
+
+    assert second_config.last_modified_at is not None
+    assert second_config.last_modified_at >= first_config.last_modified_at

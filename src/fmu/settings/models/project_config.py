@@ -66,6 +66,8 @@ class ProjectConfig(ResettableBaseModel):
     version: VersionStr
     created_at: AwareDatetime
     created_by: str
+    last_modified_at: AwareDatetime | None = None
+    last_modified_by: str | None = None
     masterdata: Masterdata | None = None
     model: Model | None = None
     access: Access | None = None
@@ -83,6 +85,8 @@ class ProjectConfig(ResettableBaseModel):
             version=__version__,
             created_at=datetime.now(UTC),
             created_by=getpass.getuser(),
+            last_modified_at=None,
+            last_modified_by=None,
             masterdata=None,
             model=None,
             access=None,
