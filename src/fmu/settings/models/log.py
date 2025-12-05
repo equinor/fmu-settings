@@ -39,7 +39,7 @@ class Filter(BaseModel):
     field_name: str
     filter_value: str
     filter_type: FilterType
-    operator: Literal[">=", "<=", "==", "!="]
+    operator: Literal[">", ">=", "<", "<=", "==", "!="]
 
     def parse_filter_value(self: Self) -> str | datetime | int:
         """Parse filter value to its type."""

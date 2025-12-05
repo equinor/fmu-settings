@@ -104,7 +104,7 @@ class ChangelogManager(LogManager[ChangeInfo]):
                     field_name="timestamp",
                     filter_value=str(starting_point),
                     filter_type=FilterType.date,
-                    operator=">=",
+                    operator=">",
                 )
             )
         raise FileNotFoundError(
