@@ -476,6 +476,12 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
             updates[resource] = updated_resource
 
+        self._changelog.log_merge_to_changelog(
+            source_path=self.path,
+            incoming_path=new_dir / Path(".fmu"),
+            merged_resources=list(updates.keys()),
+        )
+
         return updates
 
 
