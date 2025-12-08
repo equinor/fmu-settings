@@ -413,8 +413,8 @@ class ProjectFMUDirectory(FMUDirectoryBase):
     ) -> dict[str, list[tuple[str, Any, Any]]]:
         """Get the resource differences between two .fmu directories.
 
-        Compare all resources in the two .fmu directories and
-        return a dict with the diff for each resource.
+        Compare all resources in the two .fmu directories and return a dict with the
+        diff for each resource.
 
         Resources that are not present in both .fmu directories will not be diffed.
         """
@@ -433,13 +433,13 @@ class ProjectFMUDirectory(FMUDirectoryBase):
                     case "_changelog":
                         current_changelog: ChangelogManager = getattr(self, resource)
                         new_changelog: ChangelogManager = getattr(new_fmu_dir, resource)
-                        changes = [
-                            (
-                                "root",
-                                None,
-                                current_changelog.get_changelog_diff(new_changelog),
-                            )
-                        ]
+                        changelog_diff = current_changelog.get_changelog_diff(
+                            new_changelog
+                        )
+                        if len(changelog_diff.root) > 0:
+                            changes = [("changelog", None, changelog_diff)]
+                        else:
+                            changes = []
 
                     case _:
                         continue

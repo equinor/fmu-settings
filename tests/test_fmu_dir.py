@@ -770,6 +770,28 @@ def test_fmu_directory_base_sync_runtime_variables(
     assert fmu_dir.cache.max_revisions == old_cache_max_revisions
 
 
+def test_fmu_directory_base_get_dir_diff_with_same_changelog(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests getting the changelog diff with equivalent directories."""
+    log_entry = ChangeInfo(
+        change_type=ChangeType.add,
+        user="fmu_dir_user",
+        path=Path("/some_path"),
+        change="some change",
+        hostname="host",
+        file="config",
+        key="test_key",
+    )
+    fmu_dir._changelog.add_log_entry(log_entry)
+    extra_fmu_dir._changelog.add_log_entry(log_entry)
+    dir_diff = fmu_dir.get_dir_diff(extra_fmu_dir.base_path)
+
+    for resource, change_list in dir_diff.items():
+        assert len(change_list) == 0, f"Resource {resource} has changes"
+
+
 def test_fmu_directory_base_get_dir_diff_with_changelog(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
@@ -811,7 +833,7 @@ def test_fmu_directory_base_get_dir_diff_with_changelog(
     changelog_diff = dir_diff["_changelog"]
 
     assert len(changelog_diff) == 1
-    assert changelog_diff[0][0] == "root"
+    assert changelog_diff[0][0] == "changelog"
     assert changelog_diff[0][1] is None
     assert isinstance(changelog_diff[0][2], Log)
     assert len(changelog_diff[0][2]) == 1
