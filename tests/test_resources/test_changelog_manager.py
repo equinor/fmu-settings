@@ -932,3 +932,30 @@ def test_changelog_merge_changes_into_current_changelog(
     expected_entries = 5
     assert len(updated_changelog) == expected_entries
     assert updated_changelog == current_changelog.load()
+
+
+def test_changelog_log_merge_to_changelog_merge_details(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that the merge details logged to the changelog is as expected."""
+    changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
+    source_path = changelog_resource.path.parent.parent
+    incoming_path = Path("/some_path/.fmu")
+    resources = ["config", "_changelog"]
+
+    changelog_resource.log_merge_to_changelog(
+        source_path=source_path, incoming_path=incoming_path, merged_resources=resources
+    )
+
+    changelog = changelog_resource.load()
+    assert len(changelog) == 1
+    merge_entry = changelog[0]
+    assert merge_entry.change_type == ChangeType.merge
+    assert merge_entry.path == source_path
+    assert merge_entry.key == ".fmu"
+
+    expected_change_string = (
+        f"Merged resources 'config', '_changelog' from "
+        f"'{incoming_path}' into '{source_path}'."
+    )
+    assert merge_entry.change == expected_change_string

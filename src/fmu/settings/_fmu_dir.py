@@ -409,7 +409,7 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             self._cache_manager.max_revisions = max_revisions_from_config
 
     def get_dir_diff(
-        self: Self, new_dir: Path
+        self: Self, new_fmu_dir: Self
     ) -> dict[str, list[tuple[str, Any, Any]]]:
         """Get the resource differences between two .fmu directories.
 
@@ -418,7 +418,6 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
         Resources that are not present in both .fmu directories will not be diffed.
         """
-        new_fmu_dir = get_fmu_directory(new_dir)
         dir_diff: dict[str, list[tuple[str, Any, Any]]] = {}
 
         for resource in vars(self):
@@ -451,7 +450,7 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             dir_diff[resource] = changes
         return dir_diff
 
-    def sync_dir(self: Self, new_dir: Path) -> dict[str, Any]:
+    def sync_dir(self: Self, new_fmu_dir: Self) -> dict[str, Any]:
         """Sync the resources in two .fmu directories.
 
         Compare all resources in the two .fmu directories and merge all changes
@@ -459,7 +458,7 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
         Resources that are not present in both .fmu directories will not be synced.
         """
-        changes_in_dir = self.get_dir_diff(new_dir)
+        changes_in_dir = self.get_dir_diff(new_fmu_dir)
         updates: dict[str, Any] = {}
         for resource, changes in changes_in_dir.items():
             if len(changes) == 0:
@@ -475,6 +474,12 @@ class ProjectFMUDirectory(FMUDirectoryBase):
                 updated_resource = current_changelog.merge_changes(changes[0][2].root)
 
             updates[resource] = updated_resource
+
+        self._changelog.log_merge_to_changelog(
+            source_path=self.path,
+            incoming_path=new_fmu_dir.path,
+            merged_resources=list(updates.keys()),
+        )
 
         return updates
 

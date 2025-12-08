@@ -85,6 +85,28 @@ class ChangelogManager(LogManager[ChangeInfo]):
             )
             self.add_log_entry(change_entry)
 
+    def log_merge_to_changelog(
+        self: Self, source_path: Path, incoming_path: Path, merged_resources: list[str]
+    ) -> None:
+        """Logs a change entry with merge details to the changelog."""
+        resources_string = ", ".join([f"'{resource}'" for resource in merged_resources])
+        change_string = (
+            f"Merged resources {resources_string} from "
+            f"'{incoming_path}' into '{source_path}'."
+        )
+        self.add_log_entry(
+            ChangeInfo(
+                timestamp=datetime.now(UTC),
+                change_type=ChangeType.merge,
+                user=os.getenv("USER", "unknown"),
+                path=source_path,
+                change=change_string,
+                hostname=socket.gethostname(),
+                file=resources_string,
+                key=".fmu",
+            )
+        )
+
     def _get_latest_change_timestamp(self: Self) -> datetime:
         """Get the timestamp of the latest change entry in the changelog."""
         return self.load()[-1].timestamp
