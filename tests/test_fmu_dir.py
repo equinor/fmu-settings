@@ -17,13 +17,11 @@ from fmu.settings._fmu_dir import (
     ProjectFMUDirectory,
     UserFMUDirectory,
 )
-from fmu.settings._init import init_fmu_directory
 from fmu.settings._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
 from fmu.settings._resources.lock_manager import DEFAULT_LOCK_TIMEOUT, LockManager
 from fmu.settings.models._enums import ChangeType
 from fmu.settings.models.change_info import ChangeInfo
 from fmu.settings.models.log import Log
-from fmu.settings.models.project_config import ProjectConfig
 
 
 def test_init_existing_directory(fmu_dir: ProjectFMUDirectory) -> None:
@@ -612,15 +610,13 @@ def test_find_rms_projects_with_config_path(
 
 def test_fmu_directory_base_get_dir_diff_with_other_fmu_dir(
     fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
-    config_model: ProjectConfig,
 ) -> None:
     """Tests getting the resource diff with another .fmu directory."""
-    new_dir = Path(f"{fmu_dir.path}/tmp_dir")
-    new_dir.mkdir(parents=True)
-    new_fmu_dir = init_fmu_directory(base_path=new_dir, config_data=config_model)
+    new_fmu_dir = extra_fmu_dir
     new_fmu_dir.set_config_value("masterdata", masterdata_dict)
-    diff_fmu_dir = fmu_dir.get_dir_diff(new_dir)
+    diff_fmu_dir = fmu_dir.get_dir_diff(new_fmu_dir)
 
     assert len(diff_fmu_dir) == 1
     assert "config" in diff_fmu_dir
@@ -631,12 +627,12 @@ def test_fmu_directory_base_get_dir_diff_with_other_fmu_dir(
 
 
 def test_fmu_directory_base_get_dir_diff_only_diff_whitelisted_resources(
-    fmu_dir: ProjectFMUDirectory, masterdata_dict: dict[str, Any]
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+    masterdata_dict: dict[str, Any],
 ) -> None:
     """Tests that only the whitelisted resources are diffed."""
-    new_dir = Path(f"{fmu_dir.path}/tmp_dir")
-    new_dir.mkdir(parents=True)
-    new_fmu_dir = init_fmu_directory(base_path=new_dir)
+    new_fmu_dir = extra_fmu_dir
     new_fmu_dir.set_config_value("masterdata", masterdata_dict)
     new_fmu_dir._lock.acquire()
 
@@ -645,7 +641,7 @@ def test_fmu_directory_base_get_dir_diff_only_diff_whitelisted_resources(
     assert not fmu_dir._changelog.exists
     assert not fmu_dir._lock.exists
 
-    diff_fmu_dir = fmu_dir.get_dir_diff(new_dir)
+    diff_fmu_dir = fmu_dir.get_dir_diff(new_fmu_dir)
 
     assert len(diff_fmu_dir) == 1
     assert diff_fmu_dir["config"]
@@ -654,34 +650,33 @@ def test_fmu_directory_base_get_dir_diff_only_diff_whitelisted_resources(
 
 def test_fmu_directory_base_get_dir_diff_skip_when_resource_not_exist(
     fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Tests that sync is skipped for resources that does not exist.
 
     When a resource does not exist in one of the .fmu directories,
     sync is skipped for that resource.
     """
-    new_fmu_dir = Path(f"{fmu_dir.path}/tmp_dir/.fmu")
-    new_fmu_dir.mkdir(parents=True)
+    new_fmu_dir = extra_fmu_dir
+    new_fmu_dir.config.path.unlink()
 
-    diff_fmu_dir = fmu_dir.get_dir_diff(new_fmu_dir.parent)
+    diff_fmu_dir = fmu_dir.get_dir_diff(new_fmu_dir)
     assert len(diff_fmu_dir) == 0
 
 
 def test_fmu_directory_base_sync_dir_with_other_fmu_dir(
     fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
-    config_model: ProjectConfig,
 ) -> None:
     """Tests syncing resources with another .fmu directory."""
-    new_dir = Path(f"{fmu_dir.path}/tmp_dir")
-    new_dir.mkdir(parents=True)
-    new_fmu_dir = init_fmu_directory(base_path=new_dir, config_data=config_model)
+    new_fmu_dir = extra_fmu_dir
     new_fmu_dir.set_config_value("masterdata", masterdata_dict)
 
     assert new_fmu_dir.config.load().masterdata
     assert not fmu_dir.config.load().masterdata
 
-    updated_resources = fmu_dir.sync_dir(new_dir)
+    updated_resources = fmu_dir.sync_dir(new_fmu_dir)
 
     assert len(updated_resources) == 1
     assert "config" in updated_resources
@@ -692,12 +687,12 @@ def test_fmu_directory_base_sync_dir_with_other_fmu_dir(
 
 
 def test_fmu_directory_base_sync_dir_only_whitelisted_resources(
-    fmu_dir: ProjectFMUDirectory, masterdata_dict: dict[str, Any]
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+    masterdata_dict: dict[str, Any],
 ) -> None:
     """Tests that only the whitelisted resources are synced."""
-    new_dir = Path(f"{fmu_dir.path}/tmp_dir")
-    new_dir.mkdir(parents=True)
-    new_fmu_dir = init_fmu_directory(base_path=new_dir)
+    new_fmu_dir = extra_fmu_dir
     new_fmu_dir.set_config_value("masterdata", masterdata_dict)
     new_fmu_dir._lock.acquire()
 
@@ -706,7 +701,7 @@ def test_fmu_directory_base_sync_dir_only_whitelisted_resources(
     assert not fmu_dir._changelog.exists
     assert not fmu_dir._lock.exists
 
-    updates = fmu_dir.sync_dir(new_dir)
+    updates = fmu_dir.sync_dir(new_fmu_dir)
 
     assert "_lock" not in updates
     assert len(updates) == 1
@@ -716,16 +711,33 @@ def test_fmu_directory_base_sync_dir_only_whitelisted_resources(
 
 def test_fmu_directory_base_sync_dir_skip_when_resource_not_exist(
     fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Tests that sync is skipped for resources that does not exist.
 
     When a resource does not exist in one of the .fmu directories,
     sync is skipped for that resource.
     """
-    new_fmu_dir = Path(f"{fmu_dir.path}/tmp_dir/.fmu")
-    new_fmu_dir.mkdir(parents=True)
+    new_fmu_dir = extra_fmu_dir
+    new_fmu_dir.config.path.unlink()
+    updates = fmu_dir.sync_dir(new_fmu_dir)
+    assert len(updates) == 0
 
-    updates = fmu_dir.sync_dir(new_fmu_dir.parent)
+
+def test_fmu_directory_base_sync_dir_skip_when_no_diff(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that sync is skipped for resources with no diff.
+
+    When doing a sync of two equal resources, sync is skipped for that resource.
+    """
+    new_fmu_dir = extra_fmu_dir
+    assert fmu_dir.config.exists
+    assert new_fmu_dir.config.exists
+    assert fmu_dir.config.load() == new_fmu_dir.config.load()
+
+    updates = fmu_dir.sync_dir(new_fmu_dir)
     assert len(updates) == 0
 
 
@@ -748,7 +760,7 @@ def test_fmu_directory_base_sync_runtime_variables(
     new_config.cache_max_revisions = new_cache_max_revisions
     new_fmu_dir.config.save(new_config)
 
-    updates = fmu_dir.sync_dir(new_fmu_dir.base_path)
+    updates = fmu_dir.sync_dir(new_fmu_dir)
     assert "config" in updates
     assert updates["config"].cache_max_revisions == new_cache_max_revisions
     assert fmu_dir.cache_max_revisions == new_cache_max_revisions
@@ -786,7 +798,7 @@ def test_fmu_directory_base_get_dir_diff_with_same_changelog(
     )
     fmu_dir._changelog.add_log_entry(log_entry)
     extra_fmu_dir._changelog.add_log_entry(log_entry)
-    dir_diff = fmu_dir.get_dir_diff(extra_fmu_dir.base_path)
+    dir_diff = fmu_dir.get_dir_diff(extra_fmu_dir)
 
     for resource, change_list in dir_diff.items():
         assert len(change_list) == 0, f"Resource {resource} has changes"
@@ -824,7 +836,7 @@ def test_fmu_directory_base_get_dir_diff_with_changelog(
     assert len(new_fmu_dir._changelog.load()) == 1
     assert new_fmu_dir._changelog.load()[0] == new_log_entry
 
-    dir_diff = fmu_dir.get_dir_diff(new_fmu_dir.base_path)
+    dir_diff = fmu_dir.get_dir_diff(new_fmu_dir)
 
     expected_no_of_resources = 2
     assert len(dir_diff) == expected_no_of_resources
@@ -872,7 +884,7 @@ def test_fmu_directory_base_sync_dir_with_changelog(
     assert len(new_fmu_dir._changelog.load()) == 1
     assert new_fmu_dir._changelog.load()[0] == new_log_entry
 
-    updated_resources = fmu_dir.sync_dir(new_fmu_dir.base_path)
+    updated_resources = fmu_dir.sync_dir(new_fmu_dir)
 
     assert len(updated_resources) == 1
     assert "_changelog" in updated_resources
@@ -912,7 +924,7 @@ def test_fmu_directory_base_sync_dir_with_config_and_changelog(
     assert len(new_fmu_dir._changelog.load()) == 1
     assert new_fmu_dir._changelog.load()[0] == new_log_entry
 
-    updated_resources = fmu_dir.sync_dir(new_fmu_dir.base_path)
+    updated_resources = fmu_dir.sync_dir(new_fmu_dir)
 
     expected_no_of_resources = 2
     assert len(updated_resources) == expected_no_of_resources
