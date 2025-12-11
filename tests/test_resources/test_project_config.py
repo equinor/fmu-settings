@@ -481,6 +481,40 @@ def test_project_config_diff_with_other_config(
     )
 
 
+def test_project_config_diff_with_other_config_ignore_fields(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+    config_model: ProjectConfig,
+) -> None:
+    """Tests that the expected fields are ignored when getting the config diff."""
+    incoming_config = ProjectConfigManager(extra_fmu_dir)
+
+    # Make sure fields have different values
+    incoming_config_model = config_model
+    incoming_config_model.created_at = datetime.now(UTC)
+    incoming_config_model.created_by = "new_test_user"
+    incoming_config_model.last_modified_at = datetime.now(UTC)
+    incoming_config_model.last_modified_by = "new_test_user"
+    incoming_config.save(incoming_config_model)
+
+    # Assert that fields have different values
+    assert incoming_config.load().created_at != fmu_dir.config.load().created_at
+    assert incoming_config.load().created_by != fmu_dir.config.load().created_by
+    assert (
+        incoming_config.load().last_modified_at
+        != fmu_dir.config.load().last_modified_at
+    )
+    assert (
+        incoming_config.load().last_modified_by
+        != fmu_dir.config.load().last_modified_by
+    )
+
+    diff = fmu_dir.config.get_resource_diff(incoming_config)
+
+    # Assert that ignored fields are not included in diff
+    assert len(diff) == 0
+
+
 def test_project_config_merge_with_other_config(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,

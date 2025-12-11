@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import json
 from builtins import TypeError
-from typing import TYPE_CHECKING, Any, Final, Generic, Self, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -147,9 +147,11 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
         self._cache = model
 
-    @staticmethod
     def get_model_diff(
-        current_model: BaseModel, incoming_model: BaseModel, prefix: str = ""
+        self: Self,
+        current_model: BaseModel,
+        incoming_model: BaseModel,
+        prefix: str = "",
     ) -> list[tuple[str, Any, Any]]:
         """Recursively get differences between two Pydantic models.
 
@@ -163,16 +165,11 @@ class PydanticResourceManager(Generic[PydanticResource]):
                 f"'{incoming_model.__class__.__name__}'."
             )
 
-        IGNORED_FIELDS: Final[list[str]] = [
-            "created_at",
-            "created_by",
-            "last_modified_at",
-            "last_modified_by",
-        ]
         changes: list[tuple[str, Any, Any]] = []
+        diff_ignore_fields = getattr(self, "diff_ignore_fields", [])
 
         for field_name in type(current_model).model_fields:
-            if field_name in IGNORED_FIELDS:
+            if field_name in diff_ignore_fields:
                 continue
 
             current_value = getattr(current_model, field_name)
@@ -188,9 +185,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
                 incoming_value, BaseModel
             ):
                 changes.extend(
-                    PydanticResourceManager.get_model_diff(
-                        current_value, incoming_value, field_path
-                    )
+                    self.get_model_diff(current_value, incoming_value, field_path)
                 )
             elif isinstance(current_value, list) and isinstance(incoming_value, list):
                 if current_value != incoming_value:

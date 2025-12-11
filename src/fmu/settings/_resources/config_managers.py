@@ -37,6 +37,11 @@ class ProjectConfigManager(MutablePydanticResourceManager[ProjectConfig]):
         """Returns the relative path to the config file."""
         return Path("config.json")
 
+    @property
+    def diff_ignore_fields(self: Self) -> list[str]:
+        """Returns a list of all config fields that should be ignored in a diff."""
+        return ["created_at", "created_by", "last_modified_at", "last_modified_by"]
+
     def save(self: Self, model: ProjectConfig) -> None:
         """Save the ProjectConfig to disk, updating last_modified fields."""
         model_dict = model.model_dump()
