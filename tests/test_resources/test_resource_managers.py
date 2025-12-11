@@ -391,7 +391,7 @@ def test_pydantic_resource_manager_get_model_diff_raises_when_different_type(
 def test_pydantic_resource_manager_get_model_diff_ignore_fields(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Tests that the expected fields are ignored when creating a diff."""
+    """Tests that fields are ignored in model diff when property is set."""
 
     class ExamplePydanticModel(BaseModel):
         data: str
@@ -401,6 +401,7 @@ def test_pydantic_resource_manager_get_model_diff_ignore_fields(
         last_modified_at: AwareDatetime | None = None
         last_modified_by: str | None = None
 
+    # Scenario 1: Property not set => no fields ignored
     test_manager = PydanticManagerTest(fmu_dir)
     current_model = ExamplePydanticModel(data="some_data", metadata="some_metadata")
     incoming_model = ExamplePydanticModel(
@@ -411,8 +412,24 @@ def test_pydantic_resource_manager_get_model_diff_ignore_fields(
     )
     model_diff = test_manager.get_model_diff(current_model, incoming_model)
 
-    exepected_length = 2
-    assert len(model_diff) == exepected_length
+    expected_length = 4
+    assert len(model_diff) == expected_length
+    assert model_diff[0][0] == "data"
+    assert model_diff[1][0] == "metadata"
+    assert model_diff[2][0] == "last_modified_at"
+    assert model_diff[3][0] == "last_modified_by"
+
+    # Scenario 2: Property set => fields ignored
+    class PydanticManagerTestIgnore(PydanticManagerTest):
+        @property
+        def diff_ignore_fields(self: Self) -> list[str]:
+            return ["last_modified_at", "last_modified_by"]
+
+    test_manager = PydanticManagerTestIgnore(fmu_dir)
+    model_diff = test_manager.get_model_diff(current_model, incoming_model)
+
+    expected_length = 2
+    assert len(model_diff) == expected_length
     assert model_diff[0][0] == "data"
     assert model_diff[1][0] == "metadata"
 

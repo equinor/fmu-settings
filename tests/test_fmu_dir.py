@@ -942,3 +942,70 @@ def test_fmu_directory_base_sync_dir_with_config_and_changelog(
     assert updated_changelog[3].change_type == ChangeType.merge
     assert "config" in updated_changelog[3].file
     assert "_changelog" in updated_changelog[3].file
+
+
+def test_fmu_directory_base_sync_dir_dont_sync_ignored_fields(
+    fmu_dir: ProjectFMUDirectory,
+    extra_fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that fields to be ignored are not synced.
+
+    When syncing two .fmu directories, Pydantic resources with fields set
+    to be ignored in a diff, should not be synced.
+    """
+    fmu_dir.set_config_value("cache_max_revisions", 5)
+    created_at = fmu_dir.config.load().created_at
+    created_by = fmu_dir.config.load().created_by
+    last_modified_at = fmu_dir.config.load().last_modified_at
+    last_modified_by = fmu_dir.config.load().last_modified_by
+
+    new_fmu_dir = extra_fmu_dir
+    new_cache_max_revisions = 10
+    new_fmu_dir.set_config_value("cache_max_revisions", new_cache_max_revisions)
+
+    updates = fmu_dir.sync_dir(new_fmu_dir)
+
+    assert updates["config"].cache_max_revisions == new_cache_max_revisions
+
+    # created_at and created_by should never change
+    assert updates["config"].created_at == created_at
+    assert updates["config"].created_by == created_by
+
+    # last_modified_at changes when the config has been updated through the sync
+    assert updates["config"].last_modified_at != last_modified_at
+    assert updates["config"].last_modified_by == last_modified_by
+
+    expected_log_length = 4
+    assert len(updates["_changelog"]) == expected_log_length
+
+    # First entry should be the cache_max_revision update in fmu_dir
+    assert updates["_changelog"][0].key == "cache_max_revisions"
+    assert "Old value: 5 -> New value: 5" in updates["_changelog"][0].change
+
+    # Second entry should be the cache_max_revision update from the config merge
+    assert updates["_changelog"][1].key == "cache_max_revisions"
+    assert "Old value: 5 -> New value: 10" in updates["_changelog"][1].change
+    assert updates["_changelog"][1].path == fmu_dir.path
+
+    # Third entry should be the cache_max_revision update from the changelog merge
+    assert updates["_changelog"][2].key == "cache_max_revisions"
+    assert "Old value: 5 -> New value: 10" in updates["_changelog"][2].change
+    assert updates["_changelog"][2].path == new_fmu_dir.path
+
+    # Fourth entry should be the logged merge details
+    assert updates["_changelog"][3].key == ".fmu"
+    assert updates["_changelog"][3].change_type == ChangeType.merge
+
+    # This should not happen, but just to illustrate:
+    # Force updating one of the diff ignore fields, adds log entries that will be merged
+    new_fmu_dir.set_config_value("created_by", "johndoe")
+    updates = fmu_dir.sync_dir(new_fmu_dir)
+
+    # The updated created_by value should not be merged
+    assert new_fmu_dir.config.load().created_by == "johndoe"
+    assert "config" not in updates
+    assert fmu_dir.config.load().created_by != "johndoe"
+
+    # The changelog entry for the update will be merged
+    assert updates["_changelog"][4].key == "created_by"
+    assert "Old value: user -> New value: johndoe" in updates["_changelog"][4].change
