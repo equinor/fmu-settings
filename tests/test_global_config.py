@@ -283,7 +283,7 @@ def test_validate_global_config_strict_stratigraphy_names(
     else:
         with pytest.raises(
             InvalidGlobalConfigurationError,
-            match=f"Invalid stratigraphy name in 'smda.stratigraphy': {identifier}",
+            match=f"Invalid stratigraphy name in 'cfg.stratigraphy': {identifier}",
         ):
             validate_global_configuration_strictly(cfg)
 
