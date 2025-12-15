@@ -127,7 +127,7 @@ def validate_global_configuration_strictly(cfg: GlobalConfiguration) -> None:  #
         for key in cfg.stratigraphy:
             if key.lower() in INVALID_STRAT_NAMES:
                 raise InvalidGlobalConfigurationError(
-                    f"Invalid stratigraphy name in 'smda.stratigraphy': {key}"
+                    f"Invalid stratigraphy name in 'cfg.stratigraphy': {key}"
                 )
 
 
