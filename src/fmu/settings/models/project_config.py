@@ -7,7 +7,9 @@ from typing import Self
 
 from pydantic import AwareDatetime, BaseModel, Field
 
-from fmu.datamodels.fmu_results.fields import Access, Masterdata, Model
+from fmu.datamodels.common.access import Access
+from fmu.datamodels.common.masterdata import Masterdata
+from fmu.datamodels.fmu_results.fields import Model
 from fmu.settings import __version__
 from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa: TC001
 

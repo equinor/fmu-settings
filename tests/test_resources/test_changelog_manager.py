@@ -9,7 +9,7 @@ from typing import Any
 
 import pandas as pd
 import pytest
-from fmu.datamodels.fmu_results.fields import StratigraphicColumn
+from fmu.datamodels.common.masterdata import StratigraphicColumn
 
 from fmu.settings._fmu_dir import ProjectFMUDirectory
 from fmu.settings._resources.changelog_manager import ChangelogManager

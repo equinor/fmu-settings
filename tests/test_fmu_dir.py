@@ -8,7 +8,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from fmu.datamodels.fmu_results.fields import Masterdata
+from fmu.datamodels.common.masterdata import Masterdata
 from pytest import MonkeyPatch
 
 from fmu.settings import __version__, find_nearest_fmu_directory, get_fmu_directory
