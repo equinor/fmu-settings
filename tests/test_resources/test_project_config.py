@@ -9,13 +9,13 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from fmu.datamodels.fmu_results.fields import (
-    Access,
+from fmu.datamodels.common.access import Access
+from fmu.datamodels.common.masterdata import (
     Masterdata,
-    Model,
     Smda,
     StratigraphicColumn,
 )
+from fmu.datamodels.fmu_results.fields import Model
 
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from fmu.settings._resources.config_managers import (
