@@ -804,7 +804,7 @@ def test_changelog_get_changelog_diff_with_old_changelog(
     """Tests that the diff is empty when all incoming changes are old.
 
     When the latest change in the current changelog is newer than the entries
-    in the incomming changelog, the result should be an empty Log object.
+    in the incoming changelog, the result should be an empty Log object.
     """
     current_changelog: ChangelogManager = ChangelogManager(fmu_dir)
     current_changelog.add_log_entry(change_entry)
