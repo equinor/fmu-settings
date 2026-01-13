@@ -33,6 +33,9 @@ class RmsStratigraphicZone(BaseModel):
     base_horizon_name: str
     """Name of the horizon at the base of the zone."""
 
+    stratigraphic_column_name: str | None = None
+    """Name of the stratigraphic column the zone belongs to."""
+
 
 class RmsHorizon(BaseModel):
     """A horizon from an RMS project."""
