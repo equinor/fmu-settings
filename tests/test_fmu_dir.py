@@ -25,7 +25,9 @@ from fmu.settings._fmu_dir import (
     UserFMUDirectory,
 )
 from fmu.settings._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
+from fmu.settings._resources.changelog_manager import ChangelogManager
 from fmu.settings._resources.lock_manager import DEFAULT_LOCK_TIMEOUT, LockManager
+from fmu.settings._resources.mappings_manager import MappingsManager
 from fmu.settings.models._enums import ChangeType
 from fmu.settings.models.change_info import ChangeInfo
 from fmu.settings.models.log import Log
@@ -147,6 +149,22 @@ def test_set_cache_max_revisions_updates_manager(
     fmu_dir.cache_max_revisions = 7
 
     assert cache.max_revisions == 7  # noqa: PLR2004
+
+
+def test_changelog_property_returns_changelog_manager(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Changelog manager should be memoized and ready for use."""
+    assert isinstance(fmu_dir.changelog, ChangelogManager)
+    assert fmu_dir.changelog is fmu_dir._changelog
+
+
+def test_mappings_property_returns_mappings_manager(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Mappings manager should be memoized and ready for use."""
+    assert isinstance(fmu_dir.mappings, MappingsManager)
+    assert fmu_dir.mappings is fmu_dir._mappings
 
 
 def test_get_config_value(fmu_dir: ProjectFMUDirectory) -> None:

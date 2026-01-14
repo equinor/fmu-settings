@@ -99,6 +99,16 @@ class FMUDirectoryBase:
         self._cache_manager.max_revisions = clamped_value
         self.set_config_value("cache_max_revisions", clamped_value)
 
+    @property
+    def changelog(self: Self) -> ChangelogManager:
+        """Access the ChangelogManager."""
+        return self._changelog
+
+    @property
+    def mappings(self: Self) -> MappingsManager:
+        """Access the MappingsManager."""
+        return self._mappings
+
     def get_config_value(self: Self, key: str, default: Any = None) -> Any:
         """Gets a configuration value by key.
 
