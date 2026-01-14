@@ -50,3 +50,10 @@ class FilterType(StrEnum):
     date = "date"
     number = "number"
     text = "text"
+
+
+class CacheResource(StrEnum):
+    """Resources that can be cached and restored."""
+
+    config = "config.json"
+    mappings = "mappings.json"

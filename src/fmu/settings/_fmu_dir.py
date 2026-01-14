@@ -3,6 +3,8 @@
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self, TypeAlias, cast
 
+from pydantic import BaseModel
+
 from fmu.settings._resources.changelog_manager import ChangelogManager
 from fmu.settings._resources.mappings_manager import MappingsManager
 
@@ -14,6 +16,7 @@ from ._resources.config_managers import (
     UserConfigManager,
 )
 from ._resources.lock_manager import DEFAULT_LOCK_TIMEOUT, LockManager
+from .models._enums import CacheResource
 from .models.project_config import ProjectConfig
 from .models.user_config import UserConfig
 
@@ -332,6 +335,73 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             ValueError: If the updates config is invalid
         """
         return cast("ProjectConfig", super().update_config(updates))
+
+    def restore_from_cache(
+        self: Self, relative_path: Path | str, revision_id: str
+    ) -> None:
+        """Restore a resource file from a cache revision.
+
+        Args:
+            relative_path: Path relative to the .fmu directory
+            revision_id: The revision filename to restore from.
+
+        Raises:
+            FileNotFoundError: If the cache revision doesn't exist.
+            ValueError: If the cached content is invalid or the resource type is not
+                supported for cache restoration.
+        """
+        relative_path = Path(relative_path)
+
+        manager = self._cacheable_resource_managers().get(relative_path)
+        if manager is None:
+            raise ValueError(
+                f"Resource '{relative_path}' is not supported for cache restoration"
+            )
+
+        self.cache.restore_revision(
+            relative_path, revision_id, model_class=manager.model_class
+        )
+
+        # Refresh the resource manager's in-memory cache
+        manager.load(force=True, store_cache=True)
+
+    def get_cache_content(
+        self: Self, relative_path: Path | str, revision_id: str
+    ) -> BaseModel:
+        """Get the content of a cache revision as a validated model.
+
+        Args:
+            relative_path: Path relative to the .fmu directory
+            revision_id: The revision filename to retrieve.
+
+        Returns:
+            Validated Pydantic model instance containing the cached data.
+
+        Raises:
+            FileNotFoundError: If the cache revision doesn't exist.
+            ValueError: If the cached content is invalid or the resource type is not
+                supported for cache operations.
+        """
+        relative_path = Path(relative_path)
+
+        manager = self._cacheable_resource_managers().get(relative_path)
+        if manager is None:
+            raise ValueError(
+                f"Resource '{relative_path}' is not supported for cache operations"
+            )
+
+        return self.cache.get_revision_content(
+            relative_path, revision_id, model_class=manager.model_class
+        )
+
+    def _cacheable_resource_managers(
+        self: Self,
+    ) -> dict[Path, ProjectConfigManager | MappingsManager]:
+        """Maps cacheable resource paths to their resource managers."""
+        return {
+            Path(CacheResource.config.value): self.config,
+            Path(CacheResource.mappings.value): self._mappings,
+        }
 
     @staticmethod
     def find_fmu_directory(start_path: Path) -> Path | None:

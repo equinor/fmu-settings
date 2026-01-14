@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Final, Self
 from uuid import uuid4
 
+from pydantic import BaseModel, ValidationError
+
 from fmu.settings._logging import null_logger
 
 if TYPE_CHECKING:
@@ -112,6 +114,86 @@ class CacheManager:
         revisions = [p for p in cache_dir.iterdir() if p.is_file()]
         revisions.sort(key=lambda path: path.name)
         return revisions
+
+    def get_revision_content(
+        self: Self,
+        resource_file_path: Path | str,
+        revision_id: str,
+        model_class: type[BaseModel],
+    ) -> BaseModel:
+        """Get the content of a specific cache revision as a validated model.
+
+        Args:
+            resource_file_path: Relative path within the ``.fmu`` directory (e.g.,
+                ``config.json``) of the cached resource.
+            revision_id: The revision filename (e.g.,
+                ``20260114T123045.123456Z-a1b2c3d4.json``).
+            model_class: Pydantic model class to validate the cached content against.
+
+        Returns:
+            Validated Pydantic model instance containing the cached data.
+
+        Raises:
+            FileNotFoundError: If the cache revision doesn't exist.
+            ValueError: If the cached file contains invalid JSON or fails model
+                validation.
+        """
+        resource_file_path = Path(resource_file_path)
+        cache_relative = self._cache_root / resource_file_path.stem / revision_id
+
+        if not self._fmu_dir.file_exists(cache_relative):
+            raise FileNotFoundError(
+                f"Cache revision '{revision_id}' not found for "
+                f"resource '{resource_file_path}'"
+            )
+
+        content_str = self._fmu_dir.read_text_file(cache_relative)
+
+        try:
+            return model_class.model_validate_json(content_str)
+        except ValidationError as e:
+            raise ValueError(
+                f"Invalid cached content for '{resource_file_path}': {e}"
+            ) from e
+
+    def restore_revision(
+        self: Self,
+        resource_file_path: Path | str,
+        revision_id: str,
+        model_class: type[BaseModel],
+    ) -> None:
+        """Restore a resource file from a cache revision.
+
+        The current state of the resource is automatically cached before overwriting
+        (if the file exists) to enable undo functionality.
+
+        Args:
+            resource_file_path: Relative path within the ``.fmu`` directory (e.g.,
+                ``config.json``) of the resource to restore.
+            revision_id: The revision filename to restore from.
+            model_class: Pydantic model class to validate the cached content
+                against before restoring.
+
+        Raises:
+            FileNotFoundError: If the cache revision doesn't exist.
+            ValueError: If the cached content is invalid JSON or fails model validation.
+        """
+        resource_file_path = Path(resource_file_path)
+
+        validated_model = self.get_revision_content(
+            resource_file_path, revision_id, model_class
+        )
+        content_str = validated_model.model_dump_json(by_alias=True, indent=2)
+
+        if self._fmu_dir.file_exists(resource_file_path):
+            current_content = self._fmu_dir.read_text_file(resource_file_path)
+            self.store_revision(resource_file_path, current_content, skip_trim=False)
+
+        self._fmu_dir.write_text_file(resource_file_path, content_str)
+
+        logger.info(
+            "Restored %s from cache revision %s", resource_file_path, revision_id
+        )
 
     def _ensure_resource_cache_dir(self: Self, resource_file_path: Path) -> Path:
         """Create (if needed) and return the cache directory for resource file."""
