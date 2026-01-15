@@ -1,5 +1,6 @@
 """Tests for the cache manager utilities."""
 
+import json
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -11,6 +12,7 @@ from fmu.settings._resources.cache_manager import (
     _CACHEDIR_TAG_CONTENT,
     CacheManager,
 )
+from fmu.settings.models.project_config import ProjectConfig
 
 
 def _read_snapshot_names(config_cache: Path) -> list[str]:
@@ -211,3 +213,83 @@ def test_cache_manager_trim_by_age_no_cache_directory(
     """trim_by_age handles missing cache directory gracefully."""
     manager = CacheManager(fmu_dir)
     manager.trim_by_age("foo.json", retention_days=30)
+
+
+def test_cache_manager_get_revision_content_returns_model(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """get_revision_content returns a validated model instance."""
+    manager = CacheManager(fmu_dir)
+    cached_model = fmu_dir.config.load().model_copy(update={"version": "1.2.3"})
+    snapshot = manager.store_revision(
+        "config.json",
+        cached_model.model_dump_json(by_alias=True, indent=2),
+    )
+    assert snapshot is not None
+
+    restored = manager.get_revision_content(
+        "config.json",
+        snapshot.name,
+        ProjectConfig,
+    )
+
+    assert restored.model_dump() == cached_model.model_dump()
+
+
+def test_cache_manager_get_revision_content_raises_for_missing_revision(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Missing cache revisions raise FileNotFoundError."""
+    manager = CacheManager(fmu_dir)
+    with pytest.raises(
+        FileNotFoundError,
+        match="Cache revision 'missing.json' not found for resource 'config.json'",
+    ):
+        manager.get_revision_content("config.json", "missing.json", ProjectConfig)
+
+
+def test_cache_manager_get_revision_content_raises_for_invalid_content(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Invalid cached JSON raises ValueError."""
+    manager = CacheManager(fmu_dir)
+    snapshot = manager.store_revision("config.json", "not json")
+    assert snapshot is not None
+
+    with pytest.raises(ValueError, match="Invalid cached content for 'config.json'"):
+        manager.get_revision_content("config.json", snapshot.name, ProjectConfig)
+
+
+def test_cache_manager_restore_revision_overwrites_and_caches_current(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """restore_revision replaces the resource and preserves the current state."""
+    manager = CacheManager(fmu_dir)
+
+    cached_model = fmu_dir.config.load().model_copy(update={"version": "1.2.3"})
+    snapshot = manager.store_revision(
+        "config.json",
+        cached_model.model_dump_json(by_alias=True, indent=2),
+    )
+    assert snapshot is not None
+
+    current_model = cached_model.model_copy(update={"version": "2.3.4"})
+    current_json = current_model.model_dump_json(by_alias=True, indent=2)
+    fmu_dir.write_text_file("config.json", current_json)
+
+    pre_restore = manager.list_revisions("config.json")
+
+    manager.restore_revision("config.json", snapshot.name, ProjectConfig)
+
+    post_restore = manager.list_revisions("config.json")
+    assert len(post_restore) == len(pre_restore) + 1
+
+    restored_payload = json.loads(fmu_dir.read_text_file("config.json"))
+    assert restored_payload["version"] == "1.2.3"
+
+    cached_versions = [
+        json.loads(path.read_text(encoding="utf-8"))["version"]
+        for path in post_restore
+        if path.suffix == ".json"
+    ]
+    assert "2.3.4" in cached_versions
