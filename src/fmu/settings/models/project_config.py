@@ -3,7 +3,7 @@
 import getpass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import AwareDatetime, BaseModel, Field
 
@@ -33,7 +33,7 @@ class RmsStratigraphicZone(BaseModel):
     base_horizon_name: str
     """Name of the horizon at the base of the zone."""
 
-    stratigraphic_column_name: str | None = None
+    stratigraphic_column_name: list[str] | None = None
     """Name of the stratigraphic column the zone belongs to."""
 
 
@@ -42,6 +42,15 @@ class RmsHorizon(BaseModel):
 
     name: str
     """Name of the horizon."""
+
+    type: Literal[
+        "calculated",
+        "calculated_unconformity",
+        "interpreted",
+        "interpreted_unconformity",
+        "interpreted_intrusion",
+    ]
+    """Type of the horizon."""
 
 
 class RmsWell(BaseModel):
