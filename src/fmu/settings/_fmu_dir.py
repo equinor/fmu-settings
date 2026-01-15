@@ -1,5 +1,6 @@
 """Main interface for working with .fmu directory."""
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self, TypeAlias, cast
 
@@ -396,7 +397,7 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
     def _cacheable_resource_managers(
         self: Self,
-    ) -> dict[Path, ProjectConfigManager | MappingsManager]:
+    ) -> Mapping[Path, ProjectConfigManager | MappingsManager]:
         """Maps cacheable resource paths to their resource managers."""
         return {
             Path(CacheResource.config.value): self.config,

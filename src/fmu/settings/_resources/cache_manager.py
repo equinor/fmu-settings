@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Final, Self, TypeVar
 from uuid import uuid4
 
 from pydantic import BaseModel, ValidationError
@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from fmu.settings._fmu_dir import FMUDirectoryBase
 
 logger: Final = null_logger(__name__)
+
+RequestedModel = TypeVar("RequestedModel", bound=BaseModel)
 
 _CACHEDIR_TAG_CONTENT: Final = (
     "Signature: 8a477f597d28d172789f06886806bc55\n"
@@ -89,7 +91,7 @@ class CacheManager:
         self._fmu_dir.write_text_file(
             cache_relative / snapshot_name, content, encoding=encoding
         )
-        logger.debug("Stored revision snapshot at %s", snapshot_path)
+        logger.debug(f"Stored revision snapshot at {snapshot_path}")
 
         if not skip_trim:
             self._trim(cache_dir)
@@ -119,8 +121,8 @@ class CacheManager:
         self: Self,
         resource_file_path: Path | str,
         revision_id: str,
-        model_class: type[BaseModel],
-    ) -> BaseModel:
+        model_class: type[RequestedModel],
+    ) -> RequestedModel:
         """Get the content of a specific cache revision as a validated model.
 
         Args:
@@ -160,7 +162,7 @@ class CacheManager:
         self: Self,
         resource_file_path: Path | str,
         revision_id: str,
-        model_class: type[BaseModel],
+        model_class: type[RequestedModel],
     ) -> None:
         """Restore a resource file from a cache revision.
 
@@ -191,9 +193,7 @@ class CacheManager:
 
         self._fmu_dir.write_text_file(resource_file_path, content_str)
 
-        logger.info(
-            "Restored %s from cache revision %s", resource_file_path, revision_id
-        )
+        logger.info(f"Restored {resource_file_path} from cache revision {revision_id}")
 
     def _ensure_resource_cache_dir(self: Self, resource_file_path: Path) -> Path:
         """Create (if needed) and return the cache directory for resource file."""
@@ -259,9 +259,9 @@ class CacheManager:
                 mtime_timestamp = revision.stat().st_mtime
                 file_time = datetime.fromtimestamp(mtime_timestamp, tz=UTC)
             except (OSError, ValueError):
-                logger.warning("Skipping file with unreadable mtime: %s", revision.name)
+                logger.warning(f"Skipping file with unreadable mtime: {revision.name}")
                 continue
 
             if file_time < cutoff:
                 revision.unlink()
-                logger.debug("Deleted old revision: %s", revision)
+                logger.debug(f"Deleted old revision: {revision}")
