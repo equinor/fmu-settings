@@ -18,7 +18,12 @@ from fmu.datamodels.context.mappings import (
 from fmu.datamodels.fmu_results.fields import Masterdata
 from pytest import MonkeyPatch
 
-from fmu.settings import __version__, find_nearest_fmu_directory, get_fmu_directory
+from fmu.settings import (
+    CacheResource,
+    __version__,
+    find_nearest_fmu_directory,
+    get_fmu_directory,
+)
 from fmu.settings._fmu_dir import (
     FMUDirectoryBase,
     ProjectFMUDirectory,
@@ -165,6 +170,77 @@ def test_mappings_property_returns_mappings_manager(
     """Mappings manager should be memoized and ready for use."""
     assert isinstance(fmu_dir.mappings, MappingsManager)
     assert fmu_dir.mappings is fmu_dir._mappings
+
+
+def test_get_cache_content_returns_model(fmu_dir: ProjectFMUDirectory) -> None:
+    """Cache content should be returned as a validated model."""
+    cached_config = fmu_dir.config.load().model_copy(update={"version": "1.2.3"})
+    snapshot = fmu_dir.cache.store_revision(
+        CacheResource.config.value,
+        cached_config.model_dump_json(by_alias=True, indent=2),
+    )
+    assert snapshot is not None
+
+    cache_content = fmu_dir.get_cache_content(
+        CacheResource.config.value,
+        snapshot.name,
+    )
+
+    assert cache_content.model_dump() == cached_config.model_dump()
+
+
+def test_get_cache_content_raises_for_unsupported_resource(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Unsupported cache resources should raise."""
+    with pytest.raises(ValueError, match="not supported for cache operations"):
+        fmu_dir.get_cache_content("unsupported.json", "missing.json")
+
+
+def test_restore_from_cache_restores_mappings(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Restoring mappings should refresh the resource cache."""
+    cached_mapping = StratigraphyIdentifierMapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.smda,
+        relation_type=RelationType.primary,
+        source_id="TopVolantis",
+        target_id="VOLANTIS GP. Top",
+    )
+    cached_mappings = Mappings(stratigraphy=StratigraphyMappings(root=[cached_mapping]))
+    snapshot = fmu_dir.cache.store_revision(
+        CacheResource.mappings.value,
+        cached_mappings.model_dump_json(by_alias=True, indent=2),
+    )
+    assert snapshot is not None
+
+    current_mapping = StratigraphyIdentifierMapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.smda,
+        relation_type=RelationType.primary,
+        source_id="TopTherys",
+        target_id="THERYS GP. Top",
+    )
+    current_mappings = Mappings(
+        stratigraphy=StratigraphyMappings(root=[current_mapping])
+    )
+    fmu_dir.mappings.save(current_mappings)
+
+    fmu_dir.restore_from_cache(CacheResource.mappings.value, snapshot.name)
+
+    assert fmu_dir.mappings._cache is not None
+    assert fmu_dir.mappings._cache.model_dump() == cached_mappings.model_dump()
+    restored = fmu_dir.mappings.load()
+    assert restored.model_dump() == cached_mappings.model_dump()
+
+
+def test_restore_from_cache_raises_for_unsupported_resource(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Unsupported cache resources should raise on restore."""
+    with pytest.raises(ValueError, match="not supported for cache restoration"):
+        fmu_dir.restore_from_cache("unsupported.json", "missing.json")
 
 
 def test_get_config_value(fmu_dir: ProjectFMUDirectory) -> None:
