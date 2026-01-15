@@ -8,6 +8,14 @@ from uuid import UUID, uuid4
 
 import pytest
 import yaml
+from fmu.datamodels.common.access import Asset
+from fmu.datamodels.common.masterdata import (
+    CoordinateSystem,
+    CountryItem,
+    DiscoveryItem,
+    FieldItem,
+    StratigraphicColumn,
+)
 from fmu.datamodels.fmu_results import fields
 from fmu.datamodels.fmu_results.global_configuration import (
     GlobalConfiguration,
@@ -76,7 +84,7 @@ def test_validate_global_config_strict_access(
 ) -> None:
     """Tests strict validation on 'access'."""
     cfg = generate_strict_valid_globalconfiguration(
-        asset=fields.Asset(name=name),  # type: ignore
+        asset=Asset(name=name),  # type: ignore
     )
     if valid:
         validate_global_configuration_strictly(cfg)  # Does not raise
@@ -97,8 +105,8 @@ def test_validate_global_config_strict_smda_country_uuid(
     """Tests strict validation on 'smda.country' uuids."""
     cfg = generate_strict_valid_globalconfiguration(
         country_items=[  # type: ignore
-            fields.CountryItem(identifier="bar", uuid=uuid),
-            fields.CountryItem(identifier="foo", uuid=uuid4()),
+            CountryItem(identifier="bar", uuid=uuid),
+            CountryItem(identifier="foo", uuid=uuid4()),
         ],
     )
     if valid:
@@ -120,8 +128,8 @@ def test_validate_global_config_strict_smda_discovery_identifier(
     """Tests strict validation on 'smda.discovery' identifiers."""
     cfg = generate_strict_valid_globalconfiguration(
         discovery_items=[  # type: ignore
-            fields.DiscoveryItem(short_identifier=identifier, uuid=uuid4()),
-            fields.DiscoveryItem(short_identifier="foo", uuid=uuid4()),
+            DiscoveryItem(short_identifier=identifier, uuid=uuid4()),
+            DiscoveryItem(short_identifier="foo", uuid=uuid4()),
         ],
     )
     if valid:
@@ -143,8 +151,8 @@ def test_validate_global_config_strict_smda_discovery_uuid(
     """Tests strict validation on 'smda.discovery' uuids."""
     cfg = generate_strict_valid_globalconfiguration(
         discovery_items=[  # type: ignore
-            fields.DiscoveryItem(short_identifier="bar", uuid=uuid),
-            fields.DiscoveryItem(short_identifier="foo", uuid=uuid4()),
+            DiscoveryItem(short_identifier="bar", uuid=uuid),
+            DiscoveryItem(short_identifier="foo", uuid=uuid4()),
         ],
     )
     if valid:
@@ -166,8 +174,8 @@ def test_validate_global_config_strict_smda_field_identifier(
     """Tests strict validation on 'smda.discovery' identifiers."""
     cfg = generate_strict_valid_globalconfiguration(
         field_items=[  # type: ignore
-            fields.FieldItem(identifier=identifier, uuid=uuid4()),
-            fields.FieldItem(identifier="foo", uuid=uuid4()),
+            FieldItem(identifier=identifier, uuid=uuid4()),
+            FieldItem(identifier="foo", uuid=uuid4()),
         ],
     )
     if valid:
@@ -189,8 +197,8 @@ def test_validate_global_config_strict_smda_field_uuid(
     """Tests strict validation on 'smda.discovery' uuids."""
     cfg = generate_strict_valid_globalconfiguration(
         field_items=[  # type: ignore
-            fields.FieldItem(identifier="bar", uuid=uuid),
-            fields.FieldItem(identifier="foo", uuid=uuid4()),
+            FieldItem(identifier="bar", uuid=uuid),
+            FieldItem(identifier="foo", uuid=uuid4()),
         ],
     )
     if valid:
@@ -211,7 +219,7 @@ def test_validate_global_config_strict_coordinate_system(
 ) -> None:
     """Tests strict validation on 'smda.coordinate_system'."""
     cfg = generate_strict_valid_globalconfiguration(
-        coordinate_system=fields.CoordinateSystem(identifier="", uuid=uuid),  # type: ignore
+        coordinate_system=CoordinateSystem(identifier="", uuid=uuid),  # type: ignore
     )
     if valid:
         validate_global_configuration_strictly(cfg)  # Does not raise
@@ -231,7 +239,7 @@ def test_validate_global_config_strict_stratigraphic_column_uuids(
 ) -> None:
     """Tests strict validation on 'smda.stratigraphic_column' uuid."""
     cfg = generate_strict_valid_globalconfiguration(
-        stratigraphic_column=fields.StratigraphicColumn(identifier="", uuid=uuid),  # type: ignore
+        stratigraphic_column=StratigraphicColumn(identifier="", uuid=uuid),  # type: ignore
     )
     if valid:
         validate_global_configuration_strictly(cfg)  # Does not raise
@@ -251,7 +259,7 @@ def test_validate_global_config_strict_stratigraphic_column_names(
 ) -> None:
     """Tests strict validation on 'smda.stratigraphic_column' identifiers."""
     cfg = generate_strict_valid_globalconfiguration(
-        stratigraphic_column=fields.StratigraphicColumn(  # type: ignore
+        stratigraphic_column=StratigraphicColumn(  # type: ignore
             identifier=identifier, uuid=uuid4()
         ),
     )

@@ -9,13 +9,13 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from fmu.datamodels.common.masterdata import Masterdata
 from fmu.datamodels.context.mappings import (
     DataSystem,
     RelationType,
     StratigraphyIdentifierMapping,
     StratigraphyMappings,
 )
-from fmu.datamodels.fmu_results.fields import Masterdata
 from pytest import MonkeyPatch
 
 from fmu.settings import (
