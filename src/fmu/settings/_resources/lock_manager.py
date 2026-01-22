@@ -179,6 +179,7 @@ class LockManager(PydanticResourceManager[LockInfo]):
 
         current_lock = self.safe_load(force=True, store_cache=False)
         if current_lock is None:
+            self.release()
             return False
 
         return self._is_mine(current_lock) and not self._is_stale()
