@@ -437,6 +437,19 @@ def test_is_acquired_expected(
     assert lock.is_acquired() is True
 
 
+def test_is_acquired_after_lock_deleted(
+    fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch
+) -> None:
+    """Tests is_acquired resets state after the lock file is deleted."""
+    lock = LockManager(fmu_dir)
+    lock.acquire()
+    lock.path.unlink()
+    assert lock.is_acquired() is False
+    lock.acquire()
+    assert lock.is_acquired() is True
+    lock.release()
+
+
 def test_is_acquired_unexpected_members(
     fmu_dir: ProjectFMUDirectory, monkeypatch: MonkeyPatch
 ) -> None:
