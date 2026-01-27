@@ -1,8 +1,11 @@
 """Tests for mapping models."""
 
+from uuid import UUID, uuid4
+
 import pytest
 from fmu.datamodels.context.mappings import (
     DataSystem,
+    MappingType,
     RelationType,
     StratigraphyIdentifierMapping,
 )
@@ -11,12 +14,13 @@ from pydantic import ValidationError
 from fmu.settings.models.mappings import MappingGroup
 
 
-def _make_mapping(
+def _make_mapping(  # noqa: PLR0913
     source_id: str,
     target_id: str,
     relation_type: RelationType,
     source_system: DataSystem = DataSystem.rms,
     target_system: DataSystem = DataSystem.smda,
+    target_uuid: UUID | None = None,
 ) -> StratigraphyIdentifierMapping:
     return StratigraphyIdentifierMapping(
         source_system=source_system,
@@ -24,34 +28,47 @@ def _make_mapping(
         relation_type=relation_type,
         source_id=source_id,
         target_id=target_id,
+        target_uuid=target_uuid,
     )
 
 
-def test_mapping_group_valid_and_display_dict() -> None:
-    """MappingGroup groups mappings with a single primary and shared systems."""
+def test_mapping_group_serializes_without_system_and_target_fields() -> None:
+    """MappingGroup serializes mappings without redundant fields."""
     target_id = "Viking GP."
-    primary = _make_mapping("Viking Gp", target_id, RelationType.primary)
-    alias = _make_mapping("Viking Group", target_id, RelationType.alias)
-    equivalent = _make_mapping(target_id, target_id, RelationType.equivalent)
+    target_uuid = uuid4()
+    primary = _make_mapping(
+        "Viking Gp", target_id, RelationType.primary, target_uuid=target_uuid
+    )
+    alias = _make_mapping(
+        "Viking Group", target_id, RelationType.alias, target_uuid=target_uuid
+    )
+    equivalent = _make_mapping(
+        target_id, target_id, RelationType.equivalent, target_uuid=target_uuid
+    )
 
     group = MappingGroup(
         target_id=target_id,
+        target_uuid=target_uuid,
+        mapping_type=MappingType.stratigraphy,
         target_system=DataSystem.smda,
         source_system=DataSystem.rms,
         mappings=[primary, alias, equivalent],
     )
 
-    assert group.primary == primary
-    assert group.aliases == [alias]
-    assert group.equivalents == [equivalent]
-    assert group.to_display_dict() == {
-        "official_name": target_id,
-        "target_system": "smda",
-        "source_system": "rms",
-        "primary_source": "Viking Gp",
-        "aliases": ["Viking Group"],
-        "equivalents": [target_id],
-    }
+    display_dict = group.to_display_dict()
+    assert display_dict["official_name"] == target_id
+    assert display_dict["target_uuid"] == target_uuid
+    assert display_dict["mapping_type"] == "stratigraphy"
+    assert display_dict["target_system"] == "smda"
+    assert display_dict["source_system"] == "rms"
+    for mapping in display_dict["mappings"]:
+        assert "source_system" not in mapping
+        assert "target_system" not in mapping
+        assert "mapping_type" not in mapping
+        assert "target_id" not in mapping
+        assert "target_uuid" not in mapping
+        assert "relation_type" in mapping
+        assert "source_id" in mapping
 
 
 def test_mapping_group_rejects_multiple_primary_mappings() -> None:
@@ -62,6 +79,7 @@ def test_mapping_group_rejects_multiple_primary_mappings() -> None:
     with pytest.raises(ValidationError, match="at most one primary"):
         MappingGroup(
             target_id=target_id,
+            mapping_type=MappingType.stratigraphy,
             target_system=DataSystem.smda,
             source_system=DataSystem.rms,
             mappings=[primary, primary_two],
@@ -76,6 +94,7 @@ def test_mapping_group_requires_shared_target_id() -> None:
     with pytest.raises(ValidationError, match="target_id"):
         MappingGroup(
             target_id="Viking GP.",
+            mapping_type=MappingType.stratigraphy,
             target_system=DataSystem.smda,
             source_system=DataSystem.rms,
             mappings=[primary, different_target],
@@ -95,6 +114,7 @@ def test_mapping_group_requires_shared_target_system() -> None:
     with pytest.raises(ValidationError, match="target_system"):
         MappingGroup(
             target_id="Viking GP.",
+            mapping_type=MappingType.stratigraphy,
             target_system=DataSystem.smda,
             source_system=DataSystem.rms,
             mappings=[primary, different_target_system],
@@ -114,6 +134,7 @@ def test_mapping_group_requires_shared_source_system() -> None:
     with pytest.raises(ValidationError, match="source_system"):
         MappingGroup(
             target_id="Viking GP.",
+            mapping_type=MappingType.stratigraphy,
             target_system=DataSystem.smda,
             source_system=DataSystem.rms,
             mappings=[primary, different_source_system],
