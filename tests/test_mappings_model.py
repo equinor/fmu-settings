@@ -55,7 +55,7 @@ def test_mapping_group_serializes_without_system_and_target_fields() -> None:
         mappings=[primary, alias, equivalent],
     )
 
-    display_dict = group.to_display_dict()
+    display_dict = group.model_dump()
     assert display_dict["official_name"] == target_id
     assert display_dict["target_uuid"] == target_uuid
     assert display_dict["mapping_type"] == "stratigraphy"
