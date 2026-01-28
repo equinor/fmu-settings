@@ -1,12 +1,14 @@
 """Model for the mappings.json file."""
 
 from typing import Any
+from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_serializer, model_validator
 
 from fmu.datamodels.context.mappings import (
     AnyIdentifierMapping,
     DataSystem,
+    MappingType,
     RelationType,
     StratigraphyMappings,
 )
@@ -26,44 +28,23 @@ class Mappings(BaseModel):
 
 
 class MappingGroup(BaseModel):
-    """A mapping group containing a primary mapping and its related mappings.
+    """A mapping group containing related mappings with a shared target context.
 
     This is a view of the data for GUI display purposes, not how it's stored.
-    Groups all mappings (primary, aliases, equivalents) that share the same target.
-
-    Validates that all mappings share the group target_id, target_system,
-    and source_system.
+    Groups mappings that share target_id, target_uuid (if set), mapping_type,
+    target_system, and source_system.
     """
 
     target_id: str
+    target_uuid: UUID | None = None
+    mapping_type: MappingType
     target_system: DataSystem
     source_system: DataSystem
     mappings: list[AnyIdentifierMapping]
 
-    @property
-    def primary(self) -> AnyIdentifierMapping | None:
-        """Get the primary mapping.
-
-        Takes the first primary, which should be the only one.
-        """
-        primaries = [
-            m for m in self.mappings if m.relation_type == RelationType.primary
-        ]
-        return primaries[0] if primaries else None
-
-    @property
-    def aliases(self) -> list[AnyIdentifierMapping]:
-        """Get all alias mappings."""
-        return [m for m in self.mappings if m.relation_type == RelationType.alias]
-
-    @property
-    def equivalents(self) -> list[AnyIdentifierMapping]:
-        """Get all equivalent mappings."""
-        return [m for m in self.mappings if m.relation_type == RelationType.equivalent]
-
     @model_validator(mode="after")
     def validate_group(self) -> "MappingGroup":
-        """Ensure mappings align with the group target/source and primary count."""
+        """Ensure mappings align with the group target/source and shared fields."""
         if not self.mappings:
             return self
 
@@ -81,6 +62,11 @@ class MappingGroup(BaseModel):
                     "All mappings in MappingGroup must share target_id "
                     f"'{self.target_id}'."
                 )
+            if mapping.mapping_type != self.mapping_type:
+                raise ValueError(
+                    "All mappings in MappingGroup must share mapping_type "
+                    f"'{self.mapping_type}'."
+                )
             if mapping.target_system != self.target_system:
                 raise ValueError(
                     "All mappings in MappingGroup must share target_system "
@@ -91,15 +77,40 @@ class MappingGroup(BaseModel):
                     "All mappings in MappingGroup must share source_system "
                     f"'{self.source_system}'."
                 )
+
+            if (
+                mapping.target_uuid is not None
+                and self.target_uuid is not None
+                and mapping.target_uuid != self.target_uuid
+            ):
+                raise ValueError(
+                    "All mappings in MappingGroup must share target_uuid "
+                    f"'{self.target_uuid}'."
+                )
         return self
 
-    def to_display_dict(self) -> dict[str, Any]:
-        """Convert to a dictionary for display."""
+    @model_serializer(mode="plain")
+    def serialize_for_display(self) -> dict[str, Any]:
+        """Serialize to the display schema for API responses."""
+        excluded_fields = {
+            "source_system",
+            "target_system",
+            "mapping_type",
+            "target_id",
+            "target_uuid",
+        }
         return {
             "official_name": self.target_id,
+            "target_uuid": self.target_uuid,
+            "mapping_type": self.mapping_type.value,
             "target_system": self.target_system.value,
             "source_system": self.source_system.value,
-            "primary_source": self.primary.source_id if self.primary else None,
-            "aliases": [m.source_id for m in self.aliases],
-            "equivalents": [m.source_id for m in self.equivalents],
+            "mappings": [
+                {
+                    key: value
+                    for key, value in mapping.model_dump().items()
+                    if key not in excluded_fields
+                }
+                for mapping in self.mappings
+            ],
         }
