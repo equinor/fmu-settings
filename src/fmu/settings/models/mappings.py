@@ -1,6 +1,6 @@
 """Model for the mappings.json file."""
 
-from typing import Any
+from typing import Any, Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_serializer, model_validator
@@ -42,21 +42,71 @@ class MappingGroup(BaseModel):
     source_system: DataSystem
     mappings: list[AnyIdentifierMapping]
 
+    def _count_mappings_by_relation_type(
+        self: Self, relation_type: RelationType
+    ) -> int:
+        return sum(
+            1 for mapping in self.mappings if mapping.relation_type == relation_type
+        )
+
     @model_validator(mode="after")
     def validate_group(self) -> "MappingGroup":
-        """Ensure mappings align with the group target/source and shared fields."""
+        """Ensure MappingGroup contains a valid combination of mappings.
+
+        Validates that:
+        - At most one primary mapping per mapping group
+        - At most one equivalent mapping per mapping group
+        - Mapping group with alias mapping(s) requires a primary mapping
+        - No duplicate mappings in a mappping group
+        - All mappings in a mapping group share the same target_id, mapping_type,
+          target_system and source_system
+
+        Raises:
+            ValueError: If validation fails or mapping type is unsupported
+        """
         if not self.mappings:
             return self
 
-        primary_count = sum(
-            1
-            for mapping in self.mappings
-            if mapping.relation_type == RelationType.primary
+        primary_mappings_count = self._count_mappings_by_relation_type(
+            RelationType.primary
         )
-        if primary_count > 1:
-            raise ValueError("MappingGroup must contain at most one primary mapping.")
+        has_alias_mapping = (
+            self._count_mappings_by_relation_type(RelationType.alias) > 0
+        )
 
+        if primary_mappings_count > 1:
+            raise ValueError(
+                f"MappingGroup for target '{self.target_id}' must contain at most one "
+                "primary mapping."
+            )
+
+        if self._count_mappings_by_relation_type(RelationType.equivalent) > 1:
+            raise ValueError(
+                f"MappingGroup for target '{self.target_id}' must contain at most one "
+                "equivalent mapping."
+            )
+
+        if has_alias_mapping and primary_mappings_count == 0:
+            raise ValueError(
+                f"MappingGroup for target '{self.target_id}' contains "
+                "alias relations but no primary relation. Aliases require "
+                "a primary unofficial identifier."
+            )
+
+        seen: set[tuple[str, UUID | None, RelationType]] = set()
         for mapping in self.mappings:
+            mapping_key = (
+                mapping.source_id,
+                mapping.source_uuid,
+                mapping.relation_type,
+            )
+            if mapping_key in seen:
+                raise ValueError(
+                    f"Duplicate mapping in group: source_id='{mapping.source_id}', "
+                    f"source_uuid='{mapping.source_uuid}', "
+                    f"relation_type='{mapping.relation_type}'."
+                )
+
             if mapping.target_id != self.target_id:
                 raise ValueError(
                     "All mappings in MappingGroup must share target_id "
@@ -77,7 +127,6 @@ class MappingGroup(BaseModel):
                     "All mappings in MappingGroup must share source_system "
                     f"'{self.source_system}'."
                 )
-
             if (
                 mapping.target_uuid is not None
                 and self.target_uuid is not None
@@ -87,6 +136,9 @@ class MappingGroup(BaseModel):
                     "All mappings in MappingGroup must share target_uuid "
                     f"'{self.target_uuid}'."
                 )
+
+            seen.add(mapping_key)
+
         return self
 
     @model_serializer(mode="plain")
