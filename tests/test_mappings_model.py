@@ -32,6 +32,32 @@ def _make_mapping(  # noqa: PLR0913
     )
 
 
+def test_mapping_group_count_mappings_by_relation_type() -> None:
+    """Tests that the count of mappings with the given relation_type is returned."""
+    target_id = "Viking GP."
+    primary = _make_mapping("Viking Gp", target_id, RelationType.primary)
+    alias = _make_mapping("Viking gp", target_id, RelationType.alias)
+    alias_two = _make_mapping("VIKING GP", target_id, RelationType.alias)
+    alias_three = _make_mapping("viking.gp", target_id, RelationType.alias)
+    equivalent = _make_mapping("Viking GP.", target_id, RelationType.equivalent)
+
+    mapping_group = MappingGroup(
+        target_id=target_id,
+        mapping_type=MappingType.stratigraphy,
+        target_system=DataSystem.smda,
+        source_system=DataSystem.rms,
+        mappings=[primary, alias, alias_two, alias_three, equivalent],
+    )
+
+    assert mapping_group._count_mappings_by_relation_type(RelationType.primary) == 1
+    assert mapping_group._count_mappings_by_relation_type(RelationType.equivalent) == 1
+    expected_alias_mappings = 3
+    assert (
+        mapping_group._count_mappings_by_relation_type(RelationType.alias)
+        == expected_alias_mappings
+    )
+
+
 def test_mapping_group_serializes_without_system_and_target_fields() -> None:
     """MappingGroup serializes mappings without redundant fields."""
     target_id = "Viking GP."
@@ -72,17 +98,70 @@ def test_mapping_group_serializes_without_system_and_target_fields() -> None:
 
 
 def test_mapping_group_rejects_multiple_primary_mappings() -> None:
-    """MappingGroup allows at most one primary mapping."""
+    """MappingGroup with more than one primary mapping raises ValidationError."""
     target_id = "Viking GP."
     primary = _make_mapping("Viking Gp", target_id, RelationType.primary)
     primary_two = _make_mapping("Viking Gp 2", target_id, RelationType.primary)
-    with pytest.raises(ValidationError, match="at most one primary"):
+    with pytest.raises(ValidationError, match="at most one primary mapping."):
         MappingGroup(
             target_id=target_id,
             mapping_type=MappingType.stratigraphy,
             target_system=DataSystem.smda,
             source_system=DataSystem.rms,
             mappings=[primary, primary_two],
+        )
+
+
+def test_mapping_group_rejects_multiple_equivalent_mappings() -> None:
+    """MappingGroup with more than one equivalent mapping raises ValidationError."""
+    target_id = "Viking GP."
+    equivalent = _make_mapping("Viking GP.", target_id, RelationType.equivalent)
+    equivalent_two = _make_mapping("Viking GP.", target_id, RelationType.equivalent)
+    with pytest.raises(ValidationError, match="at most one equivalent mapping."):
+        MappingGroup(
+            target_id=target_id,
+            mapping_type=MappingType.stratigraphy,
+            target_system=DataSystem.smda,
+            source_system=DataSystem.rms,
+            mappings=[equivalent, equivalent_two],
+        )
+
+
+def test_mapping_group_with_alias_requires_primary_relation() -> None:
+    """MappingsGroup with alias mappings and no primary mapping raises ValidationError.
+
+    A MappingGroup containing alias mappings will raise a ValidationError
+    Error if no primary mapping exists.
+    """
+    target_id = "Viking GP."
+    alias = _make_mapping("Viking gp", target_id, RelationType.alias)
+    alias_two = _make_mapping("VIKING GP", target_id, RelationType.alias)
+    equivalent = _make_mapping("Viking GP.", target_id, RelationType.equivalent)
+    with pytest.raises(
+        ValidationError, match="contains alias relations but no primary relation."
+    ):
+        MappingGroup(
+            target_id=target_id,
+            mapping_type=MappingType.stratigraphy,
+            target_system=DataSystem.smda,
+            source_system=DataSystem.rms,
+            mappings=[alias, alias_two, equivalent],
+        )
+
+
+def test_mapping_group_requires_no_duplicate_mappings() -> None:
+    """MappingGroup with duplicate mappings raises ValidationError."""
+    target_id = "Viking GP."
+    primary = _make_mapping("VIKING GP", target_id, RelationType.primary)
+    alias = _make_mapping("Viking gp", target_id, RelationType.alias)
+    alias_two = _make_mapping("Viking gp", target_id, RelationType.alias)
+    with pytest.raises(ValidationError, match="Duplicate mapping in group:"):
+        MappingGroup(
+            target_id=target_id,
+            mapping_type=MappingType.stratigraphy,
+            target_system=DataSystem.smda,
+            source_system=DataSystem.rms,
+            mappings=[primary, alias, alias_two],
         )
 
 
