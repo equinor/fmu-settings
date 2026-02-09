@@ -16,6 +16,7 @@ from fmu.settings._resources.pydantic_resource_manager import (
     MutablePydanticResourceManager,
     PydanticResourceManager,
 )
+from fmu.settings.models.diff import ListFieldDiff, ScalarFieldDiff
 from fmu.settings.types import ResettableBaseModel
 
 
@@ -369,6 +370,24 @@ def test_pydantic_resource_manager_get_model_diff(fmu_dir: ProjectFMUDirectory) 
     assert model_diff[0][2] == "incoming_value"
 
 
+def test_pydantic_resource_manager_get_structured_model_diff_scalar(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests structured scalar diff output."""
+    test_manager = PydanticManagerTest(fmu_dir)
+    current_model = PydanticResourceTest(foo="current_value")
+    incoming_model = PydanticResourceTest(foo="incoming_value")
+
+    model_diff = test_manager.get_structured_model_diff(current_model, incoming_model)
+
+    assert len(model_diff) == 1
+    diff = model_diff[0]
+    assert isinstance(diff, ScalarFieldDiff)
+    assert diff.field_path == "foo"
+    assert diff.before == "current_value"
+    assert diff.after == "incoming_value"
+
+
 def test_pydantic_resource_manager_get_model_diff_raises_when_different_type(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -492,6 +511,53 @@ def test_pydantic_resource_manager_get_diff_when_list_diff(
     model_diff = test_manager.get_model_diff(current_model, incoming_model)
     assert len(model_diff) == 1
     assert model_diff[0] == ("name_list", current_list, incoming_list)
+
+
+def test_pydantic_resource_manager_get_structured_model_diff_when_list_diff_with_key(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests keyed list structured diff output."""
+
+    class ExampleListItem(BaseModel):
+        name: str
+        value: str
+
+    class ExamplePydanticModel(BaseModel):
+        items: list[ExampleListItem]
+
+    class PydanticManagerListKeyTest(PydanticManagerTest):
+        @property
+        def diff_list_keys(self: Self) -> dict[str, str]:
+            return {"items": "name"}
+
+    test_manager = PydanticManagerListKeyTest(fmu_dir)
+    current_model = ExamplePydanticModel(
+        items=[
+            ExampleListItem(name="A", value="1"),
+            ExampleListItem(name="B", value="1"),
+        ]
+    )
+    incoming_model = ExamplePydanticModel(
+        items=[
+            ExampleListItem(name="A", value="2"),
+            ExampleListItem(name="C", value="1"),
+        ]
+    )
+
+    model_diff = test_manager.get_structured_model_diff(current_model, incoming_model)
+
+    assert len(model_diff) == 1
+    diff = model_diff[0]
+    assert isinstance(diff, ListFieldDiff)
+    assert diff.field_path == "items"
+    assert len(diff.added) == 1
+    assert len(diff.removed) == 1
+    assert len(diff.updated) == 1
+    assert diff.added[0]["name"] == "C"
+    assert diff.removed[0]["name"] == "B"
+    assert diff.updated[0].key == "A"
+    assert diff.updated[0].before["value"] == "1"
+    assert diff.updated[0].after["value"] == "2"
 
 
 def test_pydantic_resource_manager_get_diff_when_value_is_none(

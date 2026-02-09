@@ -14,6 +14,7 @@ from fmu.datamodels.context.mappings import (
 from fmu.settings._fmu_dir import ProjectFMUDirectory
 from fmu.settings._resources.mappings_manager import MappingsManager
 from fmu.settings.models._enums import ChangeType
+from fmu.settings.models.diff import ListFieldDiff
 from fmu.settings.models.mappings import Mappings
 
 if TYPE_CHECKING:
@@ -300,3 +301,44 @@ def test_mappings_manager_merge_changes(
     change_object.wells = ["test"]
     with pytest.raises(NotImplementedError):
         updated_mappings = mappings_manager.merge_changes(change_object)
+
+
+def test_mappings_manager_structured_diff_uses_full_item_identity(
+    fmu_dir: ProjectFMUDirectory,
+    stratigraphy_mappings: StratigraphyMappings,
+) -> None:
+    """Tests stratigraphy list changes are returned as added/removed with __full__."""
+    mappings_manager = MappingsManager(fmu_dir)
+
+    replacement_mapping = StratigraphyIdentifierMapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.smda,
+        relation_type=RelationType.primary,
+        source_id="TopViking",
+        target_id="VIKING GP. Top",
+    )
+
+    current_model = Mappings(stratigraphy=stratigraphy_mappings)
+    incoming_model = Mappings(
+        stratigraphy=StratigraphyMappings(
+            root=[
+                stratigraphy_mappings[0],
+                stratigraphy_mappings[2],
+                replacement_mapping,
+            ]
+        )
+    )
+
+    model_diff = mappings_manager.get_structured_model_diff(
+        current_model, incoming_model
+    )
+
+    assert len(model_diff) == 1
+    diff = model_diff[0]
+    assert isinstance(diff, ListFieldDiff)
+    assert diff.field_path == "stratigraphy.root"
+    assert len(diff.added) == 1
+    assert len(diff.removed) == 1
+    assert diff.updated == []
+    assert diff.added[0]["source_id"] == "TopViking"
+    assert diff.removed[0]["source_id"] == "TopVOLANTIS"
