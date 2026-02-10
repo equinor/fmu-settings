@@ -23,7 +23,15 @@ from fmu.settings._resources.config_managers import (
     UserConfigManager,
 )
 from fmu.settings.models._enums import ChangeType
-from fmu.settings.models.project_config import ProjectConfig
+from fmu.settings.models.diff import ListFieldDiff
+from fmu.settings.models.project_config import (
+    ProjectConfig,
+    RmsCoordinateSystem,
+    RmsHorizon,
+    RmsProject,
+    RmsStratigraphicZone,
+    RmsWell,
+)
 from fmu.settings.models.user_config import UserConfig
 
 
@@ -513,6 +521,75 @@ def test_project_config_diff_with_other_config_ignore_fields(
 
     # Assert that ignored fields are not included in diff
     assert len(diff) == 0
+
+
+def test_project_config_structured_diff_uses_configured_list_keys(
+    fmu_dir: ProjectFMUDirectory,
+    config_model_with_masterdata: ProjectConfig,
+) -> None:
+    """Tests structured diff returns per-item list changes for configured paths."""
+    current_model = copy.deepcopy(config_model_with_masterdata)
+    current_model.rms = RmsProject(
+        path=Path("/tmp/project.rms"),
+        version="1.0.0",
+        coordinate_system=RmsCoordinateSystem(name="CS"),
+        zones=[
+            RmsStratigraphicZone(
+                name="ZoneA",
+                top_horizon_name="TopA",
+                base_horizon_name="BaseA",
+            )
+        ],
+        horizons=[RmsHorizon(name="TopA", type="interpreted")],
+        wells=[RmsWell(name="WellA")],
+    )
+
+    incoming_dict = copy.deepcopy(current_model.model_dump(mode="json", by_alias=True))
+    incoming_dict["rms"]["zones"] = [
+        {
+            "name": "ZoneA",
+            "top_horizon_name": "TopA",
+            "base_horizon_name": "BaseA_Updated",
+            "stratigraphic_column_name": None,
+        },
+        {
+            "name": "ZoneB",
+            "top_horizon_name": "TopB",
+            "base_horizon_name": "BaseB",
+            "stratigraphic_column_name": None,
+        },
+    ]
+    incoming_dict["rms"]["horizons"] = [{"name": "TopB", "type": "interpreted"}]
+    incoming_dict["rms"]["wells"] = [{"name": "WellB"}]
+
+    country_uuid = incoming_dict["masterdata"]["smda"]["country"][0]["uuid"]
+    incoming_dict["masterdata"]["smda"]["country"] = [
+        {"identifier": "Norway Updated", "uuid": country_uuid}
+    ]
+    incoming_dict["masterdata"]["smda"]["discovery"].append(
+        {"short_identifier": "NEW_DISCOVERY", "uuid": str(uuid.uuid4())}
+    )
+    incoming_dict["masterdata"]["smda"]["field"] = []
+
+    incoming_model = ProjectConfig.model_validate(incoming_dict)
+
+    diffs = fmu_dir.config.get_structured_model_diff(current_model, incoming_model)
+    list_diffs = {
+        diff.field_path: diff for diff in diffs if isinstance(diff, ListFieldDiff)
+    }
+
+    expected_paths = set(fmu_dir.config.diff_list_keys.keys())
+    assert expected_paths <= set(list_diffs.keys())
+
+    assert len(list_diffs["rms.zones"].updated) == 1
+    assert len(list_diffs["rms.zones"].added) == 1
+    assert len(list_diffs["rms.horizons"].added) == 1
+    assert len(list_diffs["rms.horizons"].removed) == 1
+    assert len(list_diffs["rms.wells"].added) == 1
+    assert len(list_diffs["rms.wells"].removed) == 1
+    assert len(list_diffs["masterdata.smda.country"].updated) == 1
+    assert len(list_diffs["masterdata.smda.discovery"].added) == 1
+    assert len(list_diffs["masterdata.smda.field"].removed) == 1
 
 
 def test_project_config_merge_with_other_config(

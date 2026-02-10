@@ -8,6 +8,8 @@ from fmu.settings._resources.pydantic_resource_manager import PydanticResourceMa
 from fmu.settings.models.mappings import Mappings
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     # Avoid circular dependency for type hint in __init__ only
     from fmu.datamodels.context.mappings import (
         StratigraphyMappings,
@@ -28,6 +30,13 @@ class MappingsManager(PydanticResourceManager[Mappings]):
     def relative_path(self: Self) -> Path:
         """Returns the relative path to the mappings file."""
         return Path("mappings.json")
+
+    @property
+    def diff_list_keys(self: Self) -> Mapping[str, str]:
+        """List field identity keys used for per-item diffing."""
+        return {
+            "stratigraphy.root": "__full__",
+        }
 
     @property
     def stratigraphy_mappings(self: Self) -> StratigraphyMappings:

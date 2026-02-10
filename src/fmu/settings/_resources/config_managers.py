@@ -16,6 +16,8 @@ from .pydantic_resource_manager import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     # Avoid circular dependency for type hint in __init__ only
     from fmu.settings._fmu_dir import (
         ProjectFMUDirectory,
@@ -41,6 +43,18 @@ class ProjectConfigManager(MutablePydanticResourceManager[ProjectConfig]):
     def diff_ignore_fields(self: Self) -> list[str]:
         """Returns a list of all config fields that should be ignored in a diff."""
         return ["created_at", "created_by", "last_modified_at", "last_modified_by"]
+
+    @property
+    def diff_list_keys(self: Self) -> Mapping[str, str]:
+        """List field identity keys used for per-item diffing."""
+        return {
+            "rms.zones": "name",
+            "rms.horizons": "name",
+            "rms.wells": "name",
+            "masterdata.smda.country": "uuid",
+            "masterdata.smda.discovery": "uuid",
+            "masterdata.smda.field": "uuid",
+        }
 
     def save(self: Self, model: ProjectConfig) -> None:
         """Save the ProjectConfig to disk, updating last_modified fields."""

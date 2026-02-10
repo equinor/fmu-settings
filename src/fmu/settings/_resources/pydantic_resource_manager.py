@@ -9,10 +9,18 @@ from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from fmu.settings.models.diff import (
+    ListFieldDiff,
+    ListUpdatedEntry,
+    ResourceDiff,
+    ScalarFieldDiff,
+)
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.types import ResettableBaseModel
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     # Avoid circular dependency for type hint in __init__ only
     from pathlib import Path
 
@@ -57,6 +65,11 @@ class PydanticResourceManager(Generic[PydanticResource]):
     def exists(self: Self) -> bool:
         """Returns whether or not the resource exists."""
         return self.path.exists()
+
+    @property
+    def diff_list_keys(self: Self) -> Mapping[str, str]:
+        """Return list field paths and their identity keys used for list diffs."""
+        return {}
 
     @staticmethod
     def _get_dot_notation_key(
@@ -179,21 +192,102 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
             if current_value is None and incoming_value is not None:
                 changes.append((field_path, None, incoming_value))
-            elif current_value is not None and incoming_value is None:
+                continue
+
+            if current_value is not None and incoming_value is None:
                 changes.append((field_path, current_value, None))
-            elif isinstance(current_value, BaseModel) and isinstance(
+                continue
+
+            if isinstance(current_value, BaseModel) and isinstance(
                 incoming_value, BaseModel
             ):
                 changes.extend(
                     self.get_model_diff(current_value, incoming_value, field_path)
                 )
-            elif isinstance(current_value, list) and isinstance(incoming_value, list):
-                if current_value != incoming_value:
-                    changes.append((field_path, current_value, incoming_value))
-            elif current_value != incoming_value:
+                continue
+
+            if current_value != incoming_value:
                 changes.append((field_path, current_value, incoming_value))
 
         return changes
+
+    def get_structured_model_diff(
+        self: Self,
+        current_model: BaseModel,
+        incoming_model: BaseModel,
+    ) -> list[ResourceDiff]:
+        """Return a diff that is easier to show in the UI.
+
+        Scalar fields are returned as simple ``before``/``after`` values.
+
+        For list fields in ``diff_list_keys``, this returns only the items that
+        changed (``added``, ``removed``, ``updated``), using the configured identity
+        key. ``get_model_diff`` instead returns the whole list as one before/after
+        change.
+        """
+        changes = self.get_model_diff(current_model, incoming_model)
+
+        results: list[ResourceDiff] = []
+
+        for field_path, before, after in changes:
+            list_key = self.diff_list_keys.get(field_path)
+            if list_key is None:
+                results.append(
+                    ScalarFieldDiff(
+                        field_path=field_path,
+                        before=self._dump_diff_value(before),
+                        after=self._dump_diff_value(after),
+                    )
+                )
+                continue
+
+            before_map = self._build_list_item_map(before or [], list_key)
+            after_map = self._build_list_item_map(after or [], list_key)
+
+            before_keys = set(before_map)
+            after_keys = set(after_map)
+
+            added = [
+                self._dump_diff_value(after_map[key])
+                for key in sorted(after_keys - before_keys, key=str)
+            ]
+            removed = [
+                self._dump_diff_value(before_map[key])
+                for key in sorted(before_keys - after_keys, key=str)
+            ]
+            updated = [
+                ListUpdatedEntry(
+                    key=key,
+                    before=self._dump_diff_value(before_map[key]),
+                    after=self._dump_diff_value(after_map[key]),
+                )
+                for key in sorted(before_keys & after_keys, key=str)
+                if before_map[key] != after_map[key]
+            ]
+
+            results.append(
+                ListFieldDiff(
+                    field_path=field_path,
+                    added=added,
+                    removed=removed,
+                    updated=updated,
+                )
+            )
+
+        return results
+
+    def _build_list_item_map(
+        self: Self, items: list[Any], list_key: str
+    ) -> dict[object, Any]:
+        """Build a lookup map for list diffing using a configured identity key."""
+        if list_key == "__full__":
+            return {
+                json.dumps(
+                    self._dump_diff_value(item), sort_keys=True, default=str
+                ): item
+                for item in items
+            }
+        return {getattr(item, list_key): item for item in items}
 
     def get_resource_diff(
         self: Self, incoming_resource: PydanticResourceManager[PydanticResource]
@@ -219,6 +313,13 @@ class PydanticResourceManager(Generic[PydanticResource]):
             f"Incoming resource {str(incoming_resource.relative_path)} exists: "
             f"{incoming_resource.exists}."
         )
+
+    @staticmethod
+    def _dump_diff_value(value: Any) -> Any:
+        """Convert BaseModel values to JSON-serializable structures."""
+        if isinstance(value, BaseModel):
+            return value.model_dump(mode="json", by_alias=True)
+        return value
 
 
 class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticResource]):
