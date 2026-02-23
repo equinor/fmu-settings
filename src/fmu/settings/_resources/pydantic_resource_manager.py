@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import json
 from builtins import TypeError
 from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
@@ -15,7 +14,6 @@ from fmu.settings.models.diff import (
     ResourceDiff,
     ScalarFieldDiff,
 )
-from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.types import ResettableBaseModel
 
 if TYPE_CHECKING:
@@ -394,7 +392,6 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
         try:
             resource = self.load()
             resource_dict = resource.model_dump()
-            old_resource_dict = copy.deepcopy(resource_dict)
 
             if "." in key:
                 self._set_dot_notation_key(resource_dict, key, value)
@@ -403,13 +400,6 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
 
             updated_resource = resource.model_validate(resource_dict)
             self.save(updated_resource)
-
-            if self.model_class == ProjectConfig:
-                self.fmu_dir._changelog.log_update_to_changelog(
-                    updates={key: value},
-                    old_resource_dict=old_resource_dict,
-                    relative_path=self.relative_path,
-                )
 
         except ValidationError as e:
             raise ValueError(
@@ -438,7 +428,6 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
         try:
             resource = self.load()
             resource_dict = resource.model_dump()
-            old_resource_dict = copy.deepcopy(resource_dict)
 
             flat_updates = {k: v for k, v in updates.items() if "." not in k}
             resource_dict.update(flat_updates)
@@ -449,11 +438,6 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
 
             updated_resource = resource.model_validate(resource_dict)
             self.save(updated_resource)
-
-            if self.model_class == ProjectConfig:
-                self.fmu_dir._changelog.log_update_to_changelog(
-                    updates, old_resource_dict, self.relative_path
-                )
 
         except ValidationError as e:
             raise ValueError(

@@ -33,8 +33,6 @@ class FMUDirectoryBase:
     _lock: LockManager
     _cache_manager: CacheManager
     _README_CONTENT: str = ""
-    _changelog: ChangelogManager
-    _mappings: MappingsManager
 
     def __init__(
         self: Self,
@@ -60,8 +58,6 @@ class FMUDirectoryBase:
         logger.debug(f"Initializing FMUDirectory from '{base_path}'")
         self._lock = LockManager(self, timeout_seconds=lock_timeout_seconds)
         self._cache_manager = CacheManager(self, max_revisions=cache_revisions)
-        self._changelog = ChangelogManager(self)
-        self._mappings = MappingsManager(self)
 
         fmu_dir = self.base_path / ".fmu"
         if fmu_dir.exists():
@@ -102,16 +98,6 @@ class FMUDirectoryBase:
         clamped_value = max(CacheManager.MIN_REVISIONS, value)
         self._cache_manager.max_revisions = clamped_value
         self.set_config_value("cache_max_revisions", clamped_value)
-
-    @property
-    def changelog(self: Self) -> ChangelogManager:
-        """Access the ChangelogManager."""
-        return self._changelog
-
-    @property
-    def mappings(self: Self) -> MappingsManager:
-        """Access the MappingsManager."""
-        return self._mappings
 
     def get_config_value(self: Self, key: str, default: Any = None) -> Any:
         """Gets a configuration value by key.
@@ -293,6 +279,8 @@ class FMUDirectoryBase:
 class ProjectFMUDirectory(FMUDirectoryBase):
     if TYPE_CHECKING:
         config: ProjectConfigManager
+        _changelog: ChangelogManager
+        _mappings: MappingsManager
 
     _README_CONTENT: str = PROJECT_README_CONTENT
 
@@ -314,6 +302,8 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             CacheManager.MIN_REVISIONS,
             lock_timeout_seconds=lock_timeout_seconds,
         )
+        self._changelog = ChangelogManager(self)
+        self._mappings = MappingsManager(self)
         try:
             max_revisions = self.config.get(
                 "cache_max_revisions", CacheManager.MIN_REVISIONS
@@ -321,6 +311,16 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             self._cache_manager.max_revisions = max_revisions
         except FileNotFoundError:
             pass
+
+    @property
+    def changelog(self: Self) -> ChangelogManager:
+        """Access the ChangelogManager."""
+        return self._changelog
+
+    @property
+    def mappings(self: Self) -> MappingsManager:
+        """Access the MappingsManager."""
+        return self._mappings
 
     def restore(self: Self) -> None:
         """Attempt to reconstruct missing project .fmu files from in-memory state."""

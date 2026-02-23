@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import copy
 import getpass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, Self
+from typing import TYPE_CHECKING, Any, Final, Self
 
 from fmu.settings._logging import null_logger
 from fmu.settings.models.project_config import ProjectConfig
@@ -29,6 +30,8 @@ logger: Final = null_logger(__name__)
 
 class ProjectConfigManager(MutablePydanticResourceManager[ProjectConfig]):
     """Manages the .fmu configuration file in a project."""
+
+    fmu_dir: ProjectFMUDirectory
 
     def __init__(self: Self, fmu_dir: ProjectFMUDirectory) -> None:
         """Initializes the ProjectConfig resource manager."""
@@ -63,6 +66,27 @@ class ProjectConfigManager(MutablePydanticResourceManager[ProjectConfig]):
         model_dict["last_modified_by"] = getpass.getuser()
         updated_model = ProjectConfig.model_validate(model_dict)
         super().save(updated_model)
+
+    def set(self: Self, key: str, value: Any) -> None:
+        """Sets a project config value by key and writes to changelog."""
+        old_resource_dict = copy.deepcopy(self.load().model_dump())
+        super().set(key, value)
+        self.fmu_dir.changelog.log_update_to_changelog(
+            updates={key: value},
+            old_resource_dict=old_resource_dict,
+            relative_path=self.relative_path,
+        )
+
+    def update(self: Self, updates: dict[str, Any]) -> ProjectConfig:
+        """Updates project config values and writes to changelog."""
+        old_resource_dict = copy.deepcopy(self.load().model_dump())
+        updated_resource = super().update(updates)
+        self.fmu_dir.changelog.log_update_to_changelog(
+            updates=updates,
+            old_resource_dict=old_resource_dict,
+            relative_path=self.relative_path,
+        )
+        return updated_resource
 
 
 class UserConfigManager(MutablePydanticResourceManager[UserConfig]):
