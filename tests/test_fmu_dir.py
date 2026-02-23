@@ -512,6 +512,17 @@ def test_restore_rebuilds_project_fmu_from_cache(
     """Tests that restore should recreate missing files using cached config data."""
     fmu_dir.update_config({"version": "123.4.5"})
     cached_dump = json.loads((fmu_dir.path / "config.json").read_text())
+    cached_mapping = StratigraphyIdentifierMapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.smda,
+        relation_type=RelationType.primary,
+        source_id="TopVolantis",
+        target_id="VOLANTIS GP. Top",
+    )
+    fmu_dir.mappings.update_stratigraphy_mappings(
+        StratigraphyMappings(root=[cached_mapping])
+    )
+    cached_mappings_dump = json.loads((fmu_dir.path / "mappings.json").read_text())
 
     shutil.rmtree(fmu_dir.path)
     assert not fmu_dir.path.exists()
@@ -528,10 +539,16 @@ def test_restore_rebuilds_project_fmu_from_cache(
     cached_dump.pop("last_modified_at", None)
     restored_dump.pop("last_modified_at", None)
     assert restored_dump == cached_dump
+    assert (fmu_dir.path / "mappings.json").exists()
+    restored_mappings_dump = json.loads((fmu_dir.path / "mappings.json").read_text())
+    assert restored_mappings_dump == cached_mappings_dump
 
     cache_dir = fmu_dir.path / "cache" / "config"
     assert cache_dir.is_dir()
     assert any(cache_dir.iterdir())
+    mappings_cache_dir = fmu_dir.path / "cache" / "mappings"
+    assert mappings_cache_dir.is_dir()
+    assert any(mappings_cache_dir.iterdir())
 
 
 def test_restore_resets_when_cache_missing(

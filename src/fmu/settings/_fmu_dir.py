@@ -272,22 +272,22 @@ class FMUDirectoryBase:
         """Attempt to reconstruct missing .fmu files from in-memory state."""
         if not self.path.exists():
             self.path.mkdir(parents=True, exist_ok=True)
-            logger.info("Recreated missing .fmu directory at %s", self.path)
+            logger.info(f"Recreated missing .fmu directory at {self.path}")
 
         readme_path = self.get_file_path("README")
         if self._README_CONTENT and not readme_path.exists():
             self.write_text_file("README", self._README_CONTENT)
-            logger.info("Restored README at %s", readme_path)
+            logger.info(f"Restored README at {readme_path}")
 
         config_path = self.config.path
         if not config_path.exists():
             cached_model = getattr(self.config, "_cache", None)
             if cached_model is not None:
                 self.config.save(cached_model)
-                logger.info("Restored config.json from cached model at %s", config_path)
+                logger.info(f"Restored config.json from cached model at {config_path}")
             else:
                 self.config.reset()
-                logger.info("Restored config.json from defaults at %s", config_path)
+                logger.info(f"Restored config.json from defaults at {config_path}")
 
 
 class ProjectFMUDirectory(FMUDirectoryBase):
@@ -321,6 +321,19 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             self._cache_manager.max_revisions = max_revisions
         except FileNotFoundError:
             pass
+
+    def restore(self: Self) -> None:
+        """Attempt to reconstruct missing project .fmu files from in-memory state."""
+        super().restore()
+
+        mappings_path = self.mappings.path
+        if not mappings_path.exists():
+            cached_model = getattr(self.mappings, "_cache", None)
+            if cached_model is not None:
+                self.mappings.save(cached_model)
+                logger.info(
+                    f"Restored mappings.json from cached model at {mappings_path}"
+                )
 
     def update_config(self: Self, updates: dict[str, Any]) -> ProjectConfig:
         """Updates multiple configuration values at once.
