@@ -16,14 +16,16 @@ from fmu.settings.models.log import Filter, Log, LogFileName
 if TYPE_CHECKING:
     # Avoid circular dependency for type hint in __init__ only
     from fmu.settings._fmu_dir import (
-        FMUDirectoryBase,
+        ProjectFMUDirectory,
     )
 
 
 class ChangelogManager(LogManager[ChangeInfo]):
     """Manages the .fmu changelog file."""
 
-    def __init__(self: Self, fmu_dir: FMUDirectoryBase) -> None:
+    fmu_dir: ProjectFMUDirectory
+
+    def __init__(self: Self, fmu_dir: ProjectFMUDirectory) -> None:
         """Initializes the Change log resource manager."""
         super().__init__(fmu_dir, Log[ChangeInfo])
 

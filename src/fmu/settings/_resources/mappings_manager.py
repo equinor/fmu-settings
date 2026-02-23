@@ -15,14 +15,16 @@ if TYPE_CHECKING:
         StratigraphyMappings,
     )
     from fmu.settings._fmu_dir import (
-        FMUDirectoryBase,
+        ProjectFMUDirectory,
     )
 
 
 class MappingsManager(PydanticResourceManager[Mappings]):
     """Manages the .fmu mappings file."""
 
-    def __init__(self: Self, fmu_dir: FMUDirectoryBase) -> None:
+    fmu_dir: ProjectFMUDirectory
+
+    def __init__(self: Self, fmu_dir: ProjectFMUDirectory) -> None:
         """Initializes the mappings resource manager."""
         super().__init__(fmu_dir, Mappings)
 
@@ -58,7 +60,7 @@ class MappingsManager(PydanticResourceManager[Mappings]):
         mappings.stratigraphy = strat_mappings
         self.save(mappings)
 
-        self.fmu_dir._changelog.log_update_to_changelog(
+        self.fmu_dir.changelog.log_update_to_changelog(
             updates={"stratigraphy": mappings.stratigraphy},
             old_resource_dict=old_mappings_dict,
             relative_path=self.relative_path,
