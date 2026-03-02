@@ -1,4 +1,5 @@
 """Main interface for working with .fmu directory."""
+
 from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self, TypeAlias, cast
