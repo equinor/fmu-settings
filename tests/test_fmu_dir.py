@@ -96,6 +96,28 @@ def test_init_when_fmu_is_not_a_directory(tmp_path: Path) -> None:
         ProjectFMUDirectory(tmp_path)
 
 
+def test_init_logs_warning_and_uses_default_cache_revisions_on_config_read_error(
+    tmp_path: Path,
+) -> None:
+    """Tests project init falls back to default cache revisions and logs warning."""
+    (tmp_path / ".fmu").mkdir()
+
+    with (
+        patch(
+            "fmu.settings._fmu_dir.ProjectConfigManager.get",
+            side_effect=ValueError("bad config"),
+        ),
+        patch("fmu.settings._fmu_dir.logger.warning") as mock_warning,
+    ):
+        fmu = ProjectFMUDirectory(tmp_path)
+
+    assert fmu.cache.max_revisions == 5  # noqa: PLR2004
+    mock_warning.assert_called_once()
+    warning_message = mock_warning.call_args.args[0]
+    assert "project config" in warning_message
+    assert "bad config" in warning_message
+
+
 def test_find_fmu_directory(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests find_fmu_directory method on nested children."""
     child = fmu_dir.base_path / "child"
@@ -440,6 +462,29 @@ def test_user_init_when_fmu_is_not_a_directory(tmp_path: Path) -> None:
         ),
     ):
         UserFMUDirectory()
+
+
+def test_user_init_logs_warning_and_uses_default_cache_revisions_on_config_read_error(
+    tmp_path: Path,
+) -> None:
+    """Tests user init falls back to default cache revisions and logs warning."""
+    (tmp_path / ".fmu").mkdir()
+
+    with (
+        patch("pathlib.Path.home", return_value=tmp_path),
+        patch(
+            "fmu.settings._fmu_dir.UserConfigManager.get",
+            side_effect=FileNotFoundError("missing"),
+        ),
+        patch("fmu.settings._fmu_dir.logger.warning") as mock_warning,
+    ):
+        fmu = UserFMUDirectory()
+
+    assert fmu.cache.max_revisions == 5  # noqa: PLR2004
+    mock_warning.assert_called_once()
+    warning_message = mock_warning.call_args.args[0]
+    assert "user config" in warning_message
+    assert "missing" in warning_message
 
 
 def test_update_user_config(user_fmu_dir: UserFMUDirectory) -> None:

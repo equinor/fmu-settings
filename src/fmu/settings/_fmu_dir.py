@@ -309,8 +309,11 @@ class ProjectFMUDirectory(FMUDirectoryBase):
                 "cache_max_revisions", CacheManager.MIN_REVISIONS
             )
             self._cache_manager.max_revisions = max_revisions
-        except FileNotFoundError:
-            pass
+        except (FileNotFoundError, ValueError) as e:
+            logger.warning(
+                f"Failed to load 'cache_max_revisions' from project config. "
+                f"Using default value '{CacheManager.MIN_REVISIONS}'. Error: {e}"
+            )
 
     @property
     def changelog(self: Self) -> ChangelogManager:
@@ -630,8 +633,11 @@ class UserFMUDirectory(FMUDirectoryBase):
                 "cache_max_revisions", CacheManager.MIN_REVISIONS
             )
             self._cache_manager.max_revisions = max_revisions
-        except FileNotFoundError:
-            pass
+        except (FileNotFoundError, ValueError) as e:
+            logger.warning(
+                f"Failed to load 'cache_max_revisions' from user config. "
+                f"Using default value '{CacheManager.MIN_REVISIONS}'. Error: {e}"
+            )
 
     def update_config(self: Self, updates: dict[str, Any]) -> UserConfig:
         """Updates multiple configuration values at once.
