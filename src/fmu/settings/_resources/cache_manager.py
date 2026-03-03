@@ -166,8 +166,8 @@ class CacheManager:
     ) -> None:
         """Restore a resource file from a cache revision.
 
-        The current state of the resource is automatically cached before overwriting
-        (if the file exists) to enable undo functionality.
+        The current state of the resource is cached before overwriting (if the file
+        exists and validates) to enable undo functionality.
 
         Args:
             resource_file_path: Relative path within the ``.fmu`` directory (e.g.,
@@ -189,7 +189,18 @@ class CacheManager:
 
         if self._fmu_dir.file_exists(resource_file_path):
             current_content = self._fmu_dir.read_text_file(resource_file_path)
-            self.store_revision(resource_file_path, current_content, skip_trim=False)
+
+            try:
+                model_class.model_validate_json(current_content)
+            except ValidationError as e:
+                logger.warning(
+                    "Skipped caching current state of "
+                    f"{resource_file_path} before restore because it is invalid: {e}"
+                )
+            else:
+                self.store_revision(
+                    resource_file_path, current_content, skip_trim=False
+                )
 
         self._fmu_dir.write_text_file(resource_file_path, content_str)
 
