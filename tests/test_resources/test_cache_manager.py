@@ -293,3 +293,32 @@ def test_cache_manager_restore_revision_overwrites_and_caches_current(
         if path.suffix == ".json"
     ]
     assert "2.3.4" in cached_versions
+
+
+def test_cache_manager_restore_revision_skips_invalid_current_state_cache(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that restore_revision does not cache invalid current state."""
+    manager = CacheManager(fmu_dir)
+
+    cached_model = fmu_dir.config.load().model_copy(update={"version": "1.2.3"})
+    snapshot = manager.store_revision(
+        "config.json",
+        cached_model.model_dump_json(by_alias=True, indent=2),
+    )
+    assert snapshot is not None
+
+    fmu_dir.write_text_file("config.json", "invalid json")
+
+    pre_restore = manager.list_revisions("config.json")
+    pre_restore_names = [path.name for path in pre_restore]
+
+    manager.restore_revision("config.json", snapshot.name, ProjectConfig)
+
+    post_restore = manager.list_revisions("config.json")
+    post_restore_names = [path.name for path in post_restore]
+    assert post_restore_names == pre_restore_names
+    assert snapshot.name in post_restore_names
+
+    restored_payload = json.loads(fmu_dir.read_text_file("config.json"))
+    assert restored_payload["version"] == "1.2.3"
