@@ -381,6 +381,8 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
         # Refresh the resource manager's in-memory cache
         manager.load(force=True, store_cache=True)
+        if manager is self.config:
+            self._sync_runtime_variables()
 
     def get_cache_content(
         self: Self, relative_path: Path | str, revision_id: str
