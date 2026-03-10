@@ -946,6 +946,32 @@ def test_fmu_directory_base_sync_runtime_variables(
     assert fmu_dir.cache.max_revisions == old_cache_max_revisions
 
 
+def test_restore_from_cache_syncs_runtime_variables(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests config restore updates runtime cache retention variables."""
+    current_config = fmu_dir.config.load()
+    original_cache_max_revisions = current_config.cache_max_revisions
+    restored_cache_max_revisions = original_cache_max_revisions + 1
+
+    updated_config = current_config.model_copy(
+        update={"cache_max_revisions": restored_cache_max_revisions}
+    )
+    revision_path = fmu_dir.cache.store_revision(
+        Path("config.json"),
+        updated_config.model_dump_json(by_alias=True, indent=2),
+    )
+    assert revision_path is not None
+
+    fmu_dir.restore_from_cache("config.json", revision_path.name)
+
+    assert fmu_dir.config.load(force=True).cache_max_revisions == (
+        restored_cache_max_revisions
+    )
+    assert fmu_dir.cache_max_revisions == restored_cache_max_revisions
+    assert fmu_dir.cache.max_revisions == restored_cache_max_revisions
+
+
 def test_fmu_directory_base_get_dir_diff_with_same_changelog(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
