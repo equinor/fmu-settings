@@ -110,30 +110,52 @@ def test_cache_manager_trim_handles_missing_files(
 def test_cache_manager_skip_trim_parameter(fmu_dir: ProjectFMUDirectory) -> None:
     """store_revision with skip_trim=True does not enforce count-based limit."""
     manager = CacheManager(fmu_dir, max_revisions=3)
-    for i in range(5):
+    expected_snapshot_count = 5
+    for i in range(expected_snapshot_count):
         manager.store_revision("foo.json", f"content_{i}", skip_trim=True)
 
     config_cache = fmu_dir.path / "cache" / "foo"
     snapshots = _read_snapshot_names(config_cache)
-    assert len(snapshots) == 5  # noqa: PLR2004
+    assert len(snapshots) == expected_snapshot_count
 
 
 def test_cache_manager_trim_all_revisions_prunes_only_over_limit_resources(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """trim_all_revisions prunes only resource caches exceeding the limit."""
-    manager = CacheManager(fmu_dir, max_revisions=5)
+    expected_snapshot_count = 5
+    manager = CacheManager(fmu_dir, max_revisions=expected_snapshot_count)
     for i in range(7):
         manager.store_revision("foo.json", f"foo_{i}", skip_trim=True)
-    for i in range(5):
+    for i in range(expected_snapshot_count):
         manager.store_revision("bar.json", f"bar_{i}", skip_trim=True)
 
     manager.trim_all_revisions()
 
     foo_cache = fmu_dir.path / "cache" / "foo"
     bar_cache = fmu_dir.path / "cache" / "bar"
-    assert len(_read_snapshot_names(foo_cache)) == 5  # noqa: PLR2004
-    assert len(_read_snapshot_names(bar_cache)) == 5  # noqa: PLR2004
+    assert len(_read_snapshot_names(foo_cache)) == expected_snapshot_count
+    assert len(_read_snapshot_names(bar_cache)) == expected_snapshot_count
+
+
+def test_cache_manager_trim_all_revisions_ignores_non_directory_entries(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """trim_all_revisions skips files in the cache root."""
+    expected_snapshot_count = 5
+    manager = CacheManager(fmu_dir, max_revisions=expected_snapshot_count)
+    for i in range(expected_snapshot_count + 2):
+        manager.store_revision("foo.json", f"foo_{i}", skip_trim=True)
+
+    cache_root = fmu_dir.path / "cache"
+    cachedir_tag = cache_root / "CACHEDIR.TAG"
+    assert cachedir_tag.read_text(encoding="utf-8") == _CACHEDIR_TAG_CONTENT
+
+    manager.trim_all_revisions()
+
+    foo_cache = cache_root / "foo"
+    assert len(_read_snapshot_names(foo_cache)) == expected_snapshot_count
+    assert cachedir_tag.read_text(encoding="utf-8") == _CACHEDIR_TAG_CONTENT
 
 
 def test_cache_manager_trim_all_revisions_without_cache_directory(
