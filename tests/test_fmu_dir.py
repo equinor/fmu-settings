@@ -178,6 +178,50 @@ def test_set_cache_max_revisions_updates_manager(
     assert cache.max_revisions == 7  # noqa: PLR2004
 
 
+def test_set_cache_max_revisions_decrease_trims_existing_revisions(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Decreasing retention prunes excess cached revisions immediately."""
+    initial_snapshot_count = 10
+    expected_snapshot_count = 5
+    fmu_dir.cache_max_revisions = initial_snapshot_count
+    for i in range(initial_snapshot_count):
+        fmu_dir.cache.store_revision("foo.json", f"content_{i}", skip_trim=True)
+
+    fmu_dir.cache_max_revisions = expected_snapshot_count
+
+    snapshots = sorted((fmu_dir.path / "cache" / "foo").iterdir())
+    assert len(snapshots) == expected_snapshot_count
+    assert [snapshot.read_text(encoding="utf-8") for snapshot in snapshots] == [
+        "content_5",
+        "content_6",
+        "content_7",
+        "content_8",
+        "content_9",
+    ]
+
+
+def test_set_cache_max_revisions_decrease_is_noop_within_limit(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Decreasing retention does not delete revisions already within limit."""
+    fmu_dir.cache_max_revisions = 10
+    for i in range(5):
+        fmu_dir.cache.store_revision("foo.json", f"content_{i}", skip_trim=True)
+
+    fmu_dir.cache_max_revisions = 5
+
+    snapshots = sorted((fmu_dir.path / "cache" / "foo").iterdir())
+    assert len(snapshots) == 5  # noqa: PLR2004
+    assert [snapshot.read_text(encoding="utf-8") for snapshot in snapshots] == [
+        "content_0",
+        "content_1",
+        "content_2",
+        "content_3",
+        "content_4",
+    ]
+
+
 def test_changelog_property_returns_changelog_manager(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:

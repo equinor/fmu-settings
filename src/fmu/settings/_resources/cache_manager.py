@@ -117,6 +117,17 @@ class CacheManager:
         revisions.sort(key=lambda path: path.name)
         return revisions
 
+    def trim_all_revisions(self: Self) -> None:
+        """Trim all cached resources to the configured revision limit."""
+        if not self._fmu_dir.file_exists(self._cache_root):
+            return
+
+        cache_root = self._fmu_dir.get_file_path(self._cache_root)
+        for resource_cache_dir in cache_root.iterdir():
+            if not resource_cache_dir.is_dir():
+                continue
+            self._trim(resource_cache_dir)
+
     def get_revision_content(
         self: Self,
         resource_file_path: Path | str,
