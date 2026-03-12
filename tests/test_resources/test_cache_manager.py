@@ -118,6 +118,32 @@ def test_cache_manager_skip_trim_parameter(fmu_dir: ProjectFMUDirectory) -> None
     assert len(snapshots) == 5  # noqa: PLR2004
 
 
+def test_cache_manager_trim_all_revisions_prunes_only_over_limit_resources(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """trim_all_revisions prunes only resource caches exceeding the limit."""
+    manager = CacheManager(fmu_dir, max_revisions=5)
+    for i in range(7):
+        manager.store_revision("foo.json", f"foo_{i}", skip_trim=True)
+    for i in range(5):
+        manager.store_revision("bar.json", f"bar_{i}", skip_trim=True)
+
+    manager.trim_all_revisions()
+
+    foo_cache = fmu_dir.path / "cache" / "foo"
+    bar_cache = fmu_dir.path / "cache" / "bar"
+    assert len(_read_snapshot_names(foo_cache)) == 5  # noqa: PLR2004
+    assert len(_read_snapshot_names(bar_cache)) == 5  # noqa: PLR2004
+
+
+def test_cache_manager_trim_all_revisions_without_cache_directory(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """trim_all_revisions handles a missing cache directory gracefully."""
+    manager = CacheManager(fmu_dir)
+    manager.trim_all_revisions()
+
+
 def test_cache_manager_trim_by_age_removes_old_files(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:

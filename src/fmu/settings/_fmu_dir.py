@@ -95,9 +95,12 @@ class FMUDirectoryBase:
             value: The new maximum number of revisions to retain. Minimum value is 5.
                 Values below 5 are set to 5.
         """
+        previous_value = self._cache_manager.max_revisions
         clamped_value = max(CacheManager.MIN_REVISIONS, value)
         self._cache_manager.max_revisions = clamped_value
         self.set_config_value("cache_max_revisions", clamped_value)
+        if clamped_value < previous_value:
+            self._cache_manager.trim_all_revisions()
 
     def get_config_value(self: Self, key: str, default: Any = None) -> Any:
         """Gets a configuration value by key.
