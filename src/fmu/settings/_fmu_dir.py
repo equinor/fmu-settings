@@ -257,8 +257,23 @@ class FMUDirectoryBase:
         """
         return self.get_file_path(relative_path).exists()
 
-    def restore(self: Self) -> None:
+    def list_restorable_files(self: Self) -> list[Path]:
+        """List .fmu files that would be recreated by restore()."""
+        files: list[Path] = []
+
+        readme_path = self.get_file_path("README")
+        if self._README_CONTENT and not readme_path.exists():
+            files.append(Path("README"))
+
+        if not self.config.path.exists():
+            files.append(self.config.relative_path)
+
+        return files
+
+    def restore(self: Self) -> list[Path]:
         """Attempt to reconstruct missing .fmu files from in-memory state."""
+        restorable_files = self.list_restorable_files()
+
         if not self.path.exists():
             self.path.mkdir(parents=True, exist_ok=True)
             logger.info(f"Recreated missing .fmu directory at {self.path}")
@@ -277,6 +292,8 @@ class FMUDirectoryBase:
             else:
                 self.config.reset()
                 logger.info(f"Restored config.json from defaults at {config_path}")
+
+        return restorable_files
 
 
 class ProjectFMUDirectory(FMUDirectoryBase):
@@ -328,9 +345,22 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         """Access the MappingsManager."""
         return self._mappings
 
-    def restore(self: Self) -> None:
+    def list_restorable_files(self: Self) -> list[Path]:
+        """List project .fmu files that would be recreated by restore()."""
+        files = super().list_restorable_files()
+
+        mappings_path = self.mappings.path
+        if (
+            not mappings_path.exists()
+            and getattr(self.mappings, "_cache", None) is not None
+        ):
+            files.append(self.mappings.relative_path)
+
+        return files
+
+    def restore(self: Self) -> list[Path]:
         """Attempt to reconstruct missing project .fmu files from in-memory state."""
-        super().restore()
+        restorable_files = super().restore()
 
         mappings_path = self.mappings.path
         if not mappings_path.exists():
@@ -340,6 +370,8 @@ class ProjectFMUDirectory(FMUDirectoryBase):
                 logger.info(
                     f"Restored mappings.json from cached model at {mappings_path}"
                 )
+
+        return restorable_files
 
     def update_config(self: Self, updates: dict[str, Any]) -> ProjectConfig:
         """Updates multiple configuration values at once.
