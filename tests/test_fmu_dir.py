@@ -178,6 +178,17 @@ def test_set_cache_max_revisions_updates_manager(
     assert cache.max_revisions == 7  # noqa: PLR2004
 
 
+def test_set_cache_max_revisions_does_not_create_config_snapshot(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Changing retention should not add a new config.json cache revision."""
+    initial_revisions = fmu_dir.cache.list_revisions("config.json")
+
+    fmu_dir.cache_max_revisions = 10
+
+    assert fmu_dir.cache.list_revisions("config.json") == initial_revisions
+
+
 def test_set_cache_max_revisions_decrease_trims_existing_revisions(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1014,6 +1025,73 @@ def test_restore_from_cache_syncs_runtime_variables(
     )
     assert fmu_dir.cache_max_revisions == restored_cache_max_revisions
     assert fmu_dir.cache.max_revisions == restored_cache_max_revisions
+
+
+def test_restore_from_cache_lower_cache_max_revisions_trims_all_resources(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Restoring config.json with a lower limit trims existing cached resources."""
+    initial_max_revisions = 10
+    restored_max_revisions = 5
+
+    fmu_dir.cache_max_revisions = initial_max_revisions
+    for i in range(initial_max_revisions):
+        fmu_dir.cache.store_revision("foo.json", f"content_{i}", skip_trim=True)
+
+    current_config = fmu_dir.config.load()
+    restored_config = current_config.model_copy(
+        update={"cache_max_revisions": restored_max_revisions}
+    )
+    revision_path = fmu_dir.cache.store_revision(
+        Path("config.json"),
+        restored_config.model_dump_json(by_alias=True, indent=2),
+        skip_trim=True,
+    )
+    assert revision_path is not None
+
+    fmu_dir.restore_from_cache("config.json", revision_path.name)
+
+    assert fmu_dir.cache_max_revisions == restored_max_revisions
+    assert fmu_dir.cache.max_revisions == restored_max_revisions
+    assert len(fmu_dir.cache.list_revisions("foo.json")) == restored_max_revisions
+
+
+def test_restore_from_cache_higher_cache_max_revisions_does_not_trim_to_old_limit(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Restoring config.json with a higher limit keeps the pre-restore snapshot."""
+    current_config = fmu_dir.config.load()
+    current_max_revisions = 5
+    restored_max_revisions = 10
+    extra_config_revisions = 6
+
+    assert current_config.cache_max_revisions == current_max_revisions
+
+    for _ in range(extra_config_revisions):
+        fmu_dir.cache.store_revision(
+            Path("config.json"),
+            current_config.model_dump_json(by_alias=True, indent=2),
+            skip_trim=True,
+        )
+
+    restored_config = current_config.model_copy(
+        update={"cache_max_revisions": restored_max_revisions}
+    )
+    revision_path = fmu_dir.cache.store_revision(
+        Path("config.json"),
+        restored_config.model_dump_json(by_alias=True, indent=2),
+        skip_trim=True,
+    )
+    assert revision_path is not None
+    revision_count_before_restore = len(fmu_dir.cache.list_revisions("config.json"))
+
+    fmu_dir.restore_from_cache("config.json", revision_path.name)
+
+    expected_revision_count = revision_count_before_restore + 1
+
+    assert fmu_dir.cache_max_revisions == restored_max_revisions
+    assert fmu_dir.cache.max_revisions == restored_max_revisions
+    assert len(fmu_dir.cache.list_revisions("config.json")) == expected_revision_count
 
 
 def test_fmu_directory_base_get_dir_diff_with_same_changelog(

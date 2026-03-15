@@ -98,7 +98,12 @@ class FMUDirectoryBase:
         previous_value = self._cache_manager.max_revisions
         clamped_value = max(CacheManager.MIN_REVISIONS, value)
         self._cache_manager.max_revisions = clamped_value
-        self.set_config_value("cache_max_revisions", clamped_value)
+        original_automatic_caching = self.config.automatic_caching
+        self.config.automatic_caching = False
+        try:
+            self.set_config_value("cache_max_revisions", clamped_value)
+        finally:
+            self.config.automatic_caching = original_automatic_caching
         if clamped_value < previous_value:
             self._cache_manager.trim_all_revisions()
 
@@ -378,14 +383,35 @@ class ProjectFMUDirectory(FMUDirectoryBase):
                 f"Resource '{relative_path}' is not supported for cache restoration"
             )
 
+        if manager is self.config:
+            previous_max_revisions = self._cache_manager.max_revisions
+            restored_config = self.cache.get_revision_content(
+                relative_path, revision_id, model_class=ProjectConfig
+            )
+            self._cache_manager.max_revisions = restored_config.cache_max_revisions
+
+            try:
+                self.cache.restore_revision(
+                    relative_path, revision_id, model_class=ProjectConfig
+                )
+            except Exception:
+                # Restore the previous runtime retention if config restore fails
+                self._cache_manager.max_revisions = previous_max_revisions
+                raise
+
+            # Refresh the resource manager's in-memory cache
+            manager.load(force=True, store_cache=True)
+            self._sync_runtime_variables()
+            if restored_config.cache_max_revisions < previous_max_revisions:
+                self._cache_manager.trim_all_revisions()
+            return
+
         self.cache.restore_revision(
             relative_path, revision_id, model_class=manager.model_class
         )
 
         # Refresh the resource manager's in-memory cache
         manager.load(force=True, store_cache=True)
-        if manager is self.config:
-            self._sync_runtime_variables()
 
     def get_cache_content(
         self: Self, relative_path: Path | str, revision_id: str
