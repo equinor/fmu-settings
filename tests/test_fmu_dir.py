@@ -1027,6 +1027,40 @@ def test_restore_from_cache_syncs_runtime_variables(
     assert fmu_dir.cache.max_revisions == restored_cache_max_revisions
 
 
+def test_restore_from_cache_restores_runtime_retention_on_config_restore_failure(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Failed config restores should restore the previous runtime retention."""
+    current_config = fmu_dir.config.load()
+    original_cache_max_revisions = current_config.cache_max_revisions
+    restored_cache_max_revisions = original_cache_max_revisions + 1
+
+    restored_config = current_config.model_copy(
+        update={"cache_max_revisions": restored_cache_max_revisions}
+    )
+    revision_path = fmu_dir.cache.store_revision(
+        Path("config.json"),
+        restored_config.model_dump_json(by_alias=True, indent=2),
+    )
+    assert revision_path is not None
+
+    with (
+        patch.object(
+            fmu_dir.cache,
+            "restore_revision",
+            side_effect=RuntimeError("restore failed"),
+        ),
+        pytest.raises(RuntimeError, match="restore failed"),
+    ):
+        fmu_dir.restore_from_cache("config.json", revision_path.name)
+
+    assert fmu_dir.config.load(force=True).cache_max_revisions == (
+        original_cache_max_revisions
+    )
+    assert fmu_dir.cache_max_revisions == original_cache_max_revisions
+    assert fmu_dir.cache.max_revisions == original_cache_max_revisions
+
+
 def test_restore_from_cache_lower_cache_max_revisions_trims_all_resources(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
