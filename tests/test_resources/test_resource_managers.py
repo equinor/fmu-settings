@@ -2,6 +2,8 @@
 
 import json
 import shutil
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Self
@@ -139,6 +141,18 @@ def test_pydantic_resource_manager_load(fmu_dir: ProjectFMUDirectory) -> None:
     test_manager.save(test_resource)
     assert test_manager.load() == test_resource
     assert test_manager._cache == test_resource
+
+
+def test_pydantic_resource_manager_load_permission_error(
+    fmu_dir: ProjectFMUDirectory,
+    no_permissions: Callable[[str | Path], AbstractContextManager[None]],
+) -> None:
+    """Tests loading preserves permission errors on inaccessible resources."""
+    test_manager = PydanticManagerTest(fmu_dir)
+    test_manager.save(PydanticResourceTest(foo="bar"))
+
+    with no_permissions(fmu_dir.path), pytest.raises(PermissionError):
+        test_manager.load(force=True)
 
 
 def test_pydantic_resource_manager_load_force_true(

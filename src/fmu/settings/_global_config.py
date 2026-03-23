@@ -9,6 +9,7 @@ from fmu.config.utilities import yaml_load
 from fmu.datamodels.fmu_results.global_configuration import GlobalConfiguration
 
 from ._logging import null_logger
+from ._path_utils import path_exists, path_is_dir
 
 logger: Final = null_logger(__name__)
 
@@ -180,14 +181,14 @@ def _find_global_variables_file(paths: list[Path]) -> GlobalConfiguration | None
         ValidationError: If a file is found but has invalid schema.
     """
     for path in paths:
-        if not path.exists():
+        if not path_exists(path):
             continue
 
         global_variables_path = path
         # If the path is a dir, and doesn't contain the right file, move on.
-        if path.is_dir():
+        if path_is_dir(path):
             global_variables_path = path / "global_variables.yml"
-            if not global_variables_path.exists():
+            if not path_exists(global_variables_path):
                 continue
 
         logger.info(f"Found global variables at {path}")
@@ -214,7 +215,7 @@ def _find_global_config_file(paths: list[Path]) -> GlobalConfiguration | None:
         ValidationError: If a file is found but has invalid schema.
     """
     for path in paths:
-        if not path.exists():
+        if not path_exists(path):
             continue
 
         logger.info(f"Found global config at {path}")

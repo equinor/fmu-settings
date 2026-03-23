@@ -7,6 +7,7 @@ from fmu.datamodels.fmu_results.global_configuration import GlobalConfiguration
 
 from ._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from ._logging import null_logger
+from ._path_utils import path_exists, path_is_dir
 from ._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
 from ._resources.lock_manager import DEFAULT_LOCK_TIMEOUT
 from .models.project_config import ProjectConfig
@@ -26,15 +27,15 @@ def _create_fmu_directory(base_path: Path) -> None:
     """
     logger.debug(f"Creating .fmu directory in '{base_path}'")
 
-    if not base_path.exists():
+    if not path_exists(base_path):
         raise FileNotFoundError(
             f"Base path '{base_path}' does not exist. Expected the root "
             "directory of an FMU project."
         )
 
     fmu_dir = base_path / ".fmu"
-    if fmu_dir.exists():
-        if fmu_dir.is_dir():
+    if path_exists(fmu_dir):
+        if path_is_dir(fmu_dir):
             raise FileExistsError(f"{fmu_dir} already exists")
         raise FileExistsError(f"{fmu_dir} exists but is not a directory")
 

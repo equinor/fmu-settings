@@ -1,6 +1,8 @@
 """Root configuration for pytest."""
 
-from collections.abc import Callable
+import stat
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -34,6 +36,20 @@ from fmu.settings._init import init_fmu_directory, init_user_fmu_directory
 from fmu.settings._version import __version__
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
+
+
+@pytest.fixture
+def no_permissions() -> Callable[[str | Path], AbstractContextManager[None]]:
+    """Returns a context manager to remove user permissions on a path."""
+
+    @contextmanager
+    def ctx_manager(filepath: str | Path) -> Iterator[None]:
+        path = Path(filepath)
+        path.chmod(stat.S_IRUSR)
+        yield
+        path.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+
+    return ctx_manager
 
 
 @pytest.fixture

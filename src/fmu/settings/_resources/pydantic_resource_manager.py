@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from fmu.settings._path_utils import path_exists
 from fmu.settings.models.diff import (
     ListFieldDiff,
     ListUpdatedEntry,
@@ -62,7 +63,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
     @property
     def exists(self: Self) -> bool:
         """Returns whether or not the resource exists."""
-        return self.path.exists()
+        return path_exists(self.path)
 
     @property
     def diff_list_keys(self: Self) -> Mapping[str, str]:
