@@ -2,6 +2,8 @@
 
 import json
 import os
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -37,6 +39,18 @@ def test_cache_manager_list_revisions_with_existing_snapshots(
     revisions = manager.list_revisions("foo.json")
     assert [path.name for path in revisions] == sorted(path.name for path in revisions)
     assert len(revisions) == 2  # noqa: PLR2004
+
+
+def test_cache_manager_list_revisions_permission_error(
+    fmu_dir: ProjectFMUDirectory,
+    no_permissions: Callable[[str | Path], AbstractContextManager[None]],
+) -> None:
+    """Listing revisions preserves permission errors on resource cache dirs."""
+    manager = CacheManager(fmu_dir)
+    manager.store_revision("foo.json", "one")
+
+    with no_permissions(fmu_dir.path / "cache" / "foo"), pytest.raises(PermissionError):
+        manager.list_revisions("foo.json")
 
 
 def test_cache_manager_honours_existing_cachedir_tag(

@@ -10,6 +10,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ValidationError
 
 from fmu.settings._logging import null_logger
+from fmu.settings._utils import path_is_dir, path_is_file
 
 if TYPE_CHECKING:
     from fmu.settings._fmu_dir import FMUDirectoryBase
@@ -113,7 +114,7 @@ class CacheManager:
             return []
         cache_dir = self._fmu_dir.get_file_path(cache_relative)
 
-        revisions = [p for p in cache_dir.iterdir() if p.is_file()]
+        revisions = [p for p in cache_dir.iterdir() if path_is_file(p)]
         revisions.sort(key=lambda path: path.name)
         return revisions
 
@@ -124,7 +125,7 @@ class CacheManager:
 
         cache_root = self._fmu_dir.get_file_path(self._cache_root)
         for resource_cache_dir in cache_root.iterdir():
-            if not resource_cache_dir.is_dir():
+            if not path_is_dir(resource_cache_dir):
                 continue
             self._trim(resource_cache_dir)
 
@@ -248,7 +249,7 @@ class CacheManager:
 
     def _trim(self: Self, cache_dir: Path) -> None:
         """Remove the oldest snapshots until the retention limit is respected."""
-        revisions = [p for p in cache_dir.iterdir() if p.is_file()]
+        revisions = [p for p in cache_dir.iterdir() if path_is_file(p)]
         if len(revisions) <= self.max_revisions:
             return
 

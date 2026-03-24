@@ -17,6 +17,7 @@ from ._resources.config_managers import (
     UserConfigManager,
 )
 from ._resources.lock_manager import DEFAULT_LOCK_TIMEOUT, LockManager
+from ._utils import path_exists, path_is_dir, path_is_file
 from .models._enums import CacheResource
 from .models.project_config import ProjectConfig
 from .models.user_config import UserConfig
@@ -60,8 +61,8 @@ class FMUDirectoryBase:
         self._cache_manager = CacheManager(self, max_revisions=cache_revisions)
 
         fmu_dir = self.base_path / ".fmu"
-        if fmu_dir.exists():
-            if fmu_dir.is_dir():
+        if path_exists(fmu_dir):
+            if path_is_dir(fmu_dir):
                 self._path = fmu_dir
             else:
                 raise FileExistsError(
@@ -233,10 +234,10 @@ class FMUDirectoryBase:
             List of Path objects for files (not directories)
         """
         base = self.get_file_path(subdirectory) if subdirectory else self.path
-        if not base.exists():
+        if not path_exists(base):
             return []
 
-        return [p for p in base.iterdir() if p.is_file()]
+        return [p for p in base.iterdir() if path_is_file(p)]
 
     def ensure_directory(self, relative_path: str | Path) -> Path:
         """Ensures a subdirectory exists in the .fmu directory.
@@ -260,21 +261,21 @@ class FMUDirectoryBase:
         Returns:
             True if the file exists, False otherwise
         """
-        return self.get_file_path(relative_path).exists()
+        return path_exists(self.get_file_path(relative_path))
 
     def restore(self: Self) -> None:
         """Attempt to reconstruct missing .fmu files from in-memory state."""
-        if not self.path.exists():
+        if not path_exists(self.path):
             self.path.mkdir(parents=True, exist_ok=True)
             logger.info(f"Recreated missing .fmu directory at {self.path}")
 
         readme_path = self.get_file_path("README")
-        if self._README_CONTENT and not readme_path.exists():
+        if self._README_CONTENT and not path_exists(readme_path):
             self.write_text_file("README", self._README_CONTENT)
             logger.info(f"Restored README at {readme_path}")
 
         config_path = self.config.path
-        if not config_path.exists():
+        if not path_exists(config_path):
             cached_model = getattr(self.config, "_cache", None)
             if cached_model is not None:
                 self.config.save(cached_model)
@@ -338,7 +339,7 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         super().restore()
 
         mappings_path = self.mappings.path
-        if not mappings_path.exists():
+        if not path_exists(mappings_path):
             cached_model = getattr(self.mappings, "_cache", None)
             if cached_model is not None:
                 self.mappings.save(cached_model)
@@ -470,7 +471,7 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             fmu_dir = current / ".fmu"
 
             # Do not include $HOME/.fmu in the search
-            if fmu_dir.is_dir() and current != Path.home():
+            if path_is_dir(fmu_dir) and current != Path.home():
                 return fmu_dir
 
             # We hit root
@@ -520,15 +521,15 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         model_root = project_root / "rms/model"
         rms_projects: set[Path] = set()
 
-        if model_root.is_dir():
+        if path_is_dir(model_root):
             for candidate in model_root.iterdir():
-                if not candidate.is_dir():
+                if not path_is_dir(candidate):
                     continue
 
                 master_file = candidate / ".master"
                 ini_file = candidate / "rms.ini"
 
-                if master_file.is_file() and ini_file.is_file():
+                if path_is_file(master_file) and path_is_file(ini_file):
                     rms_projects.add(candidate)
 
         return sorted(rms_projects)

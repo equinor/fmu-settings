@@ -2,6 +2,7 @@
 
 import shutil
 from collections.abc import Callable
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -358,6 +359,19 @@ def test_find_global_config_file_not_there(tmp_path: Path) -> None:
     assert _find_global_config_file([tmp_path / "dne"]) is None
 
 
+def test_find_global_config_file_permission_error(
+    tmp_path: Path,
+    no_permissions: Callable[[str | Path], AbstractContextManager[None]],
+) -> None:
+    """Tests that config discovery preserves permission errors."""
+    blocked_parent = tmp_path / "blocked"
+    blocked_parent.mkdir()
+    inaccessible_path = blocked_parent / "fmuconfig" / "input"
+
+    with no_permissions(blocked_parent), pytest.raises(PermissionError):
+        _find_global_config_file([inaccessible_path])
+
+
 def test_find_global_config_file_malformed_raises_validation_error(
     tmp_path: Path,
 ) -> None:
@@ -405,6 +419,18 @@ def test_find_global_variables_file_not_there(tmp_path: Path) -> None:
     assert _find_global_variables_file([]) is None
     assert _find_global_variables_file([tmp_path]) is None
     assert _find_global_variables_file([tmp_path / "dne"]) is None
+
+
+def test_find_global_variables_file_permission_error(
+    tmp_path: Path,
+    no_permissions: Callable[[str | Path], AbstractContextManager[None]],
+) -> None:
+    """Tests that global variables discovery preserves permission errors."""
+    blocked_dir = tmp_path / "blocked"
+    blocked_dir.mkdir()
+
+    with no_permissions(blocked_dir), pytest.raises(PermissionError):
+        _find_global_variables_file([blocked_dir])
 
 
 def test_find_global_variables_file_malformed_raises_validation_error(
