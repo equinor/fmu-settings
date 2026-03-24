@@ -627,9 +627,14 @@ def test_restore_rebuilds_project_fmu_from_cache(
     shutil.rmtree(fmu_dir.path)
     assert not fmu_dir.path.exists()
 
-    fmu_dir.restore()
+    restored_files = fmu_dir.restore()
 
     assert fmu_dir.path.exists()
+    assert restored_files == [
+        Path("README"),
+        Path("config.json"),
+        Path("mappings.json"),
+    ]
     readme_path = fmu_dir.path / "README"
     assert readme_path.exists()
     assert readme_path.read_text() == PROJECT_README_CONTENT
@@ -662,9 +667,10 @@ def test_restore_resets_when_cache_missing(
     with patch.object(
         fmu_dir.config, "reset", wraps=fmu_dir.config.reset
     ) as mock_reset:
-        fmu_dir.restore()
+        restored_files = fmu_dir.restore()
 
     mock_reset.assert_called_once()
+    assert restored_files == [Path("README"), Path("config.json")]
     assert fmu_dir.path.exists()
     readme_path = fmu_dir.path / "README"
     assert readme_path.exists()
@@ -679,9 +685,10 @@ def test_restore_rebuilds_user_fmu(user_fmu_dir: UserFMUDirectory) -> None:
     shutil.rmtree(user_fmu_dir.path)
     assert not user_fmu_dir.path.exists()
 
-    user_fmu_dir.restore()
+    restored_files = user_fmu_dir.restore()
 
     assert user_fmu_dir.path.exists()
+    assert restored_files == [Path("README"), Path("config.json")]
     readme_path = user_fmu_dir.path / "README"
     assert readme_path.exists()
     assert readme_path.read_text() == USER_README_CONTENT
@@ -691,6 +698,43 @@ def test_restore_rebuilds_user_fmu(user_fmu_dir: UserFMUDirectory) -> None:
     cached_dump.pop("last_modified_at", None)
     restored_dump.pop("last_modified_at", None)
     assert restored_dump == cached_dump
+
+
+def test_list_restorable_files_reports_missing_project_files(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests list_restorable_files reports only files restore would recreate."""
+    cached_mapping = StratigraphyIdentifierMapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.smda,
+        relation_type=RelationType.primary,
+        source_id="TopVolantis",
+        target_id="VOLANTIS GP. Top",
+    )
+    fmu_dir.mappings.update_stratigraphy_mappings(
+        StratigraphyMappings(root=[cached_mapping])
+    )
+
+    (fmu_dir.path / "README").unlink()
+    fmu_dir.config.path.unlink()
+    fmu_dir.mappings.path.unlink()
+
+    assert fmu_dir.list_restorable_files() == [
+        Path("README"),
+        Path("config.json"),
+        Path("mappings.json"),
+    ]
+
+
+def test_list_restorable_files_skips_project_mappings_without_cache(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests list_restorable_files excludes mappings without cached content."""
+    fmu_dir.mappings._cache = None
+    if fmu_dir.mappings.path.exists():
+        fmu_dir.mappings.path.unlink()
+
+    assert fmu_dir.list_restorable_files() == []
 
 
 def test_fmu_directory_base_exposes_lock_timeout_kwarg() -> None:
