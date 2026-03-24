@@ -7,9 +7,9 @@ from fmu.datamodels.fmu_results.global_configuration import GlobalConfiguration
 
 from ._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from ._logging import null_logger
-from ._path_utils import path_exists, path_is_dir
 from ._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
 from ._resources.lock_manager import DEFAULT_LOCK_TIMEOUT
+from ._utils import path_exists, path_is_dir
 from .models.project_config import ProjectConfig
 
 logger: Final = null_logger(__name__)

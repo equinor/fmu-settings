@@ -10,7 +10,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ValidationError
 
 from fmu.settings._logging import null_logger
-from fmu.settings._path_utils import path_is_dir, path_is_file
+from fmu.settings._utils import path_is_dir, path_is_file
 
 if TYPE_CHECKING:
     from fmu.settings._fmu_dir import FMUDirectoryBase

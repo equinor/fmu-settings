@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from fmu.settings._path_utils import path_exists
+from fmu.settings._utils import path_exists
 from fmu.settings.models.diff import (
     ListFieldDiff,
     ListUpdatedEntry,

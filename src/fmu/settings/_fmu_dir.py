@@ -10,7 +10,6 @@ from fmu.settings._resources.changelog_manager import ChangelogManager
 from fmu.settings._resources.mappings_manager import MappingsManager
 
 from ._logging import null_logger
-from ._path_utils import path_exists, path_is_dir, path_is_file
 from ._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
 from ._resources.cache_manager import CacheManager
 from ._resources.config_managers import (
@@ -18,6 +17,7 @@ from ._resources.config_managers import (
     UserConfigManager,
 )
 from ._resources.lock_manager import DEFAULT_LOCK_TIMEOUT, LockManager
+from ._utils import path_exists, path_is_dir, path_is_file
 from .models._enums import CacheResource
 from .models.project_config import ProjectConfig
 from .models.user_config import UserConfig

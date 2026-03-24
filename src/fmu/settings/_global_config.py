@@ -9,7 +9,7 @@ from fmu.config.utilities import yaml_load
 from fmu.datamodels.fmu_results.global_configuration import GlobalConfiguration
 
 from ._logging import null_logger
-from ._path_utils import path_exists, path_is_dir
+from ._utils import path_exists, path_is_dir
 
 logger: Final = null_logger(__name__)
 
