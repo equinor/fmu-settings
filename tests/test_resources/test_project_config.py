@@ -335,7 +335,7 @@ def test_set_model(fmu_dir: ProjectFMUDirectory, model_dict: dict[str, Any]) -> 
     model = Model.model_validate(model_dict)
 
     assert fmu_dir.get_config_value("model") == model
-    assert fmu_dir.get_config_value("model.revision") == "21.0.0"
+    assert fmu_dir.get_config_value("model.revision") == "26.0.0"
     assert fmu_dir.get_config_value("model.name") == "Drogon"
 
     with open(fmu_dir.path / fmu_dir.config.relative_path, encoding="utf-8") as f:
