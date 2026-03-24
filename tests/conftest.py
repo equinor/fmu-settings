@@ -3,6 +3,7 @@
 import stat
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -11,9 +12,8 @@ from uuid import uuid4
 
 import pytest
 import yaml
-from fmu.datamodels.common.access import Asset
-from fmu.datamodels.common.enums import Classification
-from fmu.datamodels.common.masterdata import (
+from fmu.datamodels import (
+    Asset,
     CoordinateSystem,
     CountryItem,
     DiscoveryItem,
@@ -22,6 +22,7 @@ from fmu.datamodels.common.masterdata import (
     Smda,
     StratigraphicColumn,
 )
+from fmu.datamodels.common.enums import Classification
 from fmu.datamodels.fmu_results import fields
 from fmu.datamodels.fmu_results.global_configuration import (
     Access,
@@ -31,6 +32,17 @@ from fmu.datamodels.fmu_results.global_configuration import (
 )
 from pytest import MonkeyPatch
 
+from fmu.settings._drogon import (
+    ACCESS,
+    GLOBAL_CONFIG_STRATIGRAPHY,
+    MASTERDATA,
+    MODEL,
+    RMS_COORDINATE_SYSTEM,
+    RMS_HORIZONS,
+    RMS_WELLS,
+    RMS_ZONES,
+    STRATIGRAPHY_MAPPINGS,
+)
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from fmu.settings._init import init_fmu_directory, init_user_fmu_directory
 from fmu.settings._version import __version__
@@ -78,86 +90,55 @@ def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
 @pytest.fixture
 def masterdata_dict() -> dict[str, Any]:
     """Example masterdata from SMDA."""
-    return {
-        "smda": {
-            "country": [
-                {
-                    "identifier": "Norway",
-                    "uuid": "ad214d85-8a1d-19da-e053-c918a4889309",
-                }
-            ],
-            "discovery": [
-                {
-                    "short_identifier": "DROGON",
-                    "uuid": "ad214d85-8a1d-19da-e053-c918a4889309",
-                }
-            ],
-            "field": [
-                {
-                    "identifier": "DROGON",
-                    "uuid": "ad214d85-8a1d-19da-e053-c918a4889309",
-                }
-            ],
-            "coordinate_system": {
-                "identifier": "ST_WGS84_UTM37N_P32637",
-                "uuid": "ad214d85-dac7-19da-e053-c918a4889309",
-            },
-            "stratigraphic_column": {
-                "identifier": "DROGON_HAS_NO_STRATCOLUMN",
-                "uuid": "ad214d85-8a1d-19da-e053-c918a4889309",
-            },
-        }
-    }
+    return deepcopy(MASTERDATA)
 
 
 @pytest.fixture
 def model_dict() -> dict[str, Any]:
     """Example model information."""
-    return {
-        "name": "Drogon",
-        "revision": "21.0.0",
-        "description": None,
-    }
+    return deepcopy(MODEL)
 
 
 @pytest.fixture
 def access_dict() -> dict[str, Any]:
     """Example access information."""
-    return {
-        "asset": {"name": "Drogon"},
-        "classification": "internal",
-    }
+    return deepcopy(ACCESS)
 
 
 @pytest.fixture
 def stratigraphy_dict() -> dict[str, Any]:
-    """Example stratigraphy information."""
-    return {
-        "MSL": {
-            "stratigraphic": False,
-            "name": "MSL",
-        },
-        "Seabase": {
-            "stratigraphic": False,
-            "name": "Seabase",
-        },
-        "TopVolantis": {
-            "stratigraphic": True,
-            "name": "VOLANTIS GP. Top",
-            "alias": ["TopVOLANTIS", "TOP_VOLANTIS"],
-            "stratigraphic_alias": ["TopValysar", "Valysar Fm. Top"],
-        },
-        "TopTherys": {"stratigraphic": True, "name": "Therys Fm. Top"},
-        "TopVolon": {"stratigraphic": True, "name": "Volon Fm. Top"},
-        "BaseVolon": {"stratigraphic": True, "name": "Volon Fm. Base"},
-        "BaseVolantis": {"stratigraphic": True, "name": "VOLANTIS GP. Base"},
-        "Mantle": {"stratigraphic": False, "name": "Mantle"},
-        "Above": {"stratigraphic": False, "name": "Above"},
-        "Valysar": {"stratigraphic": True, "name": "Valysar Fm."},
-        "Therys": {"stratigraphic": True, "name": "Therys Fm."},
-        "Volon": {"stratigraphic": True, "name": "Volon Fm."},
-        "Below": {"stratigraphic": False, "name": "Below"},
-    }
+    """Example global configuration stratigraphy information."""
+    return deepcopy(GLOBAL_CONFIG_STRATIGRAPHY)
+
+
+@pytest.fixture
+def stratigraphy_mappings_list() -> list[dict[str, Any]]:
+    """Example stratigraphy mapping information."""
+    return deepcopy(STRATIGRAPHY_MAPPINGS)
+
+
+@pytest.fixture
+def rms_zones_list() -> list[dict[str, Any]]:
+    """Example RMS zones list."""
+    return deepcopy(RMS_ZONES)
+
+
+@pytest.fixture
+def rms_horizons_list() -> list[dict[str, Any]]:
+    """Example RMS horizons list."""
+    return deepcopy(RMS_HORIZONS)
+
+
+@pytest.fixture
+def rms_wells_list() -> list[dict[str, str]]:
+    """Example RMS wells list."""
+    return deepcopy(RMS_WELLS)
+
+
+@pytest.fixture
+def rms_coordinate_system() -> dict[str, str]:
+    """Example RMS coordinate system."""
+    return deepcopy(RMS_COORDINATE_SYSTEM)
 
 
 @pytest.fixture
