@@ -50,9 +50,9 @@ def test_rms_zones_validates(rms_zones_list: list[dict[str, Any]]) -> None:
         RmsStratigraphicZone.model_validate(zone, extra="forbid")
 
 
-def test_rms_horizons_validates(rms_horizones_list: list[dict[str, Any]]) -> None:
+def test_rms_horizons_validates(rms_horizons_list: list[dict[str, Any]]) -> None:
     """Drogon RMS horizons list validates with RmsHorizon."""
-    for horizon in rms_horizones_list:
+    for horizon in rms_horizons_list:
         RmsHorizon.model_validate(horizon, extra="forbid")
 
 

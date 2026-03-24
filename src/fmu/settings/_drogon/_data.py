@@ -190,6 +190,14 @@ STRATIGRAPHY_MAPPINGS: Final[list[dict[str, Any]]] = [
         "target_id": "Therys Fm. Top",
         "target_uuid": "0240dc8e-659a-4925-b569-6f1570ba6770",
     },
+    {  # Equivalent
+        "source_system": "rms",
+        "target_system": "smda",
+        "relation_type": "equivalent",
+        "source_id": "Therys Fm. Top",
+        "target_id": "Therys Fm. Top",
+        "target_uuid": "0240dc8e-659a-4925-b569-6f1570ba6770",
+    },
     {
         "source_system": "rms",
         "target_system": "smda",

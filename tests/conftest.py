@@ -124,8 +124,8 @@ def rms_zones_list() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def rms_horizones_list() -> list[dict[str, Any]]:
-    """Example RMS zones list."""
+def rms_horizons_list() -> list[dict[str, Any]]:
+    """Example RMS horizons list."""
     return deepcopy(RMS_HORIZONS)
 
 
@@ -137,7 +137,7 @@ def rms_wells_list() -> list[dict[str, str]]:
 
 @pytest.fixture
 def rms_coordinate_system() -> dict[str, str]:
-    """Example RMS wells list."""
+    """Example RMS coordinate system."""
     return deepcopy(RMS_COORDINATE_SYSTEM)
 
 
