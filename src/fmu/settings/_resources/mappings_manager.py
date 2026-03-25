@@ -4,8 +4,9 @@ import copy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
+from fmu.datamodels.fmu_results.global_configuration import Stratigraphy
 from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
-from fmu.settings.models.mappings import Mappings
+from fmu.settings.models.mappings import Mappings, RelationType
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -105,3 +106,52 @@ class MappingsManager(PydanticResourceManager[Mappings]):
         if len(changes.wells) > 0 or len(self.well_mappings) > 0:
             self.update_well_mappings()
         return self.load()
+
+    def build_global_config_stratigraphy(self) -> Stratigraphy:
+        """Build a global config stratigraphy from mappings and RMS config.
+
+        Combines stratigraphy mappings with RMS horizons and zones from the project
+        config to produce a stratigraphy suitable for a GlobalConfiguration.
+        """
+        stratigraphy: dict[str, dict[str, Any]] = {}
+
+        primaries: dict[str, str] = {}  # source_id -> target_id
+        aliases_by_target: dict[str, list[str]] = {}  # target_id -> [alias source_ids]
+
+        # Stratigraphic entries from stratigraphy mappings
+        for mapping in self.stratigraphy_mappings:
+            if mapping.relation_type == RelationType.primary:
+                primaries[mapping.source_id] = mapping.target_id
+            elif mapping.relation_type == RelationType.alias:
+                aliases_by_target.setdefault(mapping.target_id, []).append(
+                    mapping.source_id
+                )
+
+        for source_id, target_id in primaries.items():
+            entry: dict[str, Any] = {
+                "stratigraphic": True,
+                "name": target_id,
+            }
+            if aliases := aliases_by_target.get(target_id):
+                entry["alias"] = aliases
+            stratigraphy[source_id] = entry
+
+        # Non-stratigraphic entries from RMS
+        rms_config = self.fmu_dir.get_config_value("rms")
+        if rms_config:
+            for horizon in rms_config.horizons:
+                name = horizon.name
+                if name not in stratigraphy:
+                    stratigraphy[name] = {
+                        "stratigraphic": False,
+                        "name": name,
+                    }
+            for zone in rms_config.zones:
+                name = zone.name
+                if name not in stratigraphy:
+                    stratigraphy[name] = {
+                        "stratigraphic": False,
+                        "name": name,
+                    }
+
+        return Stratigraphy.model_validate(stratigraphy)
