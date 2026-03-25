@@ -107,7 +107,7 @@ class MappingsManager(PydanticResourceManager[Mappings]):
             self.update_well_mappings()
         return self.load()
 
-    def build_global_config_stratigraphy(self) -> Stratigraphy:
+    def build_global_config_stratigraphy(self) -> Stratigraphy:  # noqa: PLR0912
         """Build a global config stratigraphy from mappings and RMS config.
 
         Combines stratigraphy mappings with RMS horizons and zones from the project
