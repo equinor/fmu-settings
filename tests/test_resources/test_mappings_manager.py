@@ -11,6 +11,7 @@ from fmu.datamodels.context.mappings import (
     StratigraphyMappings,
 )
 
+from fmu.settings._drogon import GLOBAL_CONFIG_STRATIGRAPHY
 from fmu.settings._fmu_dir import ProjectFMUDirectory
 from fmu.settings._resources.mappings_manager import MappingsManager
 from fmu.settings.models._enums import ChangeType
@@ -342,3 +343,202 @@ def test_mappings_manager_structured_diff_uses_full_item_identity(
     assert diff.updated == []
     assert diff.added[0]["source_id"] == "TopViking"
     assert diff.removed[0]["source_id"] == "TopVOLANTIS"
+
+
+def test_build_global_config_stratigraphy_empty(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Empty stratigraphy when no mappings and no RMS config."""
+    mappings_manager = MappingsManager(fmu_dir)
+    strat = mappings_manager.build_global_config_stratigraphy()
+    assert strat.model_dump() == {}
+
+
+def test_build_global_config_stratigraphy_only_rms(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """All entries are non-stratigraphic when there are no mappings."""
+    fmu_dir.update_config(
+        {
+            "rms": {
+                "path": "rms/model/test.rms15.0.1.0",
+                "version": "15.0.1.0",
+                "horizons": [
+                    {"name": "MSL", "type": "interpreted"},
+                    {"name": "TopX", "type": "interpreted"},
+                ],
+                "zones": [
+                    {
+                        "name": "Above",
+                        "top_horizon_name": "MSL",
+                        "base_horizon_name": "TopX",
+                    }
+                ],
+            }
+        }
+    )
+
+    mappings_manager = MappingsManager(fmu_dir)
+    strat = mappings_manager.build_global_config_stratigraphy()
+
+    result = strat.model_dump(mode="json", exclude_none=True, exclude_unset=True)
+    for name in ("MSL", "TopX", "Above"):
+        assert result[name] == {"stratigraphic": False, "name": name}
+    assert len(result) == 3  # noqa: PLR2004
+
+
+def test_build_global_config_stratigraphy_handles_optional_rms_lists(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Missing RMS horizons and zones should be treated as empty lists."""
+    fmu_dir.update_config(
+        {
+            "rms": {
+                "path": "rms/model/test.rms15.0.1.0",
+                "version": "15.0.1.0",
+            }
+        }
+    )
+
+    mappings_manager = MappingsManager(fmu_dir)
+    strat = mappings_manager.build_global_config_stratigraphy()
+
+    assert strat.model_dump() == {}
+
+
+def test_build_global_config_stratigraphy_only_mappings(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Only stratigraphic entries when there is no RMS config."""
+    mappings_manager = MappingsManager(fmu_dir)
+    mappings_manager.update_stratigraphy_mappings(
+        StratigraphyMappings(
+            root=[
+                StratigraphyIdentifierMapping(
+                    source_system=DataSystem.rms,
+                    target_system=DataSystem.smda,
+                    relation_type=RelationType.primary,
+                    source_id="TopX",
+                    target_id="X Fm. Top",
+                ),
+            ]
+        )
+    )
+
+    strat = mappings_manager.build_global_config_stratigraphy()
+
+    result = strat.model_dump(mode="json", exclude_none=True, exclude_unset=True)
+    assert result == {"TopX": {"stratigraphic": True, "name": "X Fm. Top"}}
+
+
+def test_build_global_config_stratigraphy_mapped_horizon_not_duplicated(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """A horizon with a primary mapping appears once as stratigraphic, not twice."""
+    fmu_dir.update_config(
+        {
+            "rms": {
+                "path": "rms/model/test.rms15.0.1.0",
+                "version": "15.0.1.0",
+                "horizons": [
+                    {"name": "TopX", "type": "interpreted"},
+                    {"name": "MSL", "type": "interpreted"},
+                ],
+                "zones": [],
+            }
+        }
+    )
+    mappings_manager = MappingsManager(fmu_dir)
+    mappings_manager.update_stratigraphy_mappings(
+        StratigraphyMappings(
+            root=[
+                StratigraphyIdentifierMapping(
+                    source_system=DataSystem.rms,
+                    target_system=DataSystem.smda,
+                    relation_type=RelationType.primary,
+                    source_id="TopX",
+                    target_id="X Fm. Top",
+                ),
+            ]
+        )
+    )
+
+    strat = mappings_manager.build_global_config_stratigraphy()
+
+    result = strat.model_dump(mode="json", exclude_none=True, exclude_unset=True)
+    assert result["TopX"] == {"stratigraphic": True, "name": "X Fm. Top"}
+    assert result["MSL"] == {"stratigraphic": False, "name": "MSL"}
+    assert len(result) == 2  # noqa: PLR2004
+
+
+def test_build_global_config_stratigraphy_equivalent_with_primary_keeps_primary_entry(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Equivalent mappings should not change the matching primary entry."""
+    mappings_manager = MappingsManager(fmu_dir)
+    mappings_manager.update_stratigraphy_mappings(
+        StratigraphyMappings(
+            root=[
+                StratigraphyIdentifierMapping(
+                    source_system=DataSystem.rms,
+                    target_system=DataSystem.smda,
+                    relation_type=RelationType.primary,
+                    source_id="TopX",
+                    target_id="X Fm. Top",
+                ),
+                StratigraphyIdentifierMapping(
+                    source_system=DataSystem.rms,
+                    target_system=DataSystem.smda,
+                    relation_type=RelationType.equivalent,
+                    source_id="X Fm. Top",
+                    target_id="X Fm. Top",
+                ),
+            ]
+        )
+    )
+
+    strat = mappings_manager.build_global_config_stratigraphy()
+
+    result = strat.model_dump(mode="json", exclude_none=True, exclude_unset=True)
+    assert result == {"TopX": {"stratigraphic": True, "name": "X Fm. Top"}}
+
+
+def test_build_global_config_stratigraphy_equivalent_only_mapping_is_kept(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Equivalent-only mappings should still yield a stratigraphic entry."""
+    mappings_manager = MappingsManager(fmu_dir)
+    mappings_manager.update_stratigraphy_mappings(
+        StratigraphyMappings(
+            root=[
+                StratigraphyIdentifierMapping(
+                    source_system=DataSystem.rms,
+                    target_system=DataSystem.smda,
+                    relation_type=RelationType.equivalent,
+                    source_id="X Fm. Top",
+                    target_id="X Fm. Top",
+                ),
+            ]
+        )
+    )
+
+    strat = mappings_manager.build_global_config_stratigraphy()
+
+    result = strat.model_dump(mode="json", exclude_none=True, exclude_unset=True)
+    assert result == {
+        "X Fm. Top": {
+            "stratigraphic": True,
+            "name": "X Fm. Top",
+        }
+    }
+
+
+def test_build_global_config_stratigraphy_correct_drogon_integration(
+    drogon_fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Drogon global config stratigraphy reconstructed from mappings and RMS."""
+    stratigraphy = drogon_fmu_dir._mappings.build_global_config_stratigraphy()
+    assert (
+        stratigraphy.model_dump(mode="json", exclude_none=True, exclude_unset=True)
+        == GLOBAL_CONFIG_STRATIGRAPHY
+    )

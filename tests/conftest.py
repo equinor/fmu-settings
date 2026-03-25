@@ -42,6 +42,7 @@ from fmu.settings._drogon import (
     RMS_WELLS,
     RMS_ZONES,
     STRATIGRAPHY_MAPPINGS,
+    create_drogon_fmu_dir,
 )
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
 from fmu.settings._init import init_fmu_directory, init_user_fmu_directory
@@ -354,6 +355,27 @@ def fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
         mock_datetime.datetime.now.return_value = unix_epoch_utc
         mock_cm_datetime.now.return_value = unix_epoch_utc
         return init_fmu_directory(tmp_path)
+
+
+@pytest.fixture(scope="function")
+def drogon_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
+    """Create an ProjectFMUDirectory instance for testing."""
+    with (
+        patch(
+            "fmu.settings.models.project_config.getpass.getuser",
+            return_value="user",
+        ),
+        patch(
+            "fmu.settings._resources.config_managers.getpass.getuser",
+            return_value="user",
+        ),
+        patch("fmu.settings.models.project_config.datetime") as mock_datetime,
+        patch("fmu.settings._resources.config_managers.datetime") as mock_cm_datetime,
+    ):
+        mock_datetime.now.return_value = unix_epoch_utc
+        mock_datetime.datetime.now.return_value = unix_epoch_utc
+        mock_cm_datetime.now.return_value = unix_epoch_utc
+        return create_drogon_fmu_dir(tmp_path)
 
 
 @pytest.fixture(scope="function")
