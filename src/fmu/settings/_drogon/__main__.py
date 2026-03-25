@@ -26,7 +26,11 @@ from ._data import PROJECT_CONFIG_DICT, STRATIGRAPHY_MAPPINGS
 
 def create_drogon_fmu_dir(base_path: Path) -> ProjectFMUDirectory:
     """Creates a Drogon .fmu/ at base_path."""
-    fmu_dir = init_fmu_directory(base_path, config_data=PROJECT_CONFIG_DICT)
+    fmu_dir = init_fmu_directory(
+        base_path,
+        config_data=PROJECT_CONFIG_DICT,
+        force=True,
+    )
 
     stratigraphy_mappings = StratigraphyMappings.model_validate(STRATIGRAPHY_MAPPINGS)
     fmu_dir._mappings.update_stratigraphy_mappings(stratigraphy_mappings)

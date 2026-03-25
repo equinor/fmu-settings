@@ -339,6 +339,7 @@ def user_config_model(user_config_dict: dict[str, Any]) -> UserConfig:
 @pytest.fixture(scope="function")
 def fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
     """Create an ProjectFMUDirectory instance for testing."""
+    (tmp_path / "ert").mkdir(parents=True, exist_ok=True)
     with (
         patch(
             "fmu.settings.models.project_config.getpass.getuser",
@@ -383,6 +384,7 @@ def extra_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirecto
     """Create an extra ProjectFMUDirectory instance for testing of diff and sync."""
     extra_fmu_path = tmp_path / Path("extra_fmu")
     extra_fmu_path.mkdir(parents=True)
+    (extra_fmu_path / "ert").mkdir(parents=True, exist_ok=True)
     with (
         patch(
             "fmu.settings.models.project_config.getpass.getuser",
