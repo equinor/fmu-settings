@@ -109,11 +109,15 @@ def test_write_fmu_config_roundtrip(fmu_project_root: Path) -> None:
 
 def test_init_fmu_directory_rejects_invalid_project_path(tmp_path: Path) -> None:
     """Tests that init reports a semantic error for non-FMU project paths."""
-    with pytest.raises(
-        InvalidFMUProjectPathError,
-        match=r"project root containing 'ert'\. Did not find: 'ert'\.",
-    ):
+    required_dirs = ", ".join(f"'{dir}'" for dir in REQUIRED_FMU_PROJECT_SUBDIRS)
+    expected_message = (
+        "Failed initializing .fmu directory. Initialize it from a project root "
+        f"containing {required_dirs}. Did not find: {required_dirs}."
+    )
+    with pytest.raises(InvalidFMUProjectPathError) as exc_info:
         init_fmu_directory(tmp_path)
+
+    assert str(exc_info.value) == expected_message
 
 
 def test_init_fmu_directory_force_skips_project_validation(tmp_path: Path) -> None:
@@ -152,8 +156,8 @@ def test_init_fmu_directory_skips_invalid_auto_discovered_drogon_global_config(
     fmuconfig_with_output: Path,
 ) -> None:
     """Tests that auto-discovered Drogon global config is rejected and not imported."""
-    for dir_name in REQUIRED_FMU_PROJECT_SUBDIRS:
-        (fmuconfig_with_output / dir_name).mkdir(parents=True, exist_ok=True)
+    for dir in REQUIRED_FMU_PROJECT_SUBDIRS:
+        (fmuconfig_with_output / dir).mkdir(parents=True, exist_ok=True)
 
     fmu_dir = init_fmu_directory(fmuconfig_with_output)
     config = fmu_dir.config.load()
@@ -166,8 +170,8 @@ def test_init_fmu_directory_skips_invalid_auto_discovered_drogon_global_config(
 
 def test_write_fmu_config_with_global_config(fmuconfig_with_output: Path) -> None:
     """Tests creating an .fmu config with a global_config."""
-    for dir_name in REQUIRED_FMU_PROJECT_SUBDIRS:
-        (fmuconfig_with_output / dir_name).mkdir(parents=True, exist_ok=True)
+    for dir in REQUIRED_FMU_PROJECT_SUBDIRS:
+        (fmuconfig_with_output / dir).mkdir(parents=True, exist_ok=True)
     cfg = find_global_config(fmuconfig_with_output, strict=False)
     assert cfg is not None
     with patch("fmu.settings._init.find_global_config") as mock_find_global_config:

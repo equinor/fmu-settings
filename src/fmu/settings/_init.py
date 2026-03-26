@@ -115,8 +115,9 @@ def init_fmu_directory(
             )
             missing_dirs_text = ", ".join(f"'{dir_name}'" for dir_name in missing_dirs)
             raise InvalidFMUProjectPathError(
-                "Initialize the .fmu directory from a project root containing "
-                f"{required_dirs}. Did not find: {missing_dirs_text}."
+                "Failed initializing .fmu directory. Initialize it from a project "
+                f"root containing {required_dirs}. Did not find: "
+                f"{missing_dirs_text}."
             )
 
     if global_config is None:
