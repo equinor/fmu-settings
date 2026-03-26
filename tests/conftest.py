@@ -45,7 +45,11 @@ from fmu.settings._drogon import (
     create_drogon_fmu_dir,
 )
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
-from fmu.settings._init import init_fmu_directory, init_user_fmu_directory
+from fmu.settings._init import (
+    REQUIRED_FMU_PROJECT_SUBDIRS,
+    init_fmu_directory,
+    init_user_fmu_directory,
+)
 from fmu.settings._version import __version__
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
@@ -74,7 +78,8 @@ def unix_epoch_utc() -> datetime:
 @pytest.fixture
 def fmu_project_root(tmp_path: Path) -> Path:
     """Create the minimum directory layout for an FMU project root."""
-    (tmp_path / "ert").mkdir(parents=True, exist_ok=True)
+    for dir in REQUIRED_FMU_PROJECT_SUBDIRS:
+        (tmp_path / dir).mkdir(parents=True, exist_ok=True)
     return tmp_path
 
 
@@ -344,9 +349,8 @@ def user_config_model(user_config_dict: dict[str, Any]) -> UserConfig:
 
 
 @pytest.fixture(scope="function")
-def fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
+def fmu_dir(fmu_project_root: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
     """Create an ProjectFMUDirectory instance for testing."""
-    (tmp_path / "ert").mkdir(parents=True, exist_ok=True)
     with (
         patch(
             "fmu.settings.models.project_config.getpass.getuser",
@@ -362,7 +366,7 @@ def fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
         mock_datetime.now.return_value = unix_epoch_utc
         mock_datetime.datetime.now.return_value = unix_epoch_utc
         mock_cm_datetime.now.return_value = unix_epoch_utc
-        return init_fmu_directory(tmp_path)
+        return init_fmu_directory(fmu_project_root)
 
 
 @pytest.fixture(scope="function")
@@ -387,11 +391,15 @@ def drogon_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirect
 
 
 @pytest.fixture(scope="function")
-def extra_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> ProjectFMUDirectory:
+def extra_fmu_dir(
+    fmu_project_root: Path,
+    unix_epoch_utc: datetime,
+) -> ProjectFMUDirectory:
     """Create an extra ProjectFMUDirectory instance for testing of diff and sync."""
-    extra_fmu_path = tmp_path / Path("extra_fmu")
+    extra_fmu_path = fmu_project_root / Path("extra_fmu")
     extra_fmu_path.mkdir(parents=True)
-    (extra_fmu_path / "ert").mkdir(parents=True, exist_ok=True)
+    for dir_name in REQUIRED_FMU_PROJECT_SUBDIRS:
+        (extra_fmu_path / dir_name).mkdir(parents=True, exist_ok=True)
     with (
         patch(
             "fmu.settings.models.project_config.getpass.getuser",

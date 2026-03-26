@@ -12,6 +12,7 @@ import yaml
 from fmu.settings import __version__
 from fmu.settings._global_config import find_global_config
 from fmu.settings._init import (
+    REQUIRED_FMU_PROJECT_SUBDIRS,
     InvalidFMUProjectPathError,
     _create_fmu_directory,
     init_fmu_directory,
@@ -151,7 +152,8 @@ def test_init_fmu_directory_skips_invalid_auto_discovered_drogon_global_config(
     fmuconfig_with_output: Path,
 ) -> None:
     """Tests that auto-discovered Drogon global config is rejected and not imported."""
-    (fmuconfig_with_output / "ert").mkdir(parents=True, exist_ok=True)
+    for dir_name in REQUIRED_FMU_PROJECT_SUBDIRS:
+        (fmuconfig_with_output / dir_name).mkdir(parents=True, exist_ok=True)
 
     fmu_dir = init_fmu_directory(fmuconfig_with_output)
     config = fmu_dir.config.load()
@@ -164,7 +166,8 @@ def test_init_fmu_directory_skips_invalid_auto_discovered_drogon_global_config(
 
 def test_write_fmu_config_with_global_config(fmuconfig_with_output: Path) -> None:
     """Tests creating an .fmu config with a global_config."""
-    (fmuconfig_with_output / "ert").mkdir(parents=True, exist_ok=True)
+    for dir_name in REQUIRED_FMU_PROJECT_SUBDIRS:
+        (fmuconfig_with_output / dir_name).mkdir(parents=True, exist_ok=True)
     cfg = find_global_config(fmuconfig_with_output, strict=False)
     assert cfg is not None
     with patch("fmu.settings._init.find_global_config") as mock_find_global_config:
