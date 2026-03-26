@@ -110,12 +110,13 @@ def init_fmu_directory(
     if not force and path_exists(base_path):
         has_required_dirs, missing_dirs = is_fmu_project(base_path)
         if not has_required_dirs:
-            example_dir = (
-                missing_dirs[0] if missing_dirs else REQUIRED_FMU_PROJECT_SUBDIRS[0]
+            required_dirs = ", ".join(
+                f"'{dir_name}'" for dir_name in REQUIRED_FMU_PROJECT_SUBDIRS
             )
+            missing_dirs_text = ", ".join(f"'{dir_name}'" for dir_name in missing_dirs)
             raise InvalidFMUProjectPathError(
-                "Initialize the .fmu directory from a project root containing an "
-                f"'{example_dir}' folder."
+                "Initialize the .fmu directory from a project root containing "
+                f"{required_dirs}. Did not find: {missing_dirs_text}."
             )
 
     if global_config is None:

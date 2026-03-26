@@ -120,7 +120,7 @@ def test_init_fmu_directory_rejects_invalid_project_path(tmp_path: Path) -> None
     """Tests that init reports a semantic error for non-FMU project paths."""
     with pytest.raises(
         InvalidFMUProjectPathError,
-        match="Initialize the .fmu directory from a project root",
+        match=r"project root containing 'ert'\. Did not find: 'ert'\.",
     ):
         init_fmu_directory(tmp_path)
 
