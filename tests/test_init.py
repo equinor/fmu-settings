@@ -22,12 +22,6 @@ from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
 
 
-def _make_fmu_project_root(base_path: Path) -> Path:
-    """Create the minimum directory layout for an FMU project root."""
-    (base_path / "ert").mkdir(parents=True, exist_ok=True)
-    return base_path
-
-
 def test_create_fmu_directory(tmp_path: Path) -> None:
     """Tests creating the .fmu directory raises appropriate exceptions."""
     with pytest.raises(FileNotFoundError, match="Base path '/foo' does not exist."):
@@ -47,22 +41,21 @@ def test_create_fmu_directory(tmp_path: Path) -> None:
 
 
 def test_init_fmu_directory_with_no_config_data(
-    tmp_path: Path,
+    fmu_project_root: Path,
     unix_epoch_utc: datetime,
 ) -> None:
     """Tests initializing a .fmu directory with default settings."""
-    _make_fmu_project_root(tmp_path)
     with (
         patch(
             "fmu.settings.models.project_config.getpass.getuser",
             return_value="user",
         ),
     ):
-        fmu_dir = init_fmu_directory(tmp_path)
+        fmu_dir = init_fmu_directory(fmu_project_root)
 
     assert fmu_dir.path.exists()
     assert fmu_dir.path.is_dir()
-    assert fmu_dir.path == tmp_path / ".fmu"
+    assert fmu_dir.path == fmu_project_root / ".fmu"
 
     config_file = fmu_dir.path / "config.json"
     assert config_file.exists()
@@ -81,34 +74,31 @@ def test_init_fmu_directory_with_no_config_data(
 
 
 def test_create_fmu_directory_with_config_model(
-    tmp_path: Path,
+    fmu_project_root: Path,
     config_model: ProjectConfig,
 ) -> None:
     """Tests initializing a .fmu directory with a ProjectConfig model."""
-    _make_fmu_project_root(tmp_path)
     config_model.version = "200.0.0"
     config_model.model_rebuild()
-    fmu_dir = init_fmu_directory(tmp_path, config_model)
+    fmu_dir = init_fmu_directory(fmu_project_root, config_model)
     config = fmu_dir.config.load()
     assert config.version == "200.0.0"
 
 
 def test_create_fmu_directory_with_config_dict(
-    tmp_path: Path,
+    fmu_project_root: Path,
     config_dict: dict[str, Any],
 ) -> None:
     """Tests initializing a .fmu directory with a ProjectConfig model."""
-    _make_fmu_project_root(tmp_path)
     config_dict["version"] = "200.0.0"
-    fmu_dir = init_fmu_directory(tmp_path, config_dict)
+    fmu_dir = init_fmu_directory(fmu_project_root, config_dict)
     config = fmu_dir.config.load()
     assert config.version == "200.0.0"
 
 
-def test_write_fmu_config_roundtrip(tmp_path: Path) -> None:
+def test_write_fmu_config_roundtrip(fmu_project_root: Path) -> None:
     """Tests that the FMU config writes correctly."""
-    _make_fmu_project_root(tmp_path)
-    fmu_dir = init_fmu_directory(tmp_path)
+    fmu_dir = init_fmu_directory(fmu_project_root)
     assert str(fmu_dir.config.path).endswith("config.json")
     with open(fmu_dir.config.path, encoding="utf-8") as f:
         config_data = json.loads(f.read())
@@ -134,19 +124,18 @@ def test_init_fmu_directory_force_skips_project_validation(tmp_path: Path) -> No
 
 
 def test_init_fmu_directory_auto_finds_global_config(
-    tmp_path: Path,
+    fmu_project_root: Path,
     generate_strict_valid_globalconfiguration: Any,
 ) -> None:
     """Tests that init automatically imports global config for valid FMU roots."""
-    tmp_path = _make_fmu_project_root(tmp_path)
     valid_global_config = generate_strict_valid_globalconfiguration()
-    output_dir = tmp_path / "fmuconfig/output"
+    output_dir = fmu_project_root / "fmuconfig/output"
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "global_variables.yml").write_text(
         yaml.safe_dump(valid_global_config.model_dump(mode="json", by_alias=True))
     )
 
-    fmu_dir = init_fmu_directory(tmp_path)
+    fmu_dir = init_fmu_directory(fmu_project_root)
     config = fmu_dir.config.load()
 
     assert config.masterdata is not None
@@ -162,9 +151,9 @@ def test_init_fmu_directory_skips_invalid_auto_discovered_drogon_global_config(
     fmuconfig_with_output: Path,
 ) -> None:
     """Tests that auto-discovered Drogon global config is rejected and not imported."""
-    tmp_path = _make_fmu_project_root(fmuconfig_with_output)
+    (fmuconfig_with_output / "ert").mkdir(parents=True, exist_ok=True)
 
-    fmu_dir = init_fmu_directory(tmp_path)
+    fmu_dir = init_fmu_directory(fmuconfig_with_output)
     config = fmu_dir.config.load()
 
     assert fmu_dir.path.exists()
@@ -175,11 +164,11 @@ def test_init_fmu_directory_skips_invalid_auto_discovered_drogon_global_config(
 
 def test_write_fmu_config_with_global_config(fmuconfig_with_output: Path) -> None:
     """Tests creating an .fmu config with a global_config."""
-    tmp_path = _make_fmu_project_root(fmuconfig_with_output)
-    cfg = find_global_config(tmp_path, strict=False)
+    (fmuconfig_with_output / "ert").mkdir(parents=True, exist_ok=True)
+    cfg = find_global_config(fmuconfig_with_output, strict=False)
     assert cfg is not None
     with patch("fmu.settings._init.find_global_config") as mock_find_global_config:
-        fmu_dir = init_fmu_directory(tmp_path, global_config=cfg)
+        fmu_dir = init_fmu_directory(fmuconfig_with_output, global_config=cfg)
 
     mock_find_global_config.assert_not_called()
     config = fmu_dir.config.load()
@@ -193,10 +182,12 @@ def test_write_fmu_config_with_global_config(fmuconfig_with_output: Path) -> Non
     assert config.access.asset.name == "Drogon"
 
 
-def test_readme_is_written(tmp_path: Path, config_model: ProjectConfig) -> None:
+def test_readme_is_written(
+    fmu_project_root: Path,
+    config_model: ProjectConfig,
+) -> None:
     """Tests that the README is written when .fmu is initialized."""
-    _make_fmu_project_root(tmp_path)
-    fmu_dir = init_fmu_directory(tmp_path, config_model)
+    fmu_dir = init_fmu_directory(fmu_project_root, config_model)
 
     readme = fmu_dir.path / "README"
     assert readme.exists()

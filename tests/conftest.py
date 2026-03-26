@@ -72,6 +72,13 @@ def unix_epoch_utc() -> datetime:
 
 
 @pytest.fixture
+def fmu_project_root(tmp_path: Path) -> Path:
+    """Create the minimum directory layout for an FMU project root."""
+    (tmp_path / "ert").mkdir(parents=True, exist_ok=True)
+    return tmp_path
+
+
+@pytest.fixture
 def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
     """A dictionary representing a .fmu config."""
     return {
