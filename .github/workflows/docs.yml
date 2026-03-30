@@ -28,13 +28,10 @@ jobs:
       - name: Install fmu-settings
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            uv sync --all-extras --upgrade
+            uv sync --extra docs --upgrade
           else
-            uv sync --all-extras --frozen
+            uv sync --extra docs --frozen
           fi
-
-      - name: Install Sphinx and extensions
-        run: uv run pip install sphinx myst-parser sphinx_autodoc_typehints sphinx_togglebutton sphinxcontrib.apidoc sphinxcontrib.autodoc_pydantic sphinx_copybutton
 
       - name: Build documentation with sphinx
         run: uv run sphinx-build -b html docs/src build/docs/html -j auto
