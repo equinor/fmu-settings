@@ -1,31 +1,34 @@
 # FMU Settings documentation
 
-**FMU Settings** is a tool developed for simplifying adding metadata when 
-exporting data from FMU workflows. It simplifies the process of adding metadata 
-from official sources like SMDA and replaces the need for having metadata defined 
-in the global configuration file. 
+**FMU Settings** is a tool for making it easier to add metadata when exporting data from FMU workflows.
 
-Main features of FMU Settings:
-- GUI for configuration of project FMU metadata
-- Connection to SMDA and official metadata
-- GUI for mapping RMS stratigraphy to SMDA stratigraphic column
-- Version control
+It helps you add metadata from official sources such as SMDA and reduces the need to keep the metadata in the global configuration file.
 
-If you are new to FMU Settings, it is recommended to start with:
+FMU Settings provides a GUI where you can:
 
-- Getting an [Overview](overview.md) of what it is and how it is used
-- Then, [Get Started](getting_started.md) with the initialization and opening the FMU Settings GUI
-- Follow the [GUI userguide](gui_userguide.md) to configure everything and set up metadata for your project
+- set up FMU project metadata
+- work with SMDA and other official metadata sources
+- map RMS stratigraphy to the SMDA stratigraphic column
+- view version history for project settings
 
-If you find bugs, need help, or want to talk to the developers, reach out via:
+If you are new to FMU Settings, a good place to start is:
 
-- [GitHub Issues](https://github.com/equinor/fmu-settings/issues)
-- The [FMU portal](https://fmu.equinor.com)
+- Read the [Overview](overview.md) to see what FMU Settings is and how it is used.
+- Follow [Getting started](getting_started.md) to initialize a project or open a project that already has `.fmu/`.
+- Use the [GUI user guide](gui_user_guide.md) to continue setting up metadata in the application.
+- See [Terminal commands](terminal_commands.md) for the most common terminal commands.
+
+If you find bugs, need help, or want to get in touch, use:
+
+- <a href="https://app.slack.com/client/E086B9P9JM9/C09MFKN4NC9" target="_blank" rel="noopener noreferrer">#fmu-settings slack channel</a>
+- [Atlas team email](mailto:fg_fmu-atlas@equinor.com)
+- <a href="https://github.com/equinor/fmu-settings/issues" target="_blank" rel="noopener noreferrer">GitHub issues</a>
+- <a href="https://fmu.equinor.com" target="_blank" rel="noopener noreferrer">FMU portal</a>
 
 Future developments:
-- Mapping of well names (RMS - Simulator - SMDA)
-- Handling of and syncronization between user copies and master project
-- 
+
+- mapping of well names between RMS, simulator, and SMDA
+- handling and synchronization between user copies and the master project
 
 
 
@@ -35,7 +38,7 @@ Future developments:
 
 overview.md
 getting_started.md
-gui_userguide.md
-cli_commands.md
+gui_user_guide.md
+terminal_commands.md
 
 ```
