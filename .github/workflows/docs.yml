@@ -1,0 +1,40 @@
+name: Build docs
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+     - cron: "0 0 * * *"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build_docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install fmu-settings
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            uv sync --all-extras --upgrade
+          else
+            uv sync --all-extras --frozen
+          fi
+
+      - name: Install Sphinx and extensions
+        run: uv run pip install sphinx myst-parser sphinx_autodoc_typehints sphinx_togglebutton sphinxcontrib.apidoc sphinxcontrib.autodoc_pydantic sphinx_copybutton
+
+      - name: Build documentation with sphinx
+        run: uv run sphinx-build -b html docs/src build/docs/html -j auto
