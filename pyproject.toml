@@ -63,7 +63,7 @@ docs = [
 [project.urls]
 Homepage = "https://github.com/equinor/fmu-settings"
 Repository = "https://github.com/equinor/fmu-settings"
-Documentation = "https://github.com/equinor/fmu-settings"
+Documentation = "https://fmu-settings.readthedocs.io"
 
 [tool.coverage.run]
 omit = [

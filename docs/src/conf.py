@@ -6,8 +6,10 @@ import os
 import sys
 from datetime import date
 
-sys.path.insert(0, os.path.abspath("../../src/fmu"))
+sys.path.insert(0, os.path.abspath("../../src"))
 sys.path.insert(1, os.path.abspath("../ext"))
+
+import fmu.settings
 
 # -- General configuration ---------------------------------------------
 
@@ -49,13 +51,8 @@ html_theme_options = {
 project = "FMU Settings"
 current_year = date.today().year
 
-# Hardcoded version, should be updated:
-release = "1.0.0"
-version = "1.0"
-# The full version, including alpha/beta/rc tags.
-# release = fmu.settings.__version__
-# The short version, like 3.0
-# version = ".".join(release.split(".")[:2])
+release = fmu.settings.__version__
+version = ".".join(release.split(".")[:2])
 
 
 html_theme = "furo"

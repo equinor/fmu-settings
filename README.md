@@ -1,6 +1,15 @@
 # fmu-settings
 
 [![ci](https://github.com/equinor/fmu-settings/actions/workflows/ci.yml/badge.svg)](https://github.com/equinor/fmu-settings/actions/workflows/ci.yml)
+![ReadTheDocs](https://readthedocs.org/projects/fmu-settings/badge/?version=latest&style=flat)
+
+---
+
+**Documentation**: <a href="https://fmu-settings.readthedocs.io/en/latest/" target="_blank">https://fmu-settings.readthedocs.io/en/latest/</a>
+
+**Source Code**: <a href="https://github.com/equinor/fmu-settings/" target="_blank">https://github.com/equinor/fmu-settings/</a>
+
+---
 
 **fmu-settings** is a package to manage and interface with `.fmu/`
 directories, where the FMU settings are contained.
