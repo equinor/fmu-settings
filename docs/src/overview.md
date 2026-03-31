@@ -1,6 +1,6 @@
 # Overview
 
-FMU Settings creates and manages the `.fmu/` folder in an FMU project.
+FMU Settings creates and manages the `.fmu/` folder within an FMU project.
 
 This folder is used to store project settings and metadata, and FMU Settings gives you a GUI for working with that content instead of editing configuration files manually.
 

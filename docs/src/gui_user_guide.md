@@ -17,6 +17,14 @@ The checklist tracks whether the project has:
 
 This guide follows that same setup flow.
 
+```{figure} _static/homepage.png
+:alt: FMU Settings home page
+:width: 900px
+:align: center
+
+The FMU Settings home page with the project setup checklist.
+```
+
 ## Start the application
 
 Start the GUI from the command line:
@@ -99,7 +107,7 @@ Supported classifications are:
 
 The *asset* specifies the target asset in Sumo where data will be uploaded. The *classification* sets the default information classification for the data.
 
-You can either pick a Sumo asset from the list or type it in yourself.
+Pick a Sumo asset from the list when possible. If you cannot find the asset there, you can type it in yourself.
 
 ## Step 2: Add the SMDA subscription key
 
@@ -139,7 +147,7 @@ If required data for editing masterdata is not present, the page tells you what 
 
 ## Step 4: Set up RMS project and stratigraphy
 
-The **RMS** page is where you connect the FMU project to its RMS project and set which stratigraphy zones that you want to map to SMDA stratigraphic columns.
+The **RMS** page is where you connect the FMU project to its RMS project and choose the project stratigraphy that can later be mapped to SMDA stratigraphic columns.
 
 ### Select RMS project
 
@@ -158,7 +166,7 @@ The stratigraphy editor shows:
 - the current project stratigraphy
 - the available RMS stratigraphy
 
-You can click zones to add or remove them. There are also **Add all** and **Remove all** buttons.
+You can click horizons and zones to add or remove them. There are also **Add all** and **Remove all** buttons.
 
 If the project contains horizons or zones that no longer exist in RMS, FMU Settings asks you to remove them before saving.
 
