@@ -22,6 +22,8 @@ Mappings means saved links between project-specific names or identifiers and off
 
 You normally do not need to edit anything inside `.fmu/` manually. FMU Settings is meant to manage that for you.
 
+If you want to inspect the schemas behind the project configuration and mappings, see [Data models](data_models.md).
+
 ## Why use this instead of editing global config YAML manually?
 
 Editing global config YAML files manually can work, but it also has some downsides:

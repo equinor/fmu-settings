@@ -17,12 +17,9 @@ extensions = [
     "myst_parser",
     # "pydantic_autosummary",
     "sphinx.ext.autodoc",
-    "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinx_autodoc_typehints",
-    "sphinx_togglebutton",
-    "sphinxcontrib.apidoc",
     "sphinxcontrib.autodoc_pydantic",
     "sphinx_copybutton",
 ]

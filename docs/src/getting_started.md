@@ -65,14 +65,12 @@ If you prefer, you can initialize the project from FMU Settings itself.
    ```
 
 2. Open the project selector:
-
    - from the start page by clicking **Select project**
    - or from **Project > Overview** by clicking the project select/change button
 
 3. Enter the project path in the text field.
 4. If the project does not yet have a `.fmu/` folder, FMU Settings asks whether you want to initialize it.
 5. The same initialization rules apply here as when running `fmu init` in the terminal:
-
    - the project folder must contain a subfolder `ert`
    - valid global config is searched for in `fmuconfig/output/global_variables.yml`
    - valid global config is also searched for in files matching `global*.yml` under `fmuconfig/input/`

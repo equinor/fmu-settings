@@ -106,15 +106,15 @@ The command also copies the `.fmu/` folder, so FMU Settings content is carried o
 
 The default profile is **4**. Use `--profile` to choose a different one:
 
-| Profile | What it does |
-|---------|-------------|
-| 1 | Copy everything |
-| 2 | Skip `backup/`, `users/`, `attic/`, `.git`/`.svn`, and files ending with `~` |
-| 3 | As profile 2, plus skip `ert/output`, `ert/*/storage`, `rms/input/seismic`, `rms/model/*.log`, `rms/output` files, `spotfire/` inputs and models, and `share/results` and `share/templates` |
-| 4 | As profile 3, but also removes empty folders at the destination *(default)* |
-| 5 | As profile 3, but keeps `rms/output`, `share/results`, and `share/templates` |
-| 6 | Only copy the `share/coviz/` folder |
-| 9 | Use a custom rsync filter file |
+| Profile | What it does                                                                                                                                                                                |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1       | Copy everything                                                                                                                                                                             |
+| 2       | Skip `backup/`, `users/`, `attic/`, `.git`/`.svn`, and files ending with `~`                                                                                                                |
+| 3       | As profile 2, plus skip `ert/output`, `ert/*/storage`, `rms/input/seismic`, `rms/model/*.log`, `rms/output` files, `spotfire/` inputs and models, and `share/results` and `share/templates` |
+| 4       | As profile 3, but also removes empty folders at the destination _(default)_                                                                                                                 |
+| 5       | As profile 3, but keeps `rms/output`, `share/results`, and `share/templates`                                                                                                                |
+| 6       | Only copy the `share/coviz/` folder                                                                                                                                                         |
+| 9       | Use a custom rsync filter file                                                                                                                                                              |
 
 ### Other options
 

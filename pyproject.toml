@@ -56,8 +56,6 @@ docs = [
     "sphinx",
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
-    "sphinx_togglebutton",
-    "sphinxcontrib-apidoc",
 ]
 
 [project.urls]

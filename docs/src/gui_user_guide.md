@@ -87,7 +87,7 @@ The **Model** section contains information about the model.
 - revision
 - description
 
-Each model needs a *name* and *revision*, usually matching your project's directory structure. For example, for the project path `/project/field/resmod/ff/25.0.0/`, the name would be *ff* and the revision *25.0.0*.
+Each model needs a _name_ and _revision_, usually matching your project's directory structure. For example, for the project path `/project/field/resmod/ff/25.0.0/`, the name would be _ff_ and the revision _25.0.0_.
 
 ### Access control
 
@@ -105,7 +105,9 @@ Supported classifications are:
 - `internal`
 - `restricted`
 
-The *asset* specifies the target asset in Sumo where data will be uploaded. The *classification* sets the default information classification for the data.
+The _asset_ specifies the target asset in Sumo where data will be uploaded. The _classification_ sets the default information classification for the data.
+
+Read more about access control in the <a href="https://fmu-docs.equinor.com/docs/sumo/documentation/access_control" target="_blank" rel="noopener noreferrer">Sumo documentation</a>.
 
 Pick a Sumo asset from the list when possible. If you cannot find the asset there, you can type it in yourself.
 
