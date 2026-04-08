@@ -49,11 +49,19 @@ dev = [
     "ruff",
     "types-PyYAML",
 ]
+docs = [
+    "autodoc_pydantic",
+    "furo",
+    "myst-parser",
+    "sphinx",
+    "sphinx_autodoc_typehints",
+    "sphinx_copybutton",
+]
 
 [project.urls]
 Homepage = "https://github.com/equinor/fmu-settings"
 Repository = "https://github.com/equinor/fmu-settings"
-Documentation = "https://github.com/equinor/fmu-settings"
+Documentation = "https://equinor.github.io/fmu-settings/"
 
 [tool.coverage.run]
 omit = [
