@@ -569,7 +569,9 @@ def test_project_config_structured_diff_uses_configured_list_keys(
     incoming_dict["masterdata"]["smda"]["discovery"].append(
         {"short_identifier": "NEW_DISCOVERY", "uuid": str(uuid.uuid4())}
     )
-    incoming_dict["masterdata"]["smda"]["field"] = []
+    incoming_dict["masterdata"]["smda"]["field"] = [
+        {"identifier": "DROGON", "uuid": str(uuid.uuid4())}
+    ]
 
     incoming_model = ProjectConfig.model_validate(incoming_dict)
 

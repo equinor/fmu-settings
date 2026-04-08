@@ -254,7 +254,7 @@ def fmuconfig_with_output(  # noqa: PLR0913 too many args
 def generate_strict_valid_globalconfiguration() -> Callable[[], GlobalConfiguration]:
     """Generates a global configuration that is valid, but can switch particular models.
 
-    All values are left empty by default.
+    Required country and field lists get minimal valid defaults.
     """
 
     def _generate_cfg(  # noqa: PLR0913
@@ -268,6 +268,11 @@ def generate_strict_valid_globalconfiguration() -> Callable[[], GlobalConfigurat
         field_items: list[FieldItem] | None = None,
         model: fields.Model | None = None,
     ) -> GlobalConfiguration:
+        if country_items is None:
+            country_items = [CountryItem(identifier="default_country", uuid=uuid4())]
+        if field_items is None:
+            field_items = [FieldItem(identifier="default_field", uuid=uuid4())]
+
         return GlobalConfiguration(
             access=Access(asset=asset or Asset(name=""), classification=classification),
             masterdata=Masterdata(
@@ -280,9 +285,9 @@ def generate_strict_valid_globalconfiguration() -> Callable[[], GlobalConfigurat
                         stratigraphic_column
                         or StratigraphicColumn(identifier="", uuid=uuid4())
                     ),
-                    country=country_items or [],
+                    country=country_items,
                     discovery=discovery_items or [],
-                    field=field_items or [],
+                    field=field_items,
                 )
             ),
             model=model or fields.Model(name="", revision=""),
