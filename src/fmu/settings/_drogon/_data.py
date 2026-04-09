@@ -17,7 +17,7 @@ MASTERDATA: Final[dict[str, Any]] = {
         "field": [
             {
                 "identifier": "DROGON",
-                "uuid": "ad214d85-8a1d-19da-e053-c918a4889309",
+                "uuid": "00000000-0000-0000-0000-000000000000",
             }
         ],
         "coordinate_system": {
@@ -26,7 +26,7 @@ MASTERDATA: Final[dict[str, Any]] = {
         },
         "stratigraphic_column": {
             "identifier": "DROGON_HAS_NO_STRATCOLUMN",
-            "uuid": "ad214d85-8a1d-19da-e053-c918a4889309",
+            "uuid": "00000000-0000-0000-0000-000000000000",
         },
     }
 }
