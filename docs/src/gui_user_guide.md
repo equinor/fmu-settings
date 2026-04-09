@@ -6,7 +6,7 @@ For most users, the main goal is simple: open the project and work through the c
 
 ## Project setup checklist
 
-On the home page, FMU Settings shows a checklist that helps you see what is still missing.
+On the home page, FMU Settings shows a checklist that helps you see what is missing to complete your project configuration.
 
 The checklist tracks whether the project has:
 
@@ -44,7 +44,7 @@ In the project selector dialog you can:
 - choose one of your recent projects
 - enter a project path manually
 
-If the project already has a `.fmu/` folder, it opens directly.
+If the project is already initialized (has a `.fmu` folder), it opens directly.
 
 If the project has not been initialized yet, FMU Settings can do that for you and then open it. See [Getting started](getting_started.md) for more information about initializing a project.
 
@@ -81,7 +81,7 @@ If the project is read-only, try **Enable editing**. If someone else is already 
 
 ### Model
 
-The **Model** section contains information about the model.
+The **Model** section contains information about the model:
 
 - name
 - revision
