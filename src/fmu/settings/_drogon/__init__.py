@@ -1,4 +1,3 @@
-from .__main__ import create_drogon_fmu_dir
 from ._data import (
     ACCESS,
     GLOBAL_CONFIG_STRATIGRAPHY,
@@ -11,6 +10,7 @@ from ._data import (
     RMS_ZONES,
     STRATIGRAPHY_MAPPINGS,
 )
+from .create import create_drogon_fmu_dir
 
 __all__ = [
     "create_drogon_fmu_dir",
