@@ -1,116 +1,55 @@
 # Getting started
 
-This page covers two different situations:
+To get started, initialize FMU Settings for your project. This creates the hidden `.fmu` folder used to store project settings.
 
-1. You are setting up FMU Settings for a project that does not yet have a `.fmu/` folder.
-2. You already have a `.fmu/` folder and just want to open the project.
+## Initialize FMU Settings
 
-## If the project does not yet have `.fmu/`
+Initialization is done in the terminal in your TGX session.
 
-For a new project, we recommend initializing it from the terminal first.
+To initialize FMU Settings you must be in you FMU projects `root` folder, meaning in a folder that contains a subfolder called `ert`.
 
-### Recommended: initialize from the terminal
+Example of a how a standard project path could look like:
 
-To initialize the project, FMU Settings expects a valid FMU project root. At the moment, that means the project folder must contain a subfolder `ert`.
+`project/ff/resmod/25.0.0/ert/model`
 
-For example, this would be a valid project root:
-
-`/path/to/my_project`
-
-if it contains:
-
-`/path/to/my_project/ert`
+In this example the `25.0.0` folder is the root folder, as it contains a subfolder called `ert`. This is how FMU Settings identifies your project as a FMU project.
 
 1. Go to the project root:
-
    ```bash
    cd /path/to/project
    ```
-
-2. Run:
-
+2. From here, run the command:
    ```bash
    fmu init
    ```
+The `fmu init` command will create a `.fmu` folder at this location in the project path. (Remember, it will be a hidden folder so it will not be listed by the command `ll` or `ls`).
 
-`fmu init` creates a `.fmu/` folder in the project path.
+**You have now initialized FMU Settings and created your `.fmu` folder.**
 
-When a project is initialized, FMU Settings looks for existing global FMU configuration in these locations:
-
+The initialization triggers FMU Settings to look for existing global config files in these locations:
 - `fmuconfig/output/global_variables.yml`
 - files matching `global*.yml` under `fmuconfig/input/`
 
-If valid configuration is found, FMU Settings imports the available data into the project config. This can include:
-
+If any valid configuration is found here, FMU Settings will import the available data, so that you will not have to configure everything again. This can include data in the global config sections:
 - `masterdata`
 - `model`
 - `access`
 
-Stratigraphy is not imported by `fmu init`. You can continue that setup later in the GUI.
+**NB: Stratigraphy is not imported. Stratigraphy data has to be configured directly in the GUI.**
 
 3. Open FMU Settings:
-
    ```bash
    fmu settings
    ```
 
-### You can also initialize from the GUI
-
-If you prefer, you can initialize the project from FMU Settings itself.
-
-1. Start the application:
-
-   ```bash
-   fmu settings
-   ```
-
-2. Open the project selector:
-   - from the start page by clicking **Select project**
-   - or from **Project > Overview** by clicking the project select/change button
-
-3. Enter the project path in the text field.
-4. If the project does not yet have a `.fmu/` folder, FMU Settings asks whether you want to initialize it.
-5. The same initialization rules apply here as when running `fmu init` in the terminal:
-   - the project folder must contain a subfolder `ert`
-   - valid global config is searched for in `fmuconfig/output/global_variables.yml`
-   - valid global config is also searched for in files matching `global*.yml` under `fmuconfig/input/`
-   - available `masterdata`, `model`, and `access` are imported automatically
-
-6. Confirm, and the application will create `.fmu/` and open the project.
-
-## If the project already has `.fmu/`
-
-If the project is already initialized, you can open it in either of these ways.
-
-### Open it directly from the project folder
-
-1. Go to the project path:
-
+## How to open FMU Settings from the project folder when you already have `.fmu` in place:
+1. Go to the project root:
    ```bash
    cd /path/to/project
    ```
-
 2. Run:
-
    ```bash
    fmu settings
    ```
 
-If you start FMU Settings from the project path, it will automatically open that project.
-
-### Open it from anywhere
-
-You can also start FMU Settings from any location:
-
-```bash
-fmu settings
-```
-
-Then open the project by:
-
-- choosing it from **recent projects**
-- or entering the project path manually
-
-## Next step
-
-Once the project is open, continue with the [GUI user guide](gui_user_guide.md).
+Once the FMU Settings project is open, continue with the [GUI user guide](gui_user_guide.md).
