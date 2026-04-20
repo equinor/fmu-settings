@@ -69,6 +69,7 @@ class RmsProject(BaseModel):
     zones: list[RmsStratigraphicZone] | None = None
     horizons: list[RmsHorizon] | None = None
     wells: list[RmsWell] | None = None
+    planned_wells: list[str] | None = None
 
 
 class ProjectConfig(ResettableBaseModel):

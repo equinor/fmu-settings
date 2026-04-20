@@ -6,9 +6,12 @@ from typing import TYPE_CHECKING
 import pytest
 from fmu.datamodels.context.mappings import (
     DataSystem,
+    MappingType,
     RelationType,
     StratigraphyIdentifierMapping,
     StratigraphyMappings,
+    WellboreIdentifierMapping,
+    WellboreMappings,
 )
 
 from fmu.settings._drogon import GLOBAL_CONFIG_STRATIGRAPHY
@@ -138,6 +141,121 @@ def test_mappings_manager_update_stratigraphy_mappings_writes_to_changelog(
     assert len(mappings_manager.fmu_dir._changelog.load()) == expected_no_of_mappings
 
 
+def test_merge_well_mappings_updates_when_resource_does_not_exist(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Merging into a missing mappings resource should create it."""
+    mappings_manager = MappingsManager(fmu_dir)
+
+    merged = mappings_manager.merge_well_mappings(
+        WellboreMappings(
+            root=[
+                WellboreIdentifierMapping(
+                    source_system=DataSystem.rms,
+                    target_system=DataSystem.simulator,
+                    mapping_type=MappingType.wellbore,
+                    relation_type=RelationType.primary,
+                    source_id="30_9-B-21_O",
+                    source_uuid=None,
+                    target_id="B21C",
+                    target_uuid=None,
+                )
+            ]
+        )
+    )
+
+    assert mappings_manager.exists is True
+    assert merged == WellboreMappings(
+        root=[
+            WellboreIdentifierMapping(
+                source_system=DataSystem.rms,
+                target_system=DataSystem.simulator,
+                mapping_type=MappingType.wellbore,
+                relation_type=RelationType.primary,
+                source_id="30_9-B-21_O",
+                source_uuid=None,
+                target_id="B21C",
+                target_uuid=None,
+            )
+        ]
+    )
+
+
+def test_merge_well_mappings_prefers_incoming_conflicts(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Incoming well mappings replace existing mappings on conflict."""
+    mappings_manager = MappingsManager(fmu_dir)
+    mappings_manager.update_well_mappings(
+        WellboreMappings(
+            root=[
+                WellboreIdentifierMapping(
+                    source_system=DataSystem.rms,
+                    target_system=DataSystem.simulator,
+                    mapping_type=MappingType.wellbore,
+                    relation_type=RelationType.primary,
+                    source_id="30_9-B-43_A",
+                    source_uuid=None,
+                    target_id="B43A",
+                    target_uuid=None,
+                )
+            ]
+        )
+    )
+
+    merged = mappings_manager.merge_well_mappings(
+        WellboreMappings(
+            root=[
+                WellboreIdentifierMapping(
+                    source_system=DataSystem.rms,
+                    target_system=DataSystem.simulator,
+                    mapping_type=MappingType.wellbore,
+                    relation_type=RelationType.primary,
+                    source_id="30_9-B-43_A",
+                    source_uuid=None,
+                    target_id="B43A_FROM_CSV",
+                    target_uuid=None,
+                ),
+                WellboreIdentifierMapping(
+                    source_system=DataSystem.rms,
+                    target_system=DataSystem.simulator,
+                    mapping_type=MappingType.wellbore,
+                    relation_type=RelationType.primary,
+                    source_id="30_9-B-21_O",
+                    source_uuid=None,
+                    target_id="B21C",
+                    target_uuid=None,
+                ),
+            ]
+        )
+    )
+
+    assert merged == WellboreMappings(
+        root=[
+            WellboreIdentifierMapping(
+                source_system=DataSystem.rms,
+                target_system=DataSystem.simulator,
+                mapping_type=MappingType.wellbore,
+                relation_type=RelationType.primary,
+                source_id="30_9-B-43_A",
+                source_uuid=None,
+                target_id="B43A_FROM_CSV",
+                target_uuid=None,
+            ),
+            WellboreIdentifierMapping(
+                source_system=DataSystem.rms,
+                target_system=DataSystem.simulator,
+                mapping_type=MappingType.wellbore,
+                relation_type=RelationType.primary,
+                source_id="30_9-B-21_O",
+                source_uuid=None,
+                target_id="B21C",
+                target_uuid=None,
+            ),
+        ]
+    )
+
+
 def test_mappings_manager_diff(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
@@ -204,10 +322,10 @@ def test_mappings_manager_merge_mappings(
     extra_fmu_dir: ProjectFMUDirectory,
     stratigraphy_mappings: StratigraphyMappings,
 ) -> None:
-    """Tests that mappings from the incoming resource will overwrite current mappings.
+    """Tests incoming stratigraphy overwrites while wells use merge semantics.
 
-    The current resource should be updated with all the mappings
-    from the incoming resource.
+    The current resource should replace stratigraphy with the incoming section
+    and merge incoming well mappings into the existing wells section.
     """
     mappings_manager: MappingsManager = MappingsManager(fmu_dir)
     mappings_manager.update_stratigraphy_mappings(stratigraphy_mappings)
@@ -247,24 +365,37 @@ def test_mappings_manager_merge_mappings(
         == new_mappings_manager.stratigraphy_mappings
     )
 
-    mappings = mappings_manager.load()
-    mappings.wells = ["test"]
-    mappings_manager.save(mappings)
-    assert mappings.wells == ["test"]
+    mappings_manager.update_well_mappings(
+        WellboreMappings(
+            root=[
+                WellboreIdentifierMapping(
+                    source_system=DataSystem.rms,
+                    target_system=DataSystem.simulator,
+                    mapping_type=MappingType.wellbore,
+                    relation_type=RelationType.primary,
+                    source_id="30_9-B-43_A",
+                    source_uuid=None,
+                    target_id="B43A",
+                    target_uuid=None,
+                )
+            ]
+        )
+    )
 
     new_mappings_manager.save(Mappings())
-    with pytest.raises(NotImplementedError):
-        updated_mappings = mappings_manager.merge_mappings(new_mappings_manager)
+    updated_mappings = mappings_manager.merge_mappings(new_mappings_manager)
+    assert len(updated_mappings.wells) == 1
+    assert updated_mappings.wells[0].source_id == "30_9-B-43_A"
 
 
 def test_mappings_manager_merge_changes(
     fmu_dir: ProjectFMUDirectory,
     stratigraphy_mappings: StratigraphyMappings,
 ) -> None:
-    """Tests that mappings from the change object will overwrite current mappings.
+    """Tests incoming stratigraphy overwrites while wells use merge semantics.
 
-    The current resource should be updated with all the mappings
-    from the change object.
+    The current resource should replace stratigraphy with the incoming section
+    and merge incoming well mappings into the existing wells section.
     """
     mappings_manager: MappingsManager = MappingsManager(fmu_dir)
     mappings_manager.update_stratigraphy_mappings(stratigraphy_mappings)
@@ -298,10 +429,22 @@ def test_mappings_manager_merge_changes(
     assert updated_mappings.stratigraphy == new_mappings
     assert mappings_manager.stratigraphy_mappings == new_mappings
 
-    # Assert that merging of wells is not supported yet
-    change_object.wells = ["test"]
-    with pytest.raises(NotImplementedError):
-        updated_mappings = mappings_manager.merge_changes(change_object)
+    change_object.wells = WellboreMappings(
+        root=[
+            WellboreIdentifierMapping(
+                source_system=DataSystem.rms,
+                target_system=DataSystem.simulator,
+                mapping_type=MappingType.wellbore,
+                relation_type=RelationType.primary,
+                source_id="30_9-B-43_A",
+                source_uuid=None,
+                target_id="B43A",
+                target_uuid=None,
+            )
+        ]
+    )
+    updated_mappings = mappings_manager.merge_changes(change_object)
+    assert len(updated_mappings.wells) == 1
 
 
 def test_mappings_manager_structured_diff_uses_full_item_identity(
