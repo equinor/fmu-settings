@@ -4,7 +4,6 @@ import copy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
-from fmu.datamodels.context.mappings import WellboreMappings
 from fmu.datamodels.fmu_results.global_configuration import Stratigraphy
 from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
 from fmu.settings.models.mappings import Mappings, RelationType
@@ -13,7 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     # Avoid circular dependency for type hint in __init__ only
-    from fmu.datamodels.context.mappings import StratigraphyMappings
+    from fmu.datamodels.context.mappings import StratigraphyMappings, WellboreMappings
     from fmu.settings._fmu_dir import ProjectFMUDirectory
 
 
@@ -36,7 +35,7 @@ class MappingsManager(PydanticResourceManager[Mappings]):
         """List field identity keys used for per-item diffing."""
         return {
             "stratigraphy.root": "__full__",
-            "wells.root": "__full__",
+            "wellbore.root": "__full__",
         }
 
     @property
@@ -45,9 +44,9 @@ class MappingsManager(PydanticResourceManager[Mappings]):
         return self.load().stratigraphy
 
     @property
-    def well_mappings(self: Self) -> WellboreMappings:
+    def wellbore_mappings(self: Self) -> WellboreMappings:
         """Get all wellbore mappings."""
-        return self.load().wells
+        return self.load().wellbore
 
     def update_stratigraphy_mappings(
         self: Self, strat_mappings: StratigraphyMappings
@@ -67,76 +66,23 @@ class MappingsManager(PydanticResourceManager[Mappings]):
 
         return self.stratigraphy_mappings
 
-    def update_well_mappings(
-        self: Self, well_mappings: WellboreMappings
+    def update_wellbore_mappings(
+        self: Self, wellbore_mappings: WellboreMappings
     ) -> WellboreMappings:
         """Updates the wellbore mappings in the mappings resource."""
         mappings: Mappings = self.load() if self.exists else Mappings()
 
         old_mappings_dict = copy.deepcopy(mappings.model_dump())
-        mappings.wells = well_mappings
+        mappings.wellbore = wellbore_mappings
         self.save(mappings)
 
         self.fmu_dir.changelog.log_update_to_changelog(
-            updates={"wells": mappings.wells},
+            updates={"wellbore": mappings.wellbore},
             old_resource_dict=old_mappings_dict,
             relative_path=self.relative_path,
         )
 
-        return self.well_mappings
-
-    def merge_well_mappings(
-        self: Self, well_mappings: WellboreMappings
-    ) -> WellboreMappings:
-        """Merge well mappings into the current mappings resource.
-
-        Incoming mappings are appended unless an existing mapping already exists
-        for the same wellbore mapping identity. In practice, that means the
-        existing mapping has the same source_system, target_system,
-        mapping_type, relation_type, and source_id. When that happens, the
-        incoming mapping replaces the existing mapping.
-
-        Args:
-            well_mappings: Incoming well mappings to merge into the current
-                mappings resource.
-
-        Returns:
-            The merged well mappings stored in the mappings resource.
-
-        Raises:
-            PermissionError: If the project is locked by another process.
-        """
-        if not self.exists:
-            return self.update_well_mappings(well_mappings)
-
-        existing_mappings = list(self.well_mappings.root)
-        existing_indexes = {
-            (
-                mapping.source_system,
-                mapping.target_system,
-                mapping.mapping_type,
-                mapping.relation_type,
-                mapping.source_id,
-            ): index
-            for index, mapping in enumerate(existing_mappings)
-        }
-
-        for mapping in well_mappings:
-            mapping_key = (
-                mapping.source_system,
-                mapping.target_system,
-                mapping.mapping_type,
-                mapping.relation_type,
-                mapping.source_id,
-            )
-            if mapping_key in existing_indexes:
-                existing_mappings[existing_indexes[mapping_key]] = mapping
-                continue
-
-            existing_mappings.append(mapping)
-            existing_indexes[mapping_key] = len(existing_mappings) - 1
-
-        return self.update_well_mappings(WellboreMappings(root=existing_mappings))
+        return self.wellbore_mappings
 
     def get_mappings_diff(self: Self, incoming_mappings: MappingsManager) -> Mappings:
         """Get mappings diff with the incoming mappings resource.
@@ -154,10 +100,8 @@ class MappingsManager(PydanticResourceManager[Mappings]):
     def merge_mappings(self: Self, incoming_mappings: MappingsManager) -> Mappings:
         """Merge the mappings from the incoming mappings resource.
 
-        Incoming stratigraphy mappings replace the current stratigraphy section.
-        Incoming well mappings are added to the current wells section. If an
-        incoming well mapping has the same identity as a current mapping, the
-        incoming mapping replaces the current one.
+        The current mappings will be updated with the mappings
+        from the incoming resource.
         """
         mappings_diff = self.get_mappings_diff(incoming_mappings)
         return self.merge_changes(mappings_diff)
@@ -165,15 +109,13 @@ class MappingsManager(PydanticResourceManager[Mappings]):
     def merge_changes(self: Self, changes: Mappings) -> Mappings:
         """Merge the mappings changes into the current mappings.
 
-        Incoming stratigraphy mappings replace the current stratigraphy section.
-        Incoming well mappings are added to the current wells section. If an
-        incoming well mapping has the same identity as a current mapping, the
-        incoming mapping replaces the current one.
+        The current mappings will be updated with the mappings
+        in the change object.
         """
         if len(changes.stratigraphy) > 0 or len(self.stratigraphy_mappings) > 0:
             self.update_stratigraphy_mappings(changes.stratigraphy)
-        if len(changes.wells) > 0 or len(self.well_mappings) > 0:
-            self.merge_well_mappings(changes.wells)
+        if len(changes.wellbore) > 0 or len(self.wellbore_mappings) > 0:
+            self.update_wellbore_mappings(changes.wellbore)
         return self.load()
 
     def build_global_config_stratigraphy(self) -> Stratigraphy:  # noqa: PLR0912

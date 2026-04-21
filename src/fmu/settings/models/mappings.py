@@ -23,7 +23,9 @@ class Mappings(BaseModel):
     )
     """Stratigraphy mappings in the mappings file."""
 
-    wells: WellboreMappings = Field(default_factory=lambda: WellboreMappings(root=[]))
+    wellbore: WellboreMappings = Field(
+        default_factory=lambda: WellboreMappings(root=[])
+    )
     """Wellbore mappings in the mappings file."""
 
 
