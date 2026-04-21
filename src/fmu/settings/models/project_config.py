@@ -54,10 +54,13 @@ class RmsHorizon(BaseModel):
 
 
 class RmsWell(BaseModel):
-    """A well from an RMS project."""
+    """A well from an RMS project with added metadata."""
 
     name: str
     """Name of the well."""
+
+    planned: bool = False
+    """Whether the well is planned."""
 
 
 class RmsProject(BaseModel):
@@ -69,7 +72,6 @@ class RmsProject(BaseModel):
     zones: list[RmsStratigraphicZone] | None = None
     horizons: list[RmsHorizon] | None = None
     wells: list[RmsWell] | None = None
-    planned_wells: list[str] | None = None
 
 
 class ProjectConfig(ResettableBaseModel):
