@@ -86,7 +86,7 @@ RMS_HORIZONS: Final[list[dict[str, Any]]] = [
     {"name": "BaseVelmodel", "type": "interpreted"},
 ]
 
-RMS_WELLS: Final[list[dict[str, Any]]] = [
+RMS_WELLS: Final[list[dict[str, str | bool]]] = [
     {"name": "55_33-1", "planned": False},
     {"name": "55_33-2", "planned": False},
     {"name": "55_33-3", "planned": False},
