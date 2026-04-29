@@ -4,26 +4,34 @@ import copy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
+from fmu.datamodels.context.mappings import (
+    RelationType,
+    StratigraphyMappings,
+    WellboreMappings,
+)
 from fmu.datamodels.fmu_results.global_configuration import Stratigraphy
 from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
-from fmu.settings.models.mappings import Mappings, RelationType
+from fmu.settings.models.mappings import (
+    FMUMappings,
+    FMUStratigraphyMappings,
+    FMUWellboreMappings,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     # Avoid circular dependency for type hint in __init__ only
-    from fmu.datamodels.context.mappings import StratigraphyMappings, WellboreMappings
     from fmu.settings._fmu_dir import ProjectFMUDirectory
 
 
-class MappingsManager(PydanticResourceManager[Mappings]):
+class MappingsManager(PydanticResourceManager[FMUMappings]):
     """Manages the .fmu mappings file."""
 
     fmu_dir: ProjectFMUDirectory
 
     def __init__(self: Self, fmu_dir: ProjectFMUDirectory) -> None:
         """Initializes the mappings resource manager."""
-        super().__init__(fmu_dir, Mappings)
+        super().__init__(fmu_dir, FMUMappings)
 
     @property
     def relative_path(self: Self) -> Path:
@@ -39,20 +47,30 @@ class MappingsManager(PydanticResourceManager[Mappings]):
         }
 
     @property
-    def stratigraphy_mappings(self: Self) -> StratigraphyMappings:
-        """Get all stratigraphy mappings."""
+    def fmu_stratigraphy_mappings(self: Self) -> FMUStratigraphyMappings:
+        """Get internal .fmu stratigraphy mappings."""
         return self.load().stratigraphy
 
     @property
-    def wellbore_mappings(self: Self) -> WellboreMappings:
-        """Get all wellbore mappings."""
+    def fmu_wellbore_mappings(self: Self) -> FMUWellboreMappings:
+        """Get internal .fmu wellbore mappings."""
         return self.load().wellbore
 
-    def update_stratigraphy_mappings(
-        self: Self, strat_mappings: StratigraphyMappings
-    ) -> StratigraphyMappings:
-        """Updates the stratigraphy mappings in the mappings resource."""
-        mappings: Mappings = self.load() if self.exists else Mappings()
+    @property
+    def stratigraphy_mappings(self: Self) -> StratigraphyMappings:
+        """Get stratigraphy mappings as a fmu-datamodels StratigraphyMappings."""
+        return self.fmu_stratigraphy_mappings.to_stratigraphy_mappings()
+
+    @property
+    def wellbore_mappings(self: Self) -> WellboreMappings:
+        """Get wellbore mappings as a fmu-datamodels WellboreMappings."""
+        return self.fmu_wellbore_mappings.to_wellbore_mappings()
+
+    def update_fmu_stratigraphy_mappings(
+        self: Self, strat_mappings: FMUStratigraphyMappings
+    ) -> FMUStratigraphyMappings:
+        """Updates the internal .fmu stratigraphy mappings resource."""
+        mappings: FMUMappings = self.load() if self.exists else FMUMappings()
 
         old_mappings_dict = copy.deepcopy(mappings.model_dump())
         mappings.stratigraphy = strat_mappings
@@ -64,13 +82,13 @@ class MappingsManager(PydanticResourceManager[Mappings]):
             relative_path=self.relative_path,
         )
 
-        return self.stratigraphy_mappings
+        return self.fmu_stratigraphy_mappings
 
-    def update_wellbore_mappings(
-        self: Self, wellbore_mappings: WellboreMappings
-    ) -> WellboreMappings:
-        """Updates the wellbore mappings in the mappings resource."""
-        mappings: Mappings = self.load() if self.exists else Mappings()
+    def update_fmu_wellbore_mappings(
+        self: Self, wellbore_mappings: FMUWellboreMappings
+    ) -> FMUWellboreMappings:
+        """Updates the internal .fmu wellbore mappings resource."""
+        mappings: FMUMappings = self.load() if self.exists else FMUMappings()
 
         old_mappings_dict = copy.deepcopy(mappings.model_dump())
         mappings.wellbore = wellbore_mappings
@@ -82,9 +100,11 @@ class MappingsManager(PydanticResourceManager[Mappings]):
             relative_path=self.relative_path,
         )
 
-        return self.wellbore_mappings
+        return self.fmu_wellbore_mappings
 
-    def get_mappings_diff(self: Self, incoming_mappings: MappingsManager) -> Mappings:
+    def get_mappings_diff(
+        self: Self, incoming_mappings: MappingsManager
+    ) -> FMUMappings:
         """Get mappings diff with the incoming mappings resource.
 
         All mappings from the incoming mappings resource are returned.
@@ -97,7 +117,7 @@ class MappingsManager(PydanticResourceManager[Mappings]):
             f"Incoming mappings resource exists: {incoming_mappings.exists}."
         )
 
-    def merge_mappings(self: Self, incoming_mappings: MappingsManager) -> Mappings:
+    def merge_mappings(self: Self, incoming_mappings: MappingsManager) -> FMUMappings:
         """Merge the mappings from the incoming mappings resource.
 
         The current mappings will be updated with the mappings
@@ -106,32 +126,35 @@ class MappingsManager(PydanticResourceManager[Mappings]):
         mappings_diff = self.get_mappings_diff(incoming_mappings)
         return self.merge_changes(mappings_diff)
 
-    def merge_changes(self: Self, changes: Mappings) -> Mappings:
+    def merge_changes(self: Self, changes: FMUMappings) -> FMUMappings:
         """Merge the mappings changes into the current mappings.
 
         The current mappings will be updated with the mappings
         in the change object.
         """
-        if len(changes.stratigraphy) > 0 or len(self.stratigraphy_mappings) > 0:
-            self.update_stratigraphy_mappings(changes.stratigraphy)
-        if len(changes.wellbore) > 0 or len(self.wellbore_mappings) > 0:
-            self.update_wellbore_mappings(changes.wellbore)
+        if len(changes.stratigraphy) > 0 or len(self.fmu_stratigraphy_mappings) > 0:
+            self.update_fmu_stratigraphy_mappings(changes.stratigraphy)
+        if len(changes.wellbore) > 0 or len(self.fmu_wellbore_mappings) > 0:
+            self.update_fmu_wellbore_mappings(changes.wellbore)
         return self.load()
 
-    def build_global_config_stratigraphy(self) -> Stratigraphy:  # noqa: PLR0912
+    def build_global_config_stratigraphy(self) -> Stratigraphy:
         """Build a global config stratigraphy from mappings and RMS config.
 
-        Combines stratigraphy mappings with RMS horizons and zones from the project
-        config to produce a stratigraphy suitable for a GlobalConfiguration.
+        Combines the fmu-datamodels stratigraphy mappings with RMS horizons
+        and zones from the project config to produce a stratigraphy suitable for a
+        GlobalConfiguration.
         """
         stratigraphy: dict[str, dict[str, Any]] = {}
-        mappings = self.load() if self.exists else Mappings()
+        stratigraphy_mappings = (
+            self.stratigraphy_mappings if self.exists else StratigraphyMappings(root=[])
+        )
 
         primaries: dict[str, str] = {}  # source_id -> target_id
         aliases_by_target: dict[str, list[str]] = {}  # target_id -> [alias source_ids]
 
         # Stratigraphic entries from stratigraphy mappings
-        for mapping in mappings.stratigraphy:
+        for mapping in stratigraphy_mappings:
             if mapping.relation_type == RelationType.primary:
                 primaries[mapping.source_id] = mapping.target_id
             elif mapping.relation_type == RelationType.alias:
