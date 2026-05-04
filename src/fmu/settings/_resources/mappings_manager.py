@@ -129,7 +129,6 @@ class MappingsManager(PydanticResourceManager[Mappings]):
 
         primaries: dict[str, str] = {}  # source_id -> target_id
         aliases_by_target: dict[str, list[str]] = {}  # target_id -> [alias source_ids]
-        equivalents_by_target: dict[str, list[str]] = {}
 
         # Stratigraphic entries from stratigraphy mappings
         for mapping in mappings.stratigraphy:
@@ -139,12 +138,7 @@ class MappingsManager(PydanticResourceManager[Mappings]):
                 aliases_by_target.setdefault(mapping.target_id, []).append(
                     mapping.source_id
                 )
-            elif mapping.relation_type == RelationType.equivalent:
-                equivalents_by_target.setdefault(mapping.target_id, []).append(
-                    mapping.source_id
-                )
 
-        primary_targets = set(primaries.values())
         for source_id, target_id in primaries.items():
             entry: dict[str, Any] = {
                 "stratigraphic": True,
@@ -153,16 +147,6 @@ class MappingsManager(PydanticResourceManager[Mappings]):
             if aliases := aliases_by_target.get(target_id):
                 entry["alias"] = aliases
             stratigraphy[source_id] = entry
-
-        # Keep equivalent-only mappings as valid stratigraphic entries even when
-        # there is no separate primary RMS identifier for the same official name
-        for target_id in equivalents_by_target:
-            if target_id in primary_targets:
-                continue
-            stratigraphy[target_id] = {
-                "stratigraphic": True,
-                "name": target_id,
-            }
 
         # Non-stratigraphic entries from RMS
         rms_config = self.fmu_dir.get_config_value("rms")

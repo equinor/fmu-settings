@@ -57,7 +57,6 @@ class MappingGroup(BaseModel):
 
         Validates that:
         - At most one primary mapping per mapping group
-        - At most one equivalent mapping per mapping group
         - Mapping group with alias mapping(s) requires a primary mapping
         - No duplicate mappings in a mappping group
         - All mappings in a mapping group share the same target_id, mapping_type,
@@ -80,12 +79,6 @@ class MappingGroup(BaseModel):
             raise ValueError(
                 f"MappingGroup for target '{self.target_id}' must contain at most one "
                 "primary mapping."
-            )
-
-        if self._count_mappings_by_relation_type(RelationType.equivalent) > 1:
-            raise ValueError(
-                f"MappingGroup for target '{self.target_id}' must contain at most one "
-                "equivalent mapping."
             )
 
         if has_alias_mapping and primary_mappings_count == 0:

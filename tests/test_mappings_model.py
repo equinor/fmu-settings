@@ -39,18 +39,16 @@ def test_mapping_group_count_mappings_by_relation_type() -> None:
     alias = _make_mapping("Viking gp", target_id, RelationType.alias)
     alias_two = _make_mapping("VIKING GP", target_id, RelationType.alias)
     alias_three = _make_mapping("viking.gp", target_id, RelationType.alias)
-    equivalent = _make_mapping("Viking GP.", target_id, RelationType.equivalent)
 
     mapping_group = MappingGroup(
         target_id=target_id,
         mapping_type=MappingType.stratigraphy,
         target_system=DataSystem.smda,
         source_system=DataSystem.rms,
-        mappings=[primary, alias, alias_two, alias_three, equivalent],
+        mappings=[primary, alias, alias_two, alias_three],
     )
 
     assert mapping_group._count_mappings_by_relation_type(RelationType.primary) == 1
-    assert mapping_group._count_mappings_by_relation_type(RelationType.equivalent) == 1
     expected_alias_mappings = 3
     assert (
         mapping_group._count_mappings_by_relation_type(RelationType.alias)
@@ -68,9 +66,6 @@ def test_mapping_group_serializes_without_system_and_target_fields() -> None:
     alias = _make_mapping(
         "Viking Group", target_id, RelationType.alias, target_uuid=target_uuid
     )
-    equivalent = _make_mapping(
-        target_id, target_id, RelationType.equivalent, target_uuid=target_uuid
-    )
 
     group = MappingGroup(
         target_id=target_id,
@@ -78,7 +73,7 @@ def test_mapping_group_serializes_without_system_and_target_fields() -> None:
         mapping_type=MappingType.stratigraphy,
         target_system=DataSystem.smda,
         source_system=DataSystem.rms,
-        mappings=[primary, alias, equivalent],
+        mappings=[primary, alias],
     )
 
     display_dict = group.model_dump()
@@ -112,21 +107,6 @@ def test_mapping_group_rejects_multiple_primary_mappings() -> None:
         )
 
 
-def test_mapping_group_rejects_multiple_equivalent_mappings() -> None:
-    """MappingGroup with more than one equivalent mapping raises ValidationError."""
-    target_id = "Viking GP."
-    equivalent = _make_mapping("Viking GP.", target_id, RelationType.equivalent)
-    equivalent_two = _make_mapping("Viking GP.", target_id, RelationType.equivalent)
-    with pytest.raises(ValidationError, match="at most one equivalent mapping."):
-        MappingGroup(
-            target_id=target_id,
-            mapping_type=MappingType.stratigraphy,
-            target_system=DataSystem.smda,
-            source_system=DataSystem.rms,
-            mappings=[equivalent, equivalent_two],
-        )
-
-
 def test_mapping_group_with_alias_requires_primary_relation() -> None:
     """MappingsGroup with alias mappings and no primary mapping raises ValidationError.
 
@@ -136,7 +116,6 @@ def test_mapping_group_with_alias_requires_primary_relation() -> None:
     target_id = "Viking GP."
     alias = _make_mapping("Viking gp", target_id, RelationType.alias)
     alias_two = _make_mapping("VIKING GP", target_id, RelationType.alias)
-    equivalent = _make_mapping("Viking GP.", target_id, RelationType.equivalent)
     with pytest.raises(
         ValidationError, match="contains alias relations but no primary relation."
     ):
@@ -145,7 +124,7 @@ def test_mapping_group_with_alias_requires_primary_relation() -> None:
             mapping_type=MappingType.stratigraphy,
             target_system=DataSystem.smda,
             source_system=DataSystem.rms,
-            mappings=[alias, alias_two, equivalent],
+            mappings=[alias, alias_two],
         )
 
 
@@ -187,7 +166,7 @@ def test_mapping_group_requires_shared_target_system() -> None:
         "Viking Gp 2",
         "Viking GP.",
         RelationType.alias,
-        target_system=DataSystem.fmu,
+        target_system=DataSystem.simulator,
     )
 
     with pytest.raises(ValidationError, match="target_system"):
@@ -207,7 +186,7 @@ def test_mapping_group_requires_shared_source_system() -> None:
         "Viking Gp 2",
         "Viking GP.",
         RelationType.alias,
-        source_system=DataSystem.fmu,
+        source_system=DataSystem.simulator,
     )
 
     with pytest.raises(ValidationError, match="source_system"):
