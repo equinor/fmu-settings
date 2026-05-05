@@ -18,7 +18,7 @@ from fmu.datamodels.context.mappings import (
 )
 
 
-class FMURelationType(StrEnum):
+class InternalRelationType(StrEnum):
     """The kind of relation a .fmu mapping represents."""
 
     primary = "primary"
@@ -31,13 +31,13 @@ class FMURelationType(StrEnum):
     """A source identifier that has been reviewed and cannot be mapped."""
 
 
-class FMUBaseMapping(BaseModel):
+class InternalBaseMapping(BaseModel):
     """Base mapping fields stored in a .fmu mappings file."""
 
     source_system: DataSystem
     target_system: DataSystem
     mapping_type: MappingType
-    relation_type: FMURelationType
+    relation_type: InternalRelationType
 
     @model_validator(mode="after")
     def validate_relation_system_constraints(self: Self) -> Self:
@@ -47,19 +47,19 @@ class FMUBaseMapping(BaseModel):
         Cross-system mappings can only be ``primary`` or ``unmappable``.
         """
         if self.source_system == self.target_system:
-            if self.relation_type == FMURelationType.unmappable:
+            if self.relation_type == InternalRelationType.unmappable:
                 raise ValueError(
                     "Same-system mapping cannot use relation_type 'unmappable'"
                 )
             return self
 
-        if self.relation_type == FMURelationType.alias:
+        if self.relation_type == InternalRelationType.alias:
             raise ValueError("Cross-system mapping cannot use relation_type 'alias'")
 
         return self
 
 
-class FMUIdentifierMapping(FMUBaseMapping):
+class InternalIdentifierMapping(InternalBaseMapping):
     """Identifier mapping stored in a .fmu mappings file."""
 
     source_id: str
@@ -97,7 +97,7 @@ class FMUIdentifierMapping(FMUBaseMapping):
         - same-system ``alias`` mappings must point to a different same-system
           ``target_id``
         """
-        if self.relation_type == FMURelationType.unmappable:
+        if self.relation_type == InternalRelationType.unmappable:
             if self.target_id is not None or self.target_uuid is not None:
                 raise ValueError(
                     "Unmappable mapping cannot define target_id or target_uuid"
@@ -110,7 +110,7 @@ class FMUIdentifierMapping(FMUBaseMapping):
             )
 
         if self.source_system == self.target_system:
-            if self.relation_type == FMURelationType.primary:
+            if self.relation_type == InternalRelationType.primary:
                 if self.source_id != self.target_id:
                     raise ValueError(
                         "Same-system primary mapping must have matching source_id "
@@ -119,7 +119,7 @@ class FMUIdentifierMapping(FMUBaseMapping):
                     )
                 return self
 
-            if self.relation_type == FMURelationType.alias:
+            if self.relation_type == InternalRelationType.alias:
                 if self.source_id == self.target_id:
                     raise ValueError(
                         "Same-system alias mapping must have different source_id "
@@ -131,22 +131,24 @@ class FMUIdentifierMapping(FMUBaseMapping):
         return self
 
 
-class FMUStratigraphyIdentifierMapping(FMUIdentifierMapping):
+class InternalStratigraphyIdentifierMapping(InternalIdentifierMapping):
     """Stratigraphy identifier mapping stored in a .fmu mappings file."""
 
     mapping_type: Literal[MappingType.stratigraphy] = MappingType.stratigraphy
 
 
-class FMUWellboreIdentifierMapping(FMUIdentifierMapping):
+class InternalWellboreIdentifierMapping(InternalIdentifierMapping):
     """Wellbore identifier mapping stored in a .fmu mappings file."""
 
     mapping_type: Literal[MappingType.wellbore] = MappingType.wellbore
 
 
-class FMUStratigraphyMappings(RootModel[list[FMUStratigraphyIdentifierMapping]]):
+class InternalStratigraphyMappings(
+    RootModel[list[InternalStratigraphyIdentifierMapping]]
+):
     """Collection of stratigraphy mappings stored in a .fmu mappings file."""
 
-    root: list[FMUStratigraphyIdentifierMapping]
+    root: list[InternalStratigraphyIdentifierMapping]
 
     @model_validator(mode="after")
     def validate_collection(self: Self) -> Self:
@@ -163,11 +165,11 @@ class FMUStratigraphyMappings(RootModel[list[FMUStratigraphyIdentifierMapping]])
             ]
         )
 
-    def __getitem__(self: Self, index: int) -> FMUStratigraphyIdentifierMapping:
+    def __getitem__(self: Self, index: int) -> InternalStratigraphyIdentifierMapping:
         """Retrieve a stratigraphy mapping from the list by index."""
         return self.root[index]
 
-    def __iter__(self: Self) -> Iterator[FMUStratigraphyIdentifierMapping]:  # type: ignore[override]
+    def __iter__(self: Self) -> Iterator[InternalStratigraphyIdentifierMapping]:  # type: ignore[override]
         """Return an iterator for the stratigraphy mappings."""
         return iter(self.root)
 
@@ -176,10 +178,10 @@ class FMUStratigraphyMappings(RootModel[list[FMUStratigraphyIdentifierMapping]])
         return len(self.root)
 
 
-class FMUWellboreMappings(RootModel[list[FMUWellboreIdentifierMapping]]):
+class InternalWellboreMappings(RootModel[list[InternalWellboreIdentifierMapping]]):
     """Collection of wellbore mappings stored in a .fmu mappings file."""
 
-    root: list[FMUWellboreIdentifierMapping]
+    root: list[InternalWellboreIdentifierMapping]
 
     @model_validator(mode="after")
     def validate_collection(self: Self) -> Self:
@@ -196,11 +198,11 @@ class FMUWellboreMappings(RootModel[list[FMUWellboreIdentifierMapping]]):
             ]
         )
 
-    def __getitem__(self: Self, index: int) -> FMUWellboreIdentifierMapping:
+    def __getitem__(self: Self, index: int) -> InternalWellboreIdentifierMapping:
         """Retrieve a wellbore mapping from the list by index."""
         return self.root[index]
 
-    def __iter__(self: Self) -> Iterator[FMUWellboreIdentifierMapping]:  # type: ignore[override]
+    def __iter__(self: Self) -> Iterator[InternalWellboreIdentifierMapping]:  # type: ignore[override]
         """Return an iterator for the wellbore mappings."""
         return iter(self.root)
 
@@ -209,22 +211,22 @@ class FMUWellboreMappings(RootModel[list[FMUWellboreIdentifierMapping]]):
         return len(self.root)
 
 
-class FMUMappings(BaseModel):
+class InternalMappings(BaseModel):
     """Represents the mappings file in a .fmu directory."""
 
-    stratigraphy: FMUStratigraphyMappings = Field(
-        default_factory=lambda: FMUStratigraphyMappings(root=[])
+    stratigraphy: InternalStratigraphyMappings = Field(
+        default_factory=lambda: InternalStratigraphyMappings(root=[])
     )
     """Stratigraphy mappings in the mappings file."""
 
-    wellbore: FMUWellboreMappings = Field(
-        default_factory=lambda: FMUWellboreMappings(root=[])
+    wellbore: InternalWellboreMappings = Field(
+        default_factory=lambda: InternalWellboreMappings(root=[])
     )
     """Wellbore mappings in the mappings file."""
 
 
 def _validate_identifier_mappings_collection(
-    mappings: Sequence[FMUIdentifierMapping],
+    mappings: Sequence[InternalIdentifierMapping],
 ) -> None:
     """Validate how mappings are allowed to fit together.
 
@@ -276,11 +278,11 @@ def _validate_identifier_mappings_collection(
     """
     same_system_source_keys: set[tuple[DataSystem, MappingType, str]] = set()
     same_system_primary_source_keys: set[tuple[DataSystem, MappingType, str]] = set()
-    same_system_aliases: list[FMUIdentifierMapping] = []
+    same_system_aliases: list[InternalIdentifierMapping] = []
     cross_system_source_keys: set[tuple[MappingType, DataSystem, DataSystem, str]] = (
         set()
     )
-    cross_system_mappings: list[FMUIdentifierMapping] = []
+    cross_system_mappings: list[InternalIdentifierMapping] = []
 
     for mapping in mappings:
         source_key = (
@@ -296,7 +298,7 @@ def _validate_identifier_mappings_collection(
                 raise ValueError("Same-system mappings cannot reuse the same source_id")
             same_system_source_keys.add(source_key)
 
-            if mapping.relation_type == FMURelationType.primary:
+            if mapping.relation_type == InternalRelationType.primary:
                 same_system_primary_source_keys.add(source_key)
             else:
                 same_system_aliases.append(mapping)
@@ -348,7 +350,7 @@ def _validate_identifier_mappings_collection(
 
 
 def _get_identifier_mapping_payloads(
-    mappings: Sequence[FMUIdentifierMapping],
+    mappings: Sequence[InternalIdentifierMapping],
 ) -> list[dict[str, Any]]:
     """Return payloads for the identifier mapping models from fmu-datamodels.
 
@@ -380,7 +382,7 @@ def _get_identifier_mapping_payloads(
     fmu-datamodels mapping payloads.
     """
     aliases_by_primary: dict[
-        tuple[MappingType, DataSystem, str], list[FMUIdentifierMapping]
+        tuple[MappingType, DataSystem, str], list[InternalIdentifierMapping]
     ] = {}
 
     # Group same-system aliases by the same-system primary id they point to.
@@ -415,32 +417,32 @@ def _get_identifier_mapping_payloads(
     return mapping_payloads
 
 
-def _is_same_system_alias(mapping: FMUIdentifierMapping) -> bool:
+def _is_same_system_alias(mapping: InternalIdentifierMapping) -> bool:
     """Return whether a mapping is a same-system alias."""
     return (
         mapping.source_system == mapping.target_system
-        and mapping.relation_type == FMURelationType.alias
+        and mapping.relation_type == InternalRelationType.alias
         and mapping.target_id is not None
     )
 
 
-def _is_cross_system_primary(mapping: FMUIdentifierMapping) -> bool:
+def _is_cross_system_primary(mapping: InternalIdentifierMapping) -> bool:
     """Return whether a mapping is a cross-system primary with a target."""
     return (
         mapping.source_system != mapping.target_system
-        and mapping.relation_type == FMURelationType.primary
+        and mapping.relation_type == InternalRelationType.primary
         and mapping.target_id is not None
     )
 
 
 def _primary_key(
-    mapping: FMUIdentifierMapping, source_id: str
+    mapping: InternalIdentifierMapping, source_id: str
 ) -> tuple[MappingType, DataSystem, str]:
     """Return the grouping key for mappings related to a primary source id."""
     return mapping.mapping_type, mapping.source_system, source_id
 
 
-def _to_mapping_payload(mapping: FMUIdentifierMapping) -> dict[str, Any]:
+def _to_mapping_payload(mapping: InternalIdentifierMapping) -> dict[str, Any]:
     """Return a payload compatible with fmu-datamodels mapping models."""
     payload = mapping.model_dump()
     payload["relation_type"] = RelationType(mapping.relation_type.value)

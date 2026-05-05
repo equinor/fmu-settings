@@ -34,27 +34,29 @@ from fmu.settings.models._enums import ChangeType
 from fmu.settings.models.change_info import ChangeInfo
 from fmu.settings.models.log import Log
 from fmu.settings.models.mappings import (
-    FMUMappings,
-    FMURelationType,
-    FMUStratigraphyIdentifierMapping,
-    FMUStratigraphyMappings,
+    InternalMappings,
+    InternalRelationType,
+    InternalStratigraphyIdentifierMapping,
+    InternalStratigraphyMappings,
 )
 
 
-def _stratigraphy_mappings(source_id: str, target_id: str) -> FMUStratigraphyMappings:
-    return FMUStratigraphyMappings(
+def _stratigraphy_mappings(
+    source_id: str, target_id: str
+) -> InternalStratigraphyMappings:
+    return InternalStratigraphyMappings(
         root=[
-            FMUStratigraphyIdentifierMapping(
+            InternalStratigraphyIdentifierMapping(
                 source_system=DataSystem.rms,
                 target_system=DataSystem.rms,
-                relation_type=FMURelationType.primary,
+                relation_type=InternalRelationType.primary,
                 source_id=source_id,
                 target_id=source_id,
             ),
-            FMUStratigraphyIdentifierMapping(
+            InternalStratigraphyIdentifierMapping(
                 source_system=DataSystem.rms,
                 target_system=DataSystem.smda,
-                relation_type=FMURelationType.primary,
+                relation_type=InternalRelationType.primary,
                 source_id=source_id,
                 target_id=target_id,
             ),
@@ -301,7 +303,7 @@ def test_restore_from_cache_restores_mappings(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Restoring mappings should refresh the resource cache."""
-    cached_mappings = FMUMappings(
+    cached_mappings = InternalMappings(
         stratigraphy=_stratigraphy_mappings("TopVolantis", "VOLANTIS GP. Top")
     )
     snapshot = fmu_dir.cache.store_revision(
@@ -310,7 +312,7 @@ def test_restore_from_cache_restores_mappings(
     )
     assert snapshot is not None
 
-    current_mappings = FMUMappings(
+    current_mappings = InternalMappings(
         stratigraphy=_stratigraphy_mappings("TopTherys", "THERYS GP. Top")
     )
     fmu_dir.mappings.save(current_mappings)
@@ -623,7 +625,7 @@ def test_restore_rebuilds_project_fmu_from_cache(
     """Tests that restore should recreate missing files using cached config data."""
     fmu_dir.update_config({"version": "123.4.5"})
     cached_dump = json.loads((fmu_dir.path / "config.json").read_text())
-    fmu_dir.mappings.update_fmu_stratigraphy_mappings(
+    fmu_dir.mappings.update_internal_stratigraphy_mappings(
         _stratigraphy_mappings("TopVolantis", "VOLANTIS GP. Top")
     )
     cached_mappings_dump = json.loads((fmu_dir.path / "mappings.json").read_text())
@@ -708,7 +710,7 @@ def test_list_restorable_files_reports_missing_project_files(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Tests list_restorable_files reports only files restore would recreate."""
-    fmu_dir.mappings.update_fmu_stratigraphy_mappings(
+    fmu_dir.mappings.update_internal_stratigraphy_mappings(
         _stratigraphy_mappings("TopVolantis", "VOLANTIS GP. Top")
     )
 
@@ -734,7 +736,7 @@ def test_list_restorable_files_skips_project_mappings_without_cache(
     assert fmu_dir.list_restorable_files() == []
 
 
-def test_fmu_directory_base_exposes_lock_timeout_kwarg() -> None:
+def test_internal_directory_base_exposes_lock_timeout_kwarg() -> None:
     """Tests that the kw-only lock timeout argument remains available."""
     signature = inspect.signature(FMUDirectoryBase.__init__)
     lock_timeout = signature.parameters.get("lock_timeout_seconds")
@@ -868,7 +870,7 @@ def test_find_rms_projects_with_config_path(
     assert fmu_dir2.get_config_value("rms").path == rms_project
 
 
-def test_fmu_directory_base_get_dir_diff_with_other_fmu_dir(
+def test_internal_directory_base_get_dir_diff_with_other_fmu_dir(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
@@ -886,7 +888,7 @@ def test_fmu_directory_base_get_dir_diff_with_other_fmu_dir(
     assert diff_fmu_dir["config"][0][2] == Masterdata.model_validate(masterdata_dict)
 
 
-def test_fmu_directory_base_get_dir_diff_only_diff_whitelisted_resources(
+def test_internal_directory_base_get_dir_diff_only_diff_whitelisted_resources(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
@@ -908,7 +910,7 @@ def test_fmu_directory_base_get_dir_diff_only_diff_whitelisted_resources(
     assert "_lock" not in diff_fmu_dir
 
 
-def test_fmu_directory_base_get_dir_diff_skip_when_resource_not_exist(
+def test_internal_directory_base_get_dir_diff_skip_when_resource_not_exist(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -924,7 +926,7 @@ def test_fmu_directory_base_get_dir_diff_skip_when_resource_not_exist(
     assert len(diff_fmu_dir) == 0
 
 
-def test_fmu_directory_base_sync_dir_with_other_fmu_dir(
+def test_internal_directory_base_sync_dir_with_other_fmu_dir(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
@@ -946,7 +948,7 @@ def test_fmu_directory_base_sync_dir_with_other_fmu_dir(
     assert new_fmu_dir.config.load().masterdata == fmu_dir.config.load().masterdata
 
 
-def test_fmu_directory_base_sync_dir_only_whitelisted_resources(
+def test_internal_directory_base_sync_dir_only_whitelisted_resources(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
@@ -969,7 +971,7 @@ def test_fmu_directory_base_sync_dir_only_whitelisted_resources(
     assert not fmu_dir._lock.exists
 
 
-def test_fmu_directory_base_sync_dir_skip_when_resource_not_exist(
+def test_internal_directory_base_sync_dir_skip_when_resource_not_exist(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -984,7 +986,7 @@ def test_fmu_directory_base_sync_dir_skip_when_resource_not_exist(
     assert len(updates) == 0
 
 
-def test_fmu_directory_base_sync_dir_skip_when_no_diff(
+def test_internal_directory_base_sync_dir_skip_when_no_diff(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1001,7 +1003,7 @@ def test_fmu_directory_base_sync_dir_skip_when_no_diff(
     assert len(updates) == 0
 
 
-def test_fmu_directory_base_sync_runtime_variables(
+def test_internal_directory_base_sync_runtime_variables(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1169,7 +1171,7 @@ def test_restore_from_cache_higher_cache_max_revisions_does_not_trim_to_old_limi
     assert len(fmu_dir.cache.list_revisions("config.json")) == expected_revision_count
 
 
-def test_fmu_directory_base_get_dir_diff_with_same_changelog(
+def test_internal_directory_base_get_dir_diff_with_same_changelog(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1191,7 +1193,7 @@ def test_fmu_directory_base_get_dir_diff_with_same_changelog(
         assert len(change_list) == 0, f"Resource {resource} has changes"
 
 
-def test_fmu_directory_base_get_dir_diff_with_changelog(
+def test_internal_directory_base_get_dir_diff_with_changelog(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1239,7 +1241,7 @@ def test_fmu_directory_base_get_dir_diff_with_changelog(
     assert changelog_diff[0][2].root[0] == new_log_entry
 
 
-def test_fmu_directory_base_sync_dir_with_changelog(
+def test_internal_directory_base_sync_dir_with_changelog(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1285,7 +1287,7 @@ def test_fmu_directory_base_sync_dir_with_changelog(
     assert updated_changelog[2].path == fmu_dir.path
 
 
-def test_fmu_directory_base_sync_dir_with_all_resources(
+def test_internal_directory_base_sync_dir_with_all_resources(
     fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
     extra_fmu_dir: ProjectFMUDirectory,
@@ -1297,10 +1299,12 @@ def test_fmu_directory_base_sync_dir_with_all_resources(
     assert len(fmu_dir._changelog.load()) == 1
     assert fmu_dir._changelog.load()[0].change_type == ChangeType.update
 
-    fmu_dir._mappings.update_fmu_stratigraphy_mappings(FMUStratigraphyMappings(root=[]))
+    fmu_dir._mappings.update_internal_stratigraphy_mappings(
+        InternalStratigraphyMappings(root=[])
+    )
     new_fmu_dir = extra_fmu_dir
     new_strat_mappings = _stratigraphy_mappings("TopViking", "VIKING GP. Top")
-    new_fmu_dir._mappings.update_fmu_stratigraphy_mappings(new_strat_mappings)
+    new_fmu_dir._mappings.update_internal_stratigraphy_mappings(new_strat_mappings)
 
     assert len(new_fmu_dir._changelog.load()) == 1
     assert new_fmu_dir._changelog.load()[0].key == "stratigraphy"
@@ -1314,9 +1318,9 @@ def test_fmu_directory_base_sync_dir_with_all_resources(
     assert fmu_dir.config.load().masterdata is None
 
     assert "_mappings" in updated_resources
-    assert len(fmu_dir._mappings.fmu_wellbore_mappings) == 0
-    assert len(fmu_dir._mappings.fmu_stratigraphy_mappings) == 2
-    assert fmu_dir._mappings.fmu_stratigraphy_mappings == new_strat_mappings
+    assert len(fmu_dir._mappings.internal_wellbore_mappings) == 0
+    assert len(fmu_dir._mappings.internal_stratigraphy_mappings) == 2
+    assert fmu_dir._mappings.internal_stratigraphy_mappings == new_strat_mappings
 
     assert "_changelog" in updated_resources
     updated_changelog: Log[ChangeInfo] = updated_resources["_changelog"]
@@ -1347,7 +1351,7 @@ def test_fmu_directory_base_sync_dir_with_all_resources(
     assert "_mappings" in updated_changelog[5].file
 
 
-def test_fmu_directory_base_sync_dir_dont_sync_ignored_fields(
+def test_internal_directory_base_sync_dir_dont_sync_ignored_fields(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1414,17 +1418,17 @@ def test_fmu_directory_base_sync_dir_dont_sync_ignored_fields(
     assert "Old value: user -> New value: johndoe" in updates["_changelog"][4].change
 
 
-def test_fmu_directory_base_get_dir_diff_with_mappings(
+def test_internal_directory_base_get_dir_diff_with_mappings(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Tests getting the diff with another .fmu directory with mappings."""
     strat_mappings = _stratigraphy_mappings("TopViking", "VIKING GP. Top")
-    fmu_dir._mappings.update_fmu_stratigraphy_mappings(strat_mappings)
+    fmu_dir._mappings.update_internal_stratigraphy_mappings(strat_mappings)
 
     new_fmu_dir = extra_fmu_dir
     new_strat_mappings = _stratigraphy_mappings("TopVolantis", "VOLANTIS GP. Top")
-    new_fmu_dir._mappings.update_fmu_stratigraphy_mappings(new_strat_mappings)
+    new_fmu_dir._mappings.update_internal_stratigraphy_mappings(new_strat_mappings)
 
     old_fmu_dir = copy.deepcopy(fmu_dir)
     dir_diff = fmu_dir.get_dir_diff(new_fmu_dir)
@@ -1440,7 +1444,7 @@ def test_fmu_directory_base_get_dir_diff_with_mappings(
     mappings_diff = dir_diff["_mappings"][0]
     assert mappings_diff[0] == "mappings"
     assert mappings_diff[1] is None
-    assert isinstance(mappings_diff[2], FMUMappings)
+    assert isinstance(mappings_diff[2], InternalMappings)
     assert len(mappings_diff[2].wellbore) == 0
     assert len(mappings_diff[2].stratigraphy) == 2
     assert mappings_diff[2].stratigraphy == new_strat_mappings
@@ -1459,26 +1463,26 @@ def test_fmu_directory_base_get_dir_diff_with_mappings(
     assert changelog_diff[2][0].file == "mappings.json"
 
 
-def test_fmu_directory_base_sync_dir_with_mappings(
+def test_internal_directory_base_sync_dir_with_mappings(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Tests syncing mappings resource with another .fmu directory."""
     strat_mappings = _stratigraphy_mappings("TopViking", "VIKING GP. Top")
-    fmu_dir._mappings.update_fmu_stratigraphy_mappings(strat_mappings)
+    fmu_dir._mappings.update_internal_stratigraphy_mappings(strat_mappings)
 
     new_fmu_dir = extra_fmu_dir
     new_strat_mappings = _stratigraphy_mappings("TopVolantis", "VOLANTIS GP. Top")
-    new_fmu_dir._mappings.update_fmu_stratigraphy_mappings(new_strat_mappings)
+    new_fmu_dir._mappings.update_internal_stratigraphy_mappings(new_strat_mappings)
 
     updates = fmu_dir.sync_dir(new_fmu_dir)
 
     # Assert mappings are updated as expected
     assert "_mappings" in updates
     assert updates["_mappings"] == fmu_dir._mappings.load()
-    assert len(fmu_dir._mappings.fmu_wellbore_mappings) == 0
-    assert len(fmu_dir._mappings.fmu_stratigraphy_mappings) == 2
-    assert fmu_dir._mappings.fmu_stratigraphy_mappings == new_strat_mappings
+    assert len(fmu_dir._mappings.internal_wellbore_mappings) == 0
+    assert len(fmu_dir._mappings.internal_stratigraphy_mappings) == 2
+    assert fmu_dir._mappings.internal_stratigraphy_mappings == new_strat_mappings
 
     # Assert no config changes
     assert "config" not in updates

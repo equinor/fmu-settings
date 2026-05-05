@@ -11,14 +11,14 @@ from fmu.datamodels.context.mappings import (
 )
 
 from fmu.settings.models.mappings import (
-    FMUBaseMapping,
-    FMUIdentifierMapping,
-    FMUMappings,
-    FMURelationType,
-    FMUStratigraphyIdentifierMapping,
-    FMUStratigraphyMappings,
-    FMUWellboreIdentifierMapping,
-    FMUWellboreMappings,
+    InternalBaseMapping,
+    InternalIdentifierMapping,
+    InternalMappings,
+    InternalRelationType,
+    InternalStratigraphyIdentifierMapping,
+    InternalStratigraphyMappings,
+    InternalWellboreIdentifierMapping,
+    InternalWellboreMappings,
 )
 
 
@@ -26,12 +26,12 @@ def create_stratigraphy_mapping(
     *,
     source_system: DataSystem = DataSystem.rms,
     target_system: DataSystem = DataSystem.rms,
-    relation_type: FMURelationType = FMURelationType.primary,
+    relation_type: InternalRelationType = InternalRelationType.primary,
     source_id: str = "TopVolantis",
     target_id: str | None = "TopVolantis",
-) -> FMUStratigraphyIdentifierMapping:
+) -> InternalStratigraphyIdentifierMapping:
     """Build an internal .fmu stratigraphy mapping with sensible defaults."""
-    return FMUStratigraphyIdentifierMapping(
+    return InternalStratigraphyIdentifierMapping(
         source_system=source_system,
         target_system=target_system,
         relation_type=relation_type,
@@ -44,12 +44,12 @@ def create_wellbore_mapping(
     *,
     source_system: DataSystem = DataSystem.rms,
     target_system: DataSystem = DataSystem.rms,
-    relation_type: FMURelationType = FMURelationType.primary,
+    relation_type: InternalRelationType = InternalRelationType.primary,
     source_id: str = "30_9-B-21_C",
     target_id: str | None = "30_9-B-21_C",
-) -> FMUWellboreIdentifierMapping:
+) -> InternalWellboreIdentifierMapping:
     """Build an internal .fmu wellbore mapping with sensible defaults."""
-    return FMUWellboreIdentifierMapping(
+    return InternalWellboreIdentifierMapping(
         source_system=source_system,
         target_system=target_system,
         relation_type=relation_type,
@@ -59,13 +59,13 @@ def create_wellbore_mapping(
 
 
 @pytest.mark.parametrize(
-    "relation_type", [FMURelationType.primary, FMURelationType.alias]
+    "relation_type", [InternalRelationType.primary, InternalRelationType.alias]
 )
-def test_fmu_base_mapping_allows_same_system_primary_and_alias(
-    relation_type: FMURelationType,
+def test_internal_base_mapping_allows_same_system_primary_and_alias(
+    relation_type: InternalRelationType,
 ) -> None:
     """Same-system primary and alias relations are allowed."""
-    FMUBaseMapping(
+    InternalBaseMapping(
         source_system=DataSystem.rms,
         target_system=DataSystem.rms,
         mapping_type=MappingType.stratigraphy,
@@ -74,13 +74,13 @@ def test_fmu_base_mapping_allows_same_system_primary_and_alias(
 
 
 @pytest.mark.parametrize(
-    "relation_type", [FMURelationType.primary, FMURelationType.unmappable]
+    "relation_type", [InternalRelationType.primary, InternalRelationType.unmappable]
 )
-def test_fmu_base_mapping_allows_cross_system_primary_and_unmappable(
-    relation_type: FMURelationType,
+def test_internal_base_mapping_allows_cross_system_primary_and_unmappable(
+    relation_type: InternalRelationType,
 ) -> None:
     """Cross-system primary and unmappable relations are allowed."""
-    FMUBaseMapping(
+    InternalBaseMapping(
         source_system=DataSystem.rms,
         target_system=DataSystem.smda,
         mapping_type=MappingType.stratigraphy,
@@ -88,53 +88,53 @@ def test_fmu_base_mapping_allows_cross_system_primary_and_unmappable(
     )
 
 
-def test_fmu_base_mapping_rejects_same_system_unmappable() -> None:
+def test_internal_base_mapping_rejects_same_system_unmappable() -> None:
     """Unmappable is only valid for cross-system mappings."""
     with pytest.raises(
         ValueError,
         match="Same-system mapping cannot use relation_type 'unmappable'",
     ):
-        FMUBaseMapping(
+        InternalBaseMapping(
             source_system=DataSystem.rms,
             target_system=DataSystem.rms,
             mapping_type=MappingType.stratigraphy,
-            relation_type=FMURelationType.unmappable,
+            relation_type=InternalRelationType.unmappable,
         )
 
 
-def test_fmu_base_mapping_rejects_cross_system_alias() -> None:
+def test_internal_base_mapping_rejects_cross_system_alias() -> None:
     """Alias is only valid for same-system mappings."""
     with pytest.raises(
         ValueError,
         match="Cross-system mapping cannot use relation_type 'alias'",
     ):
-        FMUBaseMapping(
+        InternalBaseMapping(
             source_system=DataSystem.rms,
             target_system=DataSystem.smda,
             mapping_type=MappingType.stratigraphy,
-            relation_type=FMURelationType.alias,
+            relation_type=InternalRelationType.alias,
         )
 
 
-def test_fmu_identifier_mapping_ids_not_empty_strings() -> None:
+def test_internal_identifier_mapping_ids_not_empty_strings() -> None:
     """Ensure that validation fails if a mapping identifier is an empty string."""
     with pytest.raises(ValueError, match="An identifier cannot be an empty string"):
-        FMUIdentifierMapping(
+        InternalIdentifierMapping(
             source_system=DataSystem.rms,
             target_system=DataSystem.smda,
             mapping_type=MappingType.stratigraphy,
-            relation_type=FMURelationType.primary,
+            relation_type=InternalRelationType.primary,
             source_id="",
             target_id="foo",
         )
 
 
-def test_fmu_identifier_mapping_strips_surrounding_whitespace_from_ids() -> None:
+def test_internal_identifier_mapping_strips_surrounding_whitespace_from_ids() -> None:
     """Source and target identifiers are stripped when they contain padding."""
     mapping = create_stratigraphy_mapping(
         source_system=DataSystem.rms,
         target_system=DataSystem.smda,
-        relation_type=FMURelationType.primary,
+        relation_type=InternalRelationType.primary,
         source_id="  TopVolantis  ",
         target_id="  VOLANTIS GP. Top  ",
     )
@@ -143,12 +143,14 @@ def test_fmu_identifier_mapping_strips_surrounding_whitespace_from_ids() -> None
     assert mapping.target_id == "VOLANTIS GP. Top"
 
 
-def test_fmu_identifier_mapping_allows_same_system_primary_mapping_to_itself() -> None:
+def test_internal_identifier_mapping_allows_same_system_primary_mapping_to_itself() -> (
+    None
+):
     """Same-system primary mappings must map an identifier to itself."""
     mapping = create_stratigraphy_mapping(
         source_system=DataSystem.rms,
         target_system=DataSystem.rms,
-        relation_type=FMURelationType.primary,
+        relation_type=InternalRelationType.primary,
         source_id="TopVolantis",
         target_id="TopVolantis",
     )
@@ -156,7 +158,7 @@ def test_fmu_identifier_mapping_allows_same_system_primary_mapping_to_itself() -
     assert mapping.source_id == mapping.target_id
 
 
-def test_fmu_identifier_mapping_rejects_same_system_primary_to_other_id() -> None:
+def test_internal_identifier_mapping_rejects_same_system_primary_to_other_id() -> None:
     """Same-system primary mappings cannot map an identifier to another one."""
     with pytest.raises(
         ValueError,
@@ -168,18 +170,18 @@ def test_fmu_identifier_mapping_rejects_same_system_primary_to_other_id() -> Non
         create_stratigraphy_mapping(
             source_system=DataSystem.rms,
             target_system=DataSystem.rms,
-            relation_type=FMURelationType.primary,
+            relation_type=InternalRelationType.primary,
             source_id="TopVolantis",
             target_id="TopVolon",
         )
 
 
-def test_fmu_identifier_mapping_allows_same_system_alias() -> None:
+def test_internal_identifier_mapping_allows_same_system_alias() -> None:
     """Same-system aliases can point to a primary identifier."""
     mapping = create_stratigraphy_mapping(
         source_system=DataSystem.rms,
         target_system=DataSystem.rms,
-        relation_type=FMURelationType.alias,
+        relation_type=InternalRelationType.alias,
         source_id="TOP_VOLANTIS",
         target_id="TopVolantis",
     )
@@ -188,7 +190,9 @@ def test_fmu_identifier_mapping_allows_same_system_alias() -> None:
     assert mapping.target_id == "TopVolantis"
 
 
-def test_fmu_identifier_mapping_rejects_same_system_alias_mapping_to_itself() -> None:
+def test_internal_identifier_mapping_rejects_same_system_alias_mapping_to_itself() -> (
+    None
+):
     """Same-system aliases must point to a different identifier."""
     with pytest.raises(
         ValueError,
@@ -200,28 +204,28 @@ def test_fmu_identifier_mapping_rejects_same_system_alias_mapping_to_itself() ->
         create_stratigraphy_mapping(
             source_system=DataSystem.rms,
             target_system=DataSystem.rms,
-            relation_type=FMURelationType.alias,
+            relation_type=InternalRelationType.alias,
             source_id="TopVolantis",
             target_id="TopVolantis",
         )
 
 
-def test_fmu_identifier_mapping_rejects_same_system_unmappable() -> None:
+def test_internal_identifier_mapping_rejects_same_system_unmappable() -> None:
     """Unmappable relations are not valid for same-system mappings."""
     with pytest.raises(
         ValueError,
         match="Same-system mapping cannot use relation_type 'unmappable'",
     ):
-        FMUIdentifierMapping(
+        InternalIdentifierMapping(
             source_system=DataSystem.rms,
             target_system=DataSystem.rms,
             mapping_type=MappingType.stratigraphy,
-            relation_type=FMURelationType.unmappable,
+            relation_type=InternalRelationType.unmappable,
             source_id="NoMatch",
         )
 
 
-def test_fmu_identifier_mapping_rejects_cross_system_alias() -> None:
+def test_internal_identifier_mapping_rejects_cross_system_alias() -> None:
     """Alias relations are not valid for internal .fmu cross-system mappings."""
     with pytest.raises(
         ValueError,
@@ -230,19 +234,19 @@ def test_fmu_identifier_mapping_rejects_cross_system_alias() -> None:
         create_stratigraphy_mapping(
             source_system=DataSystem.rms,
             target_system=DataSystem.smda,
-            relation_type=FMURelationType.alias,
+            relation_type=InternalRelationType.alias,
             source_id="TOP_VOLANTIS",
             target_id="VOLANTIS GP. Top",
         )
 
 
-def test_fmu_identifier_mapping_allows_unmappable_without_target() -> None:
+def test_internal_identifier_mapping_allows_unmappable_without_target() -> None:
     """An unmappable relation can omit target identifier fields."""
-    mapping = FMUIdentifierMapping(
+    mapping = InternalIdentifierMapping(
         source_system=DataSystem.rms,
         target_system=DataSystem.smda,
         mapping_type=MappingType.stratigraphy,
-        relation_type=FMURelationType.unmappable,
+        relation_type=InternalRelationType.unmappable,
         source_id="NoMatch",
     )
 
@@ -250,13 +254,15 @@ def test_fmu_identifier_mapping_allows_unmappable_without_target() -> None:
     assert mapping.target_uuid is None
 
 
-def test_fmu_identifier_mapping_allows_explicit_none_target_for_unmappable() -> None:
+def test_internal_identifier_mapping_allows_explicit_none_target_for_unmappable() -> (
+    None
+):
     """An unmappable relation also accepts an explicit null target identifier."""
-    mapping = FMUIdentifierMapping(
+    mapping = InternalIdentifierMapping(
         source_system=DataSystem.rms,
         target_system=DataSystem.smda,
         mapping_type=MappingType.stratigraphy,
-        relation_type=FMURelationType.unmappable,
+        relation_type=InternalRelationType.unmappable,
         source_id="NoMatch",
         target_id=None,
     )
@@ -264,13 +270,13 @@ def test_fmu_identifier_mapping_allows_explicit_none_target_for_unmappable() -> 
     assert mapping.target_id is None
 
 
-def test_fmu_identifier_mapping_rejects_blank_target_id() -> None:
+def test_internal_identifier_mapping_rejects_blank_target_id() -> None:
     """Target identifiers cannot be blank when provided."""
     with pytest.raises(ValueError, match="An identifier cannot be an empty string"):
         create_stratigraphy_mapping(
             source_system=DataSystem.rms,
             target_system=DataSystem.smda,
-            relation_type=FMURelationType.primary,
+            relation_type=InternalRelationType.primary,
             source_id="TopVolantis",
             target_id="   ",
         )
@@ -279,21 +285,21 @@ def test_fmu_identifier_mapping_rejects_blank_target_id() -> None:
 @pytest.mark.parametrize(
     ("target_system", "relation_type"),
     [
-        (DataSystem.rms, FMURelationType.primary),
-        (DataSystem.rms, FMURelationType.alias),
-        (DataSystem.smda, FMURelationType.primary),
+        (DataSystem.rms, InternalRelationType.primary),
+        (DataSystem.rms, InternalRelationType.alias),
+        (DataSystem.smda, InternalRelationType.primary),
     ],
 )
-def test_fmu_identifier_mapping_requires_target_id_for_non_unmappable_relations(
+def test_internal_identifier_mapping_requires_target_id_for_non_unmappable_relations(
     target_system: DataSystem,
-    relation_type: FMURelationType,
+    relation_type: InternalRelationType,
 ) -> None:
     """All non-unmappable mappings require a target identifier."""
     with pytest.raises(
         ValueError,
         match="target_id is required unless relation_type is 'unmappable'",
     ):
-        FMUIdentifierMapping(
+        InternalIdentifierMapping(
             source_system=DataSystem.rms,
             target_system=target_system,
             mapping_type=MappingType.stratigraphy,
@@ -302,53 +308,55 @@ def test_fmu_identifier_mapping_requires_target_id_for_non_unmappable_relations(
         )
 
 
-def test_fmu_identifier_mapping_rejects_target_for_unmappable_relation() -> None:
+def test_internal_identifier_mapping_rejects_target_for_unmappable_relation() -> None:
     """Unmappable relations must not carry target identifier fields."""
     with pytest.raises(ValueError, match="Unmappable mapping cannot define"):
-        FMUIdentifierMapping(
+        InternalIdentifierMapping(
             source_system=DataSystem.rms,
             target_system=DataSystem.smda,
             mapping_type=MappingType.stratigraphy,
-            relation_type=FMURelationType.unmappable,
+            relation_type=InternalRelationType.unmappable,
             source_id="NoMatch",
             target_id="VOLANTIS GP. Top",
         )
 
 
-def test_fmu_identifier_mapping_rejects_target_uuid_for_unmappable_relation() -> None:
+def test_internal_identifier_mapping_rejects_target_uuid_for_unmappable_relation() -> (
+    None
+):
     """Unmappable relations must not carry target UUID fields."""
     with pytest.raises(ValueError, match="Unmappable mapping cannot define"):
-        FMUIdentifierMapping(
+        InternalIdentifierMapping(
             source_system=DataSystem.rms,
             target_system=DataSystem.smda,
             mapping_type=MappingType.stratigraphy,
-            relation_type=FMURelationType.unmappable,
+            relation_type=InternalRelationType.unmappable,
             source_id="NoMatch",
             target_uuid=uuid4(),
         )
 
 
-def test_fmu_mappings_defaults_to_empty_collections() -> None:
+def test_internal_mappings_defaults_to_empty_collections() -> None:
     """The .fmu mappings file model defaults to empty mapping collections."""
-    mappings = FMUMappings()
+    mappings = InternalMappings()
 
-    assert mappings.stratigraphy == FMUStratigraphyMappings(root=[])
-    assert mappings.wellbore == FMUWellboreMappings(root=[])
+    assert mappings.stratigraphy == InternalStratigraphyMappings(root=[])
+    assert mappings.wellbore == InternalWellboreMappings(root=[])
 
 
-def test_fmu_stratigraphy_mappings_allow_empty_collection() -> None:
+def test_internal_stratigraphy_mappings_allow_empty_collection() -> None:
     """Stratigraphy collections can be empty when no mappings exist yet."""
-    mappings = FMUStratigraphyMappings(root=[])
+    mappings = InternalStratigraphyMappings(root=[])
 
     assert list(mappings) == []
     assert len(mappings) == 0
 
 
-def test_fmu_stratigraphy_mappings_allow_valid_collection() -> None:
+def test_internal_stratigraphy_mappings_allow_valid_collection() -> None:
     """Stratigraphy collections allow valid mappings."""
     primary = create_stratigraphy_mapping()
     alias = create_stratigraphy_mapping(
-        relation_type=FMURelationType.alias,
+        relation_type=InternalRelationType.alias,
         source_id="TOP_VOLANTIS",
         target_id="TopVolantis",
     )
@@ -356,17 +364,17 @@ def test_fmu_stratigraphy_mappings_allow_valid_collection() -> None:
         target_system=DataSystem.smda,
         target_id="VOLANTIS GP. Top",
     )
-    mappings = FMUStratigraphyMappings(root=[primary, alias, mapped])
+    mappings = InternalStratigraphyMappings(root=[primary, alias, mapped])
     expected = [primary, alias, mapped]
 
     assert mappings.root == expected
 
 
-def test_fmu_stratigraphy_mappings_support_dunder_methods() -> None:
+def test_internal_stratigraphy_mappings_support_dunder_methods() -> None:
     """Stratigraphy collections support the expected dunder methods."""
     primary = create_stratigraphy_mapping()
     alias = create_stratigraphy_mapping(
-        relation_type=FMURelationType.alias,
+        relation_type=InternalRelationType.alias,
         source_id="TOP_VOLANTIS",
         target_id="TopVolantis",
     )
@@ -374,7 +382,7 @@ def test_fmu_stratigraphy_mappings_support_dunder_methods() -> None:
         target_system=DataSystem.smda,
         target_id="VOLANTIS GP. Top",
     )
-    mappings = FMUStratigraphyMappings(root=[primary, alias, mapped])
+    mappings = InternalStratigraphyMappings(root=[primary, alias, mapped])
     expected = [primary, alias, mapped]
 
     assert mappings[0] == primary
@@ -382,9 +390,9 @@ def test_fmu_stratigraphy_mappings_support_dunder_methods() -> None:
     assert len(mappings) == len(expected)
 
 
-def test_fmu_stratigraphy_mappings_serializes_to_json_list() -> None:
-    """FMUStratigraphyMappings serializes as a root list."""
-    mappings = FMUStratigraphyMappings(root=[create_stratigraphy_mapping()])
+def test_internal_stratigraphy_mappings_serializes_to_json_list() -> None:
+    """InternalStratigraphyMappings serializes as a root list."""
+    mappings = InternalStratigraphyMappings(root=[create_stratigraphy_mapping()])
 
     assert mappings.model_dump(mode="json", exclude_none=True) == [
         {
@@ -398,10 +406,10 @@ def test_fmu_stratigraphy_mappings_serializes_to_json_list() -> None:
     ]
 
 
-def test_fmu_stratigraphy_mappings_reject_alias_without_primary() -> None:
+def test_internal_stratigraphy_mappings_reject_alias_without_primary() -> None:
     """Same-system aliases must point to an existing same-system primary."""
     alias = create_stratigraphy_mapping(
-        relation_type=FMURelationType.alias,
+        relation_type=InternalRelationType.alias,
         source_id="TOP_VOLANTIS",
         target_id="TopVolantis",
     )
@@ -413,21 +421,21 @@ def test_fmu_stratigraphy_mappings_reject_alias_without_primary() -> None:
             "same-system primary source_id"
         ),
     ):
-        FMUStratigraphyMappings(root=[alias])
+        InternalStratigraphyMappings(root=[alias])
 
 
-def test_fmu_stratigraphy_mappings_reject_cross_system_alias_sources() -> None:
+def test_internal_stratigraphy_mappings_reject_cross_system_alias_sources() -> None:
     """Cross-system mappings must use same-system primary source identifiers."""
     primary = create_stratigraphy_mapping()
     alias = create_stratigraphy_mapping(
-        relation_type=FMURelationType.alias,
+        relation_type=InternalRelationType.alias,
         source_id="TOP_VOLANTIS",
         target_id="TopVolantis",
     )
     mapped_alias = create_stratigraphy_mapping(
         source_system=DataSystem.rms,
         target_system=DataSystem.smda,
-        relation_type=FMURelationType.primary,
+        relation_type=InternalRelationType.primary,
         source_id="TOP_VOLANTIS",
         target_id="VOLANTIS GP. Top",
     )
@@ -439,23 +447,23 @@ def test_fmu_stratigraphy_mappings_reject_cross_system_alias_sources() -> None:
             "as a same-system primary"
         ),
     ):
-        FMUStratigraphyMappings(root=[primary, alias, mapped_alias])
+        InternalStratigraphyMappings(root=[primary, alias, mapped_alias])
 
 
-def test_fmu_stratigraphy_mappings_reject_multiple_cross_system_outcomes() -> None:
+def test_internal_stratigraphy_mappings_reject_multiple_cross_system_outcomes() -> None:
     """A same-system primary identifier can only have one outcome per target system."""
     primary = create_stratigraphy_mapping()
     mapped = create_stratigraphy_mapping(
         source_system=DataSystem.rms,
         target_system=DataSystem.smda,
-        relation_type=FMURelationType.primary,
+        relation_type=InternalRelationType.primary,
         source_id="TopVolantis",
         target_id="VOLANTIS GP. Top",
     )
     unmappable = create_stratigraphy_mapping(
         source_system=DataSystem.rms,
         target_system=DataSystem.smda,
-        relation_type=FMURelationType.unmappable,
+        relation_type=InternalRelationType.unmappable,
         source_id="TopVolantis",
         target_id=None,
     )
@@ -464,10 +472,10 @@ def test_fmu_stratigraphy_mappings_reject_multiple_cross_system_outcomes() -> No
         ValueError,
         match=("A source_id can only have one cross-system mapping per target system"),
     ):
-        FMUStratigraphyMappings(root=[primary, mapped, unmappable])
+        InternalStratigraphyMappings(root=[primary, mapped, unmappable])
 
 
-def test_fmu_stratigraphy_mappings_reject_reused_same_system_source_id() -> None:
+def test_internal_stratigraphy_mappings_reject_reused_same_system_source_id() -> None:
     """A source_id cannot be both a primary and an alias in the same collection."""
     primary = create_stratigraphy_mapping()
     other_primary = create_stratigraphy_mapping(
@@ -475,7 +483,7 @@ def test_fmu_stratigraphy_mappings_reject_reused_same_system_source_id() -> None
         target_id="TopVolon",
     )
     conflicting_alias = create_stratigraphy_mapping(
-        relation_type=FMURelationType.alias,
+        relation_type=InternalRelationType.alias,
         source_id="TopVolantis",
         target_id="TopVolon",
     )
@@ -484,7 +492,7 @@ def test_fmu_stratigraphy_mappings_reject_reused_same_system_source_id() -> None
         ValueError,
         match=("Same-system mappings cannot reuse the same source_id"),
     ):
-        FMUStratigraphyMappings(root=[primary, other_primary, conflicting_alias])
+        InternalStratigraphyMappings(root=[primary, other_primary, conflicting_alias])
 
 
 @pytest.mark.parametrize(
@@ -495,14 +503,14 @@ def test_fmu_stratigraphy_mappings_reject_reused_same_system_source_id() -> None
         (DataSystem.pdm, "30/9-B-21 C"),
     ],
 )
-def test_fmu_wellbore_mapping_supports_expected_target_systems(
+def test_internal_wellbore_mapping_supports_expected_target_systems(
     target_system: DataSystem, target_id: str
 ) -> None:
     """Ensure wellbore mappings can target the supported systems."""
     mapping = create_wellbore_mapping(
         source_system=DataSystem.rms,
         target_system=target_system,
-        relation_type=FMURelationType.primary,
+        relation_type=InternalRelationType.primary,
         source_id="30_9-B-21_C",
         target_id=target_id,
     )
@@ -511,15 +519,15 @@ def test_fmu_wellbore_mapping_supports_expected_target_systems(
     assert mapping.target_id == target_id
 
 
-def test_fmu_wellbore_mappings_allow_empty_collection() -> None:
+def test_internal_wellbore_mappings_allow_empty_collection() -> None:
     """Wellbore collections can be empty when no mappings exist yet."""
-    mappings = FMUWellboreMappings(root=[])
+    mappings = InternalWellboreMappings(root=[])
 
     assert list(mappings) == []
     assert len(mappings) == 0
 
 
-def test_fmu_wellbore_mappings_allow_valid_collection() -> None:
+def test_internal_wellbore_mappings_allow_valid_collection() -> None:
     """Wellbore collections allow valid mappings."""
     primary = create_wellbore_mapping()
     simulator_target = create_wellbore_mapping(
@@ -530,13 +538,13 @@ def test_fmu_wellbore_mappings_allow_valid_collection() -> None:
         target_system=DataSystem.pdm,
         target_id="30/9-B-21 C",
     )
-    mappings = FMUWellboreMappings(root=[primary, simulator_target, pdm_target])
+    mappings = InternalWellboreMappings(root=[primary, simulator_target, pdm_target])
     expected = [primary, simulator_target, pdm_target]
 
     assert mappings.root == expected
 
 
-def test_fmu_wellbore_mappings_support_dunder_methods() -> None:
+def test_internal_wellbore_mappings_support_dunder_methods() -> None:
     """Wellbore collections support the expected dunder methods."""
     primary = create_wellbore_mapping()
     simulator_target = create_wellbore_mapping(
@@ -547,7 +555,7 @@ def test_fmu_wellbore_mappings_support_dunder_methods() -> None:
         target_system=DataSystem.pdm,
         target_id="30/9-B-21 C",
     )
-    mappings = FMUWellboreMappings(root=[primary, simulator_target, pdm_target])
+    mappings = InternalWellboreMappings(root=[primary, simulator_target, pdm_target])
     expected = [primary, simulator_target, pdm_target]
 
     assert mappings[0] == primary
@@ -555,15 +563,15 @@ def test_fmu_wellbore_mappings_support_dunder_methods() -> None:
     assert len(mappings) == len(expected)
 
 
-def test_fmu_stratigraphy_mappings_converts_to_datamodels_mappings() -> None:
+def test_internal_stratigraphy_mappings_converts_to_datamodels_mappings() -> None:
     """Internal .fmu mappings convert to fmu-datamodels StratigraphyMappings."""
-    mappings = FMUStratigraphyMappings(
+    mappings = InternalStratigraphyMappings(
         root=[
             create_stratigraphy_mapping(),
             create_stratigraphy_mapping(
                 source_id="TopVOLANTIS",
                 target_id="TopVolantis",
-                relation_type=FMURelationType.alias,
+                relation_type=InternalRelationType.alias,
             ),
             create_stratigraphy_mapping(
                 target_id="VOLANTIS GP. Top",
@@ -573,7 +581,7 @@ def test_fmu_stratigraphy_mappings_converts_to_datamodels_mappings() -> None:
             create_stratigraphy_mapping(
                 source_id="Seabase",
                 target_id=None,
-                relation_type=FMURelationType.unmappable,
+                relation_type=InternalRelationType.unmappable,
                 target_system=DataSystem.smda,
             ),
         ]
@@ -602,15 +610,15 @@ def test_fmu_stratigraphy_mappings_converts_to_datamodels_mappings() -> None:
     ]
 
 
-def test_fmu_wellbore_mappings_converts_to_datamodels_mappings() -> None:
+def test_internal_wellbore_mappings_converts_to_datamodels_mappings() -> None:
     """Internal .fmu mappings convert to fmu-datamodels WellboreMappings."""
-    mappings = FMUWellboreMappings(
+    mappings = InternalWellboreMappings(
         root=[
             create_wellbore_mapping(),
             create_wellbore_mapping(
                 source_id="30_9-B-21C",
                 target_id="30_9-B-21_C",
-                relation_type=FMURelationType.alias,
+                relation_type=InternalRelationType.alias,
             ),
             create_wellbore_mapping(
                 target_system=DataSystem.simulator,

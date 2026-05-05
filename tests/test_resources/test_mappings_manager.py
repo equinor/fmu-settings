@@ -17,12 +17,12 @@ from fmu.settings._resources.mappings_manager import MappingsManager
 from fmu.settings.models._enums import ChangeType
 from fmu.settings.models.diff import ListFieldDiff
 from fmu.settings.models.mappings import (
-    FMUMappings,
-    FMURelationType,
-    FMUStratigraphyIdentifierMapping,
-    FMUStratigraphyMappings,
-    FMUWellboreIdentifierMapping,
-    FMUWellboreMappings,
+    InternalMappings,
+    InternalRelationType,
+    InternalStratigraphyIdentifierMapping,
+    InternalStratigraphyMappings,
+    InternalWellboreIdentifierMapping,
+    InternalWellboreMappings,
 )
 
 if TYPE_CHECKING:
@@ -34,30 +34,30 @@ def _stratigraphy_mappings(
     source_id: str,
     target_id: str,
     *aliases: str,
-) -> FMUStratigraphyMappings:
-    return FMUStratigraphyMappings(
+) -> InternalStratigraphyMappings:
+    return InternalStratigraphyMappings(
         root=[
-            FMUStratigraphyIdentifierMapping(
+            InternalStratigraphyIdentifierMapping(
                 source_system=DataSystem.rms,
                 target_system=DataSystem.rms,
-                relation_type=FMURelationType.primary,
+                relation_type=InternalRelationType.primary,
                 source_id=source_id,
                 target_id=source_id,
             ),
             *[
-                FMUStratigraphyIdentifierMapping(
+                InternalStratigraphyIdentifierMapping(
                     source_system=DataSystem.rms,
                     target_system=DataSystem.rms,
-                    relation_type=FMURelationType.alias,
+                    relation_type=InternalRelationType.alias,
                     source_id=alias,
                     target_id=source_id,
                 )
                 for alias in aliases
             ],
-            FMUStratigraphyIdentifierMapping(
+            InternalStratigraphyIdentifierMapping(
                 source_system=DataSystem.rms,
                 target_system=DataSystem.smda,
-                relation_type=FMURelationType.primary,
+                relation_type=InternalRelationType.primary,
                 source_id=source_id,
                 target_id=target_id,
             ),
@@ -65,24 +65,24 @@ def _stratigraphy_mappings(
     )
 
 
-def _wellbore_mappings(source_id: str, target_id: str) -> FMUWellboreMappings:
-    return FMUWellboreMappings(
+def _wellbore_mappings(source_id: str, target_id: str) -> InternalWellboreMappings:
+    return InternalWellboreMappings(
         root=[
-            FMUWellboreIdentifierMapping(
+            InternalWellboreIdentifierMapping(
                 source_system=DataSystem.rms,
                 target_system=DataSystem.rms,
                 mapping_type=MappingType.wellbore,
-                relation_type=FMURelationType.primary,
+                relation_type=InternalRelationType.primary,
                 source_id=source_id,
                 source_uuid=None,
                 target_id=source_id,
                 target_uuid=None,
             ),
-            FMUWellboreIdentifierMapping(
+            InternalWellboreIdentifierMapping(
                 source_system=DataSystem.rms,
                 target_system=DataSystem.simulator,
                 mapping_type=MappingType.wellbore,
-                relation_type=FMURelationType.primary,
+                relation_type=InternalRelationType.primary,
                 source_id=source_id,
                 source_uuid=None,
                 target_id=target_id,
@@ -93,14 +93,14 @@ def _wellbore_mappings(source_id: str, target_id: str) -> FMUWellboreMappings:
 
 
 @pytest.fixture
-def wellbore_mappings() -> FMUWellboreMappings:
-    """Returns a valid FMUWellboreMappings object."""
+def wellbore_mappings() -> InternalWellboreMappings:
+    """Returns a valid InternalWellboreMappings object."""
     return _wellbore_mappings("30_9-B-43_A", "B43A")
 
 
 @pytest.fixture
-def stratigraphy_mappings() -> FMUStratigraphyMappings:
-    """Returns a valid FMUStratigraphyMappings object."""
+def stratigraphy_mappings() -> InternalStratigraphyMappings:
+    """Returns a valid InternalStratigraphyMappings object."""
     return _stratigraphy_mappings(
         "TopVolantis",
         "VOLANTIS GP. Top",
@@ -120,7 +120,7 @@ def test_mappings_manager_instantiation(
 
     expected_path = mappings_manager.fmu_dir.path / mappings_manager.relative_path
     assert mappings_manager.path == expected_path
-    assert mappings_manager.model_class == FMUMappings
+    assert mappings_manager.model_class == InternalMappings
     assert mappings_manager.exists is False
 
     with pytest.raises(
@@ -129,15 +129,15 @@ def test_mappings_manager_instantiation(
         mappings_manager.load()
 
 
-def test_mappings_manager_update_fmu_stratigraphy_mappings_overwrites_mappings(
+def test_mappings_manager_update_internal_stratigraphy_mappings_overwrites_mappings(
     fmu_dir: ProjectFMUDirectory,
-    stratigraphy_mappings: FMUStratigraphyMappings,
+    stratigraphy_mappings: InternalStratigraphyMappings,
 ) -> None:
     """Tests that updating stratigraphy mappings overwrites existing mappings."""
     mappings_manager: MappingsManager = MappingsManager(fmu_dir)
     assert mappings_manager.exists is False
 
-    mappings_manager.update_fmu_stratigraphy_mappings(stratigraphy_mappings)
+    mappings_manager.update_internal_stratigraphy_mappings(stratigraphy_mappings)
     assert mappings_manager.exists is True
     mappings = mappings_manager.load()
     expected_no_of_mappings = 4
@@ -146,7 +146,7 @@ def test_mappings_manager_update_fmu_stratigraphy_mappings_overwrites_mappings(
 
     new_mappings = _stratigraphy_mappings("TopViking", "VIKING GP. Top")
 
-    mappings_manager.update_fmu_stratigraphy_mappings(new_mappings)
+    mappings_manager.update_internal_stratigraphy_mappings(new_mappings)
 
     # Assert that existing mappings are overwritten
     mappings = mappings_manager.load()
@@ -154,13 +154,13 @@ def test_mappings_manager_update_fmu_stratigraphy_mappings_overwrites_mappings(
     assert mappings.stratigraphy == new_mappings
 
 
-def test_mappings_manager_update_fmu_stratigraphy_mappings_writes_to_changelog(
+def test_mappings_manager_update_internal_stratigraphy_mappings_writes_to_changelog(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Tests that each update of the stratigraphy mappings, writes to the changelog."""
     mappings_manager: MappingsManager = MappingsManager(fmu_dir)
     new_mappings = _stratigraphy_mappings("TopViking", "VIKING GP. Top")
-    mappings_manager.update_fmu_stratigraphy_mappings(new_mappings)
+    mappings_manager.update_internal_stratigraphy_mappings(new_mappings)
 
     changelog: Log[ChangeInfo] = mappings_manager.fmu_dir._changelog.load()
     assert len(changelog) == 1
@@ -169,18 +169,18 @@ def test_mappings_manager_update_fmu_stratigraphy_mappings_writes_to_changelog(
     assert changelog[0].key == "stratigraphy"
     assert f"New value: {new_mappings.model_dump()}" in changelog[0].change
 
-    mappings_manager.update_fmu_stratigraphy_mappings(new_mappings)
-    mappings_manager.update_fmu_stratigraphy_mappings(new_mappings)
+    mappings_manager.update_internal_stratigraphy_mappings(new_mappings)
+    mappings_manager.update_internal_stratigraphy_mappings(new_mappings)
 
     expected_no_of_mappings = 3
     assert len(mappings_manager.fmu_dir._changelog.load()) == expected_no_of_mappings
 
 
-def test_fmu_stratigraphy_mappings_converts_to_stratigraphy_mappings(
+def test_internal_stratigraphy_mappings_converts_to_stratigraphy_mappings(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """Valid .fmu stratigraphy mappings are converted to fmu-datamodels mappings."""
-    mappings = FMUStratigraphyMappings(
+    mappings = InternalStratigraphyMappings(
         root=[
             *_stratigraphy_mappings(
                 "TopVolantis",
@@ -188,18 +188,18 @@ def test_fmu_stratigraphy_mappings_converts_to_stratigraphy_mappings(
                 "TopVOLANTIS",
                 "TOP_VOLANTIS",
             ),
-            FMUStratigraphyIdentifierMapping(
+            InternalStratigraphyIdentifierMapping(
                 source_system=DataSystem.rms,
                 target_system=DataSystem.rms,
-                relation_type=FMURelationType.primary,
+                relation_type=InternalRelationType.primary,
                 source_id="Seabase",
                 target_id="Seabase",
                 target_uuid=None,
             ),
-            FMUStratigraphyIdentifierMapping(
+            InternalStratigraphyIdentifierMapping(
                 source_system=DataSystem.rms,
                 target_system=DataSystem.smda,
-                relation_type=FMURelationType.unmappable,
+                relation_type=InternalRelationType.unmappable,
                 source_id="Seabase",
                 target_id=None,
                 target_uuid=None,
@@ -238,15 +238,15 @@ def test_fmu_stratigraphy_mappings_converts_to_stratigraphy_mappings(
     ]
 
 
-def test_mappings_manager_update_fmu_wellbore_mappings_overwrites_mappings(
+def test_mappings_manager_update_internal_wellbore_mappings_overwrites_mappings(
     fmu_dir: ProjectFMUDirectory,
-    wellbore_mappings: FMUWellboreMappings,
+    wellbore_mappings: InternalWellboreMappings,
 ) -> None:
     """Tests that updating wellbore mappings overwrites existing mappings."""
     mappings_manager: MappingsManager = MappingsManager(fmu_dir)
     assert mappings_manager.exists is False
 
-    mappings_manager.update_fmu_wellbore_mappings(wellbore_mappings)
+    mappings_manager.update_internal_wellbore_mappings(wellbore_mappings)
     assert mappings_manager.exists is True
     mappings = mappings_manager.load()
     assert len(mappings.wellbore) == 2
@@ -267,7 +267,7 @@ def test_mappings_manager_update_fmu_wellbore_mappings_overwrites_mappings(
 
     new_mappings = _wellbore_mappings("30_9-B-43_B", "B43B")
 
-    mappings_manager.update_fmu_wellbore_mappings(new_mappings)
+    mappings_manager.update_internal_wellbore_mappings(new_mappings)
 
     # Assert that existing mappings are overwritten
     mappings = mappings_manager.load()
@@ -275,14 +275,14 @@ def test_mappings_manager_update_fmu_wellbore_mappings_overwrites_mappings(
     assert mappings.wellbore == new_mappings
 
 
-def test_mappings_manager_update_fmu_wellbore_mappings_writes_to_changelog(
+def test_mappings_manager_update_internal_wellbore_mappings_writes_to_changelog(
     fmu_dir: ProjectFMUDirectory,
-    wellbore_mappings: FMUWellboreMappings,
+    wellbore_mappings: InternalWellboreMappings,
 ) -> None:
     """Tests that each update of the wellbore mappings writes to the changelog."""
     mappings_manager: MappingsManager = MappingsManager(fmu_dir)
 
-    mappings_manager.update_fmu_wellbore_mappings(wellbore_mappings)
+    mappings_manager.update_internal_wellbore_mappings(wellbore_mappings)
 
     changelog: Log[ChangeInfo] = mappings_manager.fmu_dir._changelog.load()
     assert len(changelog) == 1
@@ -291,8 +291,8 @@ def test_mappings_manager_update_fmu_wellbore_mappings_writes_to_changelog(
     assert changelog[0].key == "wellbore"
     assert f"New value: {wellbore_mappings.model_dump()}" in changelog[0].change
 
-    mappings_manager.update_fmu_wellbore_mappings(wellbore_mappings)
-    mappings_manager.update_fmu_wellbore_mappings(wellbore_mappings)
+    mappings_manager.update_internal_wellbore_mappings(wellbore_mappings)
+    mappings_manager.update_internal_wellbore_mappings(wellbore_mappings)
 
     expected_no_of_mappings = 3
     assert len(mappings_manager.fmu_dir._changelog.load()) == expected_no_of_mappings
@@ -301,14 +301,14 @@ def test_mappings_manager_update_fmu_wellbore_mappings_writes_to_changelog(
 def test_mappings_manager_diff(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
-    stratigraphy_mappings: FMUStratigraphyMappings,
+    stratigraphy_mappings: InternalStratigraphyMappings,
 ) -> None:
     """Tests that the mappings diff equals the mappings from the incoming resource."""
     mappings_manager: MappingsManager = MappingsManager(fmu_dir)
-    mappings_manager.update_fmu_stratigraphy_mappings(stratigraphy_mappings)
+    mappings_manager.update_internal_stratigraphy_mappings(stratigraphy_mappings)
 
     new_mappings_manager: MappingsManager = MappingsManager(extra_fmu_dir)
-    new_mappings_manager.update_fmu_stratigraphy_mappings(
+    new_mappings_manager.update_internal_stratigraphy_mappings(
         _stratigraphy_mappings("TopViking", "VIKING GP. Top")
     )
 
@@ -321,7 +321,7 @@ def test_mappings_manager_diff(
 def test_mappings_manager_diff_mappings_raises(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
-    stratigraphy_mappings: FMUStratigraphyMappings,
+    stratigraphy_mappings: InternalStratigraphyMappings,
 ) -> None:
     """Exception is raised when any of the mappings resources to diff does not exist.
 
@@ -340,7 +340,7 @@ def test_mappings_manager_diff_mappings_raises(
     with pytest.raises(FileNotFoundError, match=expected_exp.format("False", "False")):
         mappings_manager.get_mappings_diff(new_mappings_manager)
 
-    mappings_manager.update_fmu_stratigraphy_mappings(stratigraphy_mappings)
+    mappings_manager.update_internal_stratigraphy_mappings(stratigraphy_mappings)
 
     with pytest.raises(FileNotFoundError, match=expected_exp.format("True", "False")):
         mappings_manager.get_mappings_diff(new_mappings_manager)
@@ -348,15 +348,15 @@ def test_mappings_manager_diff_mappings_raises(
     with pytest.raises(FileNotFoundError, match=expected_exp.format("False", "True")):
         new_mappings_manager.get_mappings_diff(mappings_manager)
 
-    new_mappings_manager.update_fmu_stratigraphy_mappings(stratigraphy_mappings)
+    new_mappings_manager.update_internal_stratigraphy_mappings(stratigraphy_mappings)
     assert mappings_manager.get_mappings_diff(new_mappings_manager)
 
 
 def test_mappings_manager_merge_mappings(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
-    stratigraphy_mappings: FMUStratigraphyMappings,
-    wellbore_mappings: FMUWellboreMappings,
+    stratigraphy_mappings: InternalStratigraphyMappings,
+    wellbore_mappings: InternalWellboreMappings,
 ) -> None:
     """Tests that mappings from the incoming resource will overwrite current mappings.
 
@@ -364,52 +364,58 @@ def test_mappings_manager_merge_mappings(
     from the incoming resource.
     """
     mappings_manager: MappingsManager = MappingsManager(fmu_dir)
-    mappings_manager.update_fmu_stratigraphy_mappings(stratigraphy_mappings)
-    assert mappings_manager.fmu_stratigraphy_mappings == stratigraphy_mappings
+    mappings_manager.update_internal_stratigraphy_mappings(stratigraphy_mappings)
+    assert mappings_manager.internal_stratigraphy_mappings == stratigraphy_mappings
 
     new_mappings_manager: MappingsManager = MappingsManager(extra_fmu_dir)
-    new_mappings_manager.update_fmu_stratigraphy_mappings(
-        FMUStratigraphyMappings(root=[])
+    new_mappings_manager.update_internal_stratigraphy_mappings(
+        InternalStratigraphyMappings(root=[])
     )
 
     updated_mappings = mappings_manager.merge_mappings(new_mappings_manager)
 
     assert len(updated_mappings.stratigraphy) == 0
-    assert updated_mappings.stratigraphy == mappings_manager.fmu_stratigraphy_mappings
+    assert (
+        updated_mappings.stratigraphy == mappings_manager.internal_stratigraphy_mappings
+    )
     assert len(updated_mappings.wellbore) == 0
 
-    mappings_manager.update_fmu_stratigraphy_mappings(stratigraphy_mappings)
+    mappings_manager.update_internal_stratigraphy_mappings(stratigraphy_mappings)
     expected_no_of_mappings = 4
-    assert len(mappings_manager.fmu_stratigraphy_mappings) == expected_no_of_mappings
+    assert (
+        len(mappings_manager.internal_stratigraphy_mappings) == expected_no_of_mappings
+    )
 
-    new_mappings_manager.update_fmu_stratigraphy_mappings(
+    new_mappings_manager.update_internal_stratigraphy_mappings(
         _stratigraphy_mappings("TopViking", "VIKING GP. Top")
     )
-    assert len(new_mappings_manager.fmu_stratigraphy_mappings) == 2
+    assert len(new_mappings_manager.internal_stratigraphy_mappings) == 2
 
     updated_mappings = mappings_manager.merge_mappings(new_mappings_manager)
 
     assert len(updated_mappings.stratigraphy) == 2
-    assert updated_mappings.stratigraphy == mappings_manager.fmu_stratigraphy_mappings
     assert (
-        mappings_manager.fmu_stratigraphy_mappings
-        == new_mappings_manager.fmu_stratigraphy_mappings
+        updated_mappings.stratigraphy == mappings_manager.internal_stratigraphy_mappings
+    )
+    assert (
+        mappings_manager.internal_stratigraphy_mappings
+        == new_mappings_manager.internal_stratigraphy_mappings
     )
 
-    new_mappings_manager.update_fmu_wellbore_mappings(wellbore_mappings)
+    new_mappings_manager.update_internal_wellbore_mappings(wellbore_mappings)
     updated_mappings = mappings_manager.merge_mappings(new_mappings_manager)
-    assert updated_mappings.wellbore == mappings_manager.fmu_wellbore_mappings
+    assert updated_mappings.wellbore == mappings_manager.internal_wellbore_mappings
     assert (
-        mappings_manager.fmu_wellbore_mappings
-        == new_mappings_manager.fmu_wellbore_mappings
+        mappings_manager.internal_wellbore_mappings
+        == new_mappings_manager.internal_wellbore_mappings
     )
     assert len(updated_mappings.wellbore) == 2
 
 
 def test_mappings_manager_merge_changes(
     fmu_dir: ProjectFMUDirectory,
-    stratigraphy_mappings: FMUStratigraphyMappings,
-    wellbore_mappings: FMUWellboreMappings,
+    stratigraphy_mappings: InternalStratigraphyMappings,
+    wellbore_mappings: InternalWellboreMappings,
 ) -> None:
     """Tests that mappings from the change object will overwrite current mappings.
 
@@ -417,15 +423,17 @@ def test_mappings_manager_merge_changes(
     from the change object.
     """
     mappings_manager: MappingsManager = MappingsManager(fmu_dir)
-    mappings_manager.update_fmu_stratigraphy_mappings(stratigraphy_mappings)
-    assert mappings_manager.fmu_stratigraphy_mappings == stratigraphy_mappings
+    mappings_manager.update_internal_stratigraphy_mappings(stratigraphy_mappings)
+    assert mappings_manager.internal_stratigraphy_mappings == stratigraphy_mappings
 
     # Assert empty change object overwrites current mappings
-    change_object = FMUMappings()
+    change_object = InternalMappings()
     updated_mappings = mappings_manager.merge_changes(change_object)
-    assert updated_mappings.stratigraphy == mappings_manager.fmu_stratigraphy_mappings
-    assert len(mappings_manager.fmu_stratigraphy_mappings) == 0
-    assert len(mappings_manager.fmu_wellbore_mappings) == 0
+    assert (
+        updated_mappings.stratigraphy == mappings_manager.internal_stratigraphy_mappings
+    )
+    assert len(mappings_manager.internal_stratigraphy_mappings) == 0
+    assert len(mappings_manager.internal_wellbore_mappings) == 0
 
     new_mappings = _stratigraphy_mappings("TopViking", "VIKING GP. Top")
 
@@ -436,27 +444,27 @@ def test_mappings_manager_merge_changes(
     assert len(updated_mappings.wellbore) == 0
     assert len(updated_mappings.stratigraphy) == 2
     assert updated_mappings.stratigraphy == new_mappings
-    assert mappings_manager.fmu_stratigraphy_mappings == new_mappings
+    assert mappings_manager.internal_stratigraphy_mappings == new_mappings
 
     change_object.wellbore = wellbore_mappings
     updated_mappings = mappings_manager.merge_changes(change_object)
     assert updated_mappings.wellbore == wellbore_mappings
-    assert mappings_manager.fmu_wellbore_mappings == wellbore_mappings
+    assert mappings_manager.internal_wellbore_mappings == wellbore_mappings
     assert len(updated_mappings.wellbore) == 2
 
 
 def test_mappings_manager_structured_diff_uses_full_item_identity(
     fmu_dir: ProjectFMUDirectory,
-    stratigraphy_mappings: FMUStratigraphyMappings,
+    stratigraphy_mappings: InternalStratigraphyMappings,
 ) -> None:
     """Tests stratigraphy list changes are returned as added/removed with __full__."""
     mappings_manager = MappingsManager(fmu_dir)
 
     replacement_mappings = _stratigraphy_mappings("TopViking", "VIKING GP. Top")
 
-    current_model = FMUMappings(stratigraphy=stratigraphy_mappings)
-    incoming_model = FMUMappings(
-        stratigraphy=FMUStratigraphyMappings(
+    current_model = InternalMappings(stratigraphy=stratigraphy_mappings)
+    incoming_model = InternalMappings(
+        stratigraphy=InternalStratigraphyMappings(
             root=[
                 stratigraphy_mappings[0],
                 stratigraphy_mappings[2],
@@ -547,7 +555,7 @@ def test_build_global_config_stratigraphy_only_mappings(
 ) -> None:
     """Only stratigraphic entries when there is no RMS config."""
     mappings_manager = MappingsManager(fmu_dir)
-    mappings_manager.update_fmu_stratigraphy_mappings(
+    mappings_manager.update_internal_stratigraphy_mappings(
         _stratigraphy_mappings("TopX", "X Fm. Top")
     )
 
@@ -575,7 +583,7 @@ def test_build_global_config_stratigraphy_mapped_horizon_not_duplicated(
         }
     )
     mappings_manager = MappingsManager(fmu_dir)
-    mappings_manager.update_fmu_stratigraphy_mappings(
+    mappings_manager.update_internal_stratigraphy_mappings(
         _stratigraphy_mappings("TopX", "X Fm. Top")
     )
 

@@ -12,9 +12,9 @@ from fmu.datamodels.context.mappings import (
 from fmu.datamodels.fmu_results.global_configuration import Stratigraphy
 from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
 from fmu.settings.models.mappings import (
-    FMUMappings,
-    FMUStratigraphyMappings,
-    FMUWellboreMappings,
+    InternalMappings,
+    InternalStratigraphyMappings,
+    InternalWellboreMappings,
 )
 
 if TYPE_CHECKING:
@@ -24,14 +24,14 @@ if TYPE_CHECKING:
     from fmu.settings._fmu_dir import ProjectFMUDirectory
 
 
-class MappingsManager(PydanticResourceManager[FMUMappings]):
+class MappingsManager(PydanticResourceManager[InternalMappings]):
     """Manages the .fmu mappings file."""
 
     fmu_dir: ProjectFMUDirectory
 
     def __init__(self: Self, fmu_dir: ProjectFMUDirectory) -> None:
         """Initializes the mappings resource manager."""
-        super().__init__(fmu_dir, FMUMappings)
+        super().__init__(fmu_dir, InternalMappings)
 
     @property
     def relative_path(self: Self) -> Path:
@@ -47,30 +47,30 @@ class MappingsManager(PydanticResourceManager[FMUMappings]):
         }
 
     @property
-    def fmu_stratigraphy_mappings(self: Self) -> FMUStratigraphyMappings:
-        """Get internal .fmu stratigraphy mappings."""
+    def internal_stratigraphy_mappings(self: Self) -> InternalStratigraphyMappings:
+        """Get stratigraphy mappings stored in the internal .fmu mappings format."""
         return self.load().stratigraphy
 
     @property
-    def fmu_wellbore_mappings(self: Self) -> FMUWellboreMappings:
-        """Get internal .fmu wellbore mappings."""
+    def internal_wellbore_mappings(self: Self) -> InternalWellboreMappings:
+        """Get wellbore mappings stored in the internal .fmu mappings format."""
         return self.load().wellbore
 
     @property
     def stratigraphy_mappings(self: Self) -> StratigraphyMappings:
-        """Get stratigraphy mappings as a fmu-datamodels StratigraphyMappings."""
-        return self.fmu_stratigraphy_mappings.to_stratigraphy_mappings()
+        """Get stratigraphy mappings as fmu-datamodels StratigraphyMappings."""
+        return self.internal_stratigraphy_mappings.to_stratigraphy_mappings()
 
     @property
     def wellbore_mappings(self: Self) -> WellboreMappings:
-        """Get wellbore mappings as a fmu-datamodels WellboreMappings."""
-        return self.fmu_wellbore_mappings.to_wellbore_mappings()
+        """Get wellbore mappings as fmu-datamodels WellboreMappings."""
+        return self.internal_wellbore_mappings.to_wellbore_mappings()
 
-    def update_fmu_stratigraphy_mappings(
-        self: Self, strat_mappings: FMUStratigraphyMappings
-    ) -> FMUStratigraphyMappings:
-        """Updates the internal .fmu stratigraphy mappings resource."""
-        mappings: FMUMappings = self.load() if self.exists else FMUMappings()
+    def update_internal_stratigraphy_mappings(
+        self: Self, strat_mappings: InternalStratigraphyMappings
+    ) -> InternalStratigraphyMappings:
+        """Update stratigraphy mappings stored in the internal .fmu mappings format."""
+        mappings: InternalMappings = self.load() if self.exists else InternalMappings()
 
         old_mappings_dict = copy.deepcopy(mappings.model_dump())
         mappings.stratigraphy = strat_mappings
@@ -82,13 +82,13 @@ class MappingsManager(PydanticResourceManager[FMUMappings]):
             relative_path=self.relative_path,
         )
 
-        return self.fmu_stratigraphy_mappings
+        return self.internal_stratigraphy_mappings
 
-    def update_fmu_wellbore_mappings(
-        self: Self, wellbore_mappings: FMUWellboreMappings
-    ) -> FMUWellboreMappings:
-        """Updates the internal .fmu wellbore mappings resource."""
-        mappings: FMUMappings = self.load() if self.exists else FMUMappings()
+    def update_internal_wellbore_mappings(
+        self: Self, wellbore_mappings: InternalWellboreMappings
+    ) -> InternalWellboreMappings:
+        """Update wellbore mappings stored in the internal .fmu mappings format."""
+        mappings: InternalMappings = self.load() if self.exists else InternalMappings()
 
         old_mappings_dict = copy.deepcopy(mappings.model_dump())
         mappings.wellbore = wellbore_mappings
@@ -100,11 +100,11 @@ class MappingsManager(PydanticResourceManager[FMUMappings]):
             relative_path=self.relative_path,
         )
 
-        return self.fmu_wellbore_mappings
+        return self.internal_wellbore_mappings
 
     def get_mappings_diff(
         self: Self, incoming_mappings: MappingsManager
-    ) -> FMUMappings:
+    ) -> InternalMappings:
         """Get mappings diff with the incoming mappings resource.
 
         All mappings from the incoming mappings resource are returned.
@@ -117,7 +117,9 @@ class MappingsManager(PydanticResourceManager[FMUMappings]):
             f"Incoming mappings resource exists: {incoming_mappings.exists}."
         )
 
-    def merge_mappings(self: Self, incoming_mappings: MappingsManager) -> FMUMappings:
+    def merge_mappings(
+        self: Self, incoming_mappings: MappingsManager
+    ) -> InternalMappings:
         """Merge the mappings from the incoming mappings resource.
 
         The current mappings will be updated with the mappings
@@ -126,16 +128,19 @@ class MappingsManager(PydanticResourceManager[FMUMappings]):
         mappings_diff = self.get_mappings_diff(incoming_mappings)
         return self.merge_changes(mappings_diff)
 
-    def merge_changes(self: Self, changes: FMUMappings) -> FMUMappings:
+    def merge_changes(self: Self, changes: InternalMappings) -> InternalMappings:
         """Merge the mappings changes into the current mappings.
 
         The current mappings will be updated with the mappings
         in the change object.
         """
-        if len(changes.stratigraphy) > 0 or len(self.fmu_stratigraphy_mappings) > 0:
-            self.update_fmu_stratigraphy_mappings(changes.stratigraphy)
-        if len(changes.wellbore) > 0 or len(self.fmu_wellbore_mappings) > 0:
-            self.update_fmu_wellbore_mappings(changes.wellbore)
+        if (
+            len(changes.stratigraphy) > 0
+            or len(self.internal_stratigraphy_mappings) > 0
+        ):
+            self.update_internal_stratigraphy_mappings(changes.stratigraphy)
+        if len(changes.wellbore) > 0 or len(self.internal_wellbore_mappings) > 0:
+            self.update_internal_wellbore_mappings(changes.wellbore)
         return self.load()
 
     def build_global_config_stratigraphy(self) -> Stratigraphy:
