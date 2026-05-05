@@ -1,53 +1,47 @@
 # Overview
 
-FMU Settings creates and manages the `.fmu/` folder within an FMU project.
+## What is FMU Settings?
 
-This folder is used to store project settings and metadata, and FMU Settings gives you a GUI for working with that content instead of editing configuration files manually.
+FMU Settings is a web application (localhost) that provides a user-friendly solution with a GUI for static configuration in FMU projects. FMU Settings offers a unified way to connect FMU projects to other data sources within the company, i.e. SMDA. 
 
-## What `.fmu/` is
+## Why FMU Settings?
 
-`.fmu/` is a hidden folder inside an FMU project.
+Today, configuring your FMU project and connecting the data produced by FMU to the official masterdata in SMDA, is done by manually editing the global configuration yaml file. This can be a tedious and error-prone process. 
 
-It is where FMU Settings stores project-specific settings and related data, so the project keeps its own configuration close to the project itself.
+Especially the mapping of stratigraphic data to official data in SMDA has a high risk of typos, and quality checking and validation is difficult.
+Example: A zone called `Upper Tarbert 2.3` in RMS can be equal to a grid zone called `UT2-3` in the simulator, and the corresponding unit in SMDA could be `Tarbert Upper Fm.`. When moving data to cloud (SUMO) these must be connected and identified as the same zone/unit. 
 
-Inside `.fmu/`, FMU Settings stores information such as:
+This process that requires editing yaml files and manually adding master data from official databases does not scale when the amount of data that needs to be mapped increases. FMU Settings is made to address these concerns by offering a simple user interface to configure your FMU project and connect FMU data to the official databases, including validation of the data.
 
-- project configuration
-- mappings
-- version history of changes
+The need for mapping of FMU data from RMS and simulators to official databases is not limited to stratigraphy, it will also include wells, production data etc.
 
-The project configuration contains settings such as model information, access settings, masterdata, and RMS-related information.
+**FMU Settings can:**
 
-Mappings means saved links between project-specific names or identifiers and official references. One example is mapping RMS stratigraphic framework to the SMDA stratigraphic column. In future development, this can also include mapping RMS and simulator well names to SMDA well names.
+•	Extract stratigraphy from the RMS project
 
-You normally do not need to edit anything inside `.fmu/` manually. FMU Settings is meant to manage that for you.
+•	Connect to SMDA data directly through the GUI
 
-If you want to inspect the schemas behind the project configuration and mappings, see [Data models](data_models.md).
+•	Provide a best-attempt automatic mapping to match RMS names to SMDA names
 
-## Why use this instead of editing global config YAML manually?
+•	Allow user to QC and validate mapping against SMDA and project files
 
-Editing global config YAML files manually can work, but it also has some downsides:
+By using FMU Settings you get benefits like a **web-based GUI**, **simplified configuration** of FMU projects and a **stronger data quality** guarantee.
 
-- it is easy to make typing, formatting, or structure mistakes
-- it can be hard to know exactly what should be changed
-- changes can become harder to track over time
+#### What you can do in FMU Settings vs how it is done without FMU Settings
 
-FMU Settings improves this by giving you:
+| Task | How it is done today | How it will be done in FMU Settings |
+| ----- | ---------------------- | ---------------------------------------- |
+| Start using SUMO | Manually add masterdata and metadata to global config yaml file. | Run a terminal command to initialize a FMU Settings project. Configuration of masterdata and metadata is then done through the FMU Settings GUI.
+| Add model masterdata | Open SMDA, find field and copy masterdata (on FMU format), manually paste masterdata into yaml file. Prone to errors. | GUI is connected to SMDA, masterdata is fetched and validated in the GUI, and stored to FMU project.
+| Add model stratigraphy | Manually add and update stratigraphic column (horizons and zones) in yaml file, based on stratigraphic column in SMDA. Highly prone to errors. | GUI is connected to SMDA and RMS, stratigraphy in RMS and stratigraphic column in SMDA can be mapped in the GUI, creating a consistent stratigraphic column between several data sources.
+| Track changes in global config | No version control of global config, all changes are done manually and anyone with access to project area can edit the yaml file. | Tracking of version history and functionality for restoring earlier versions if needed. |
 
-- a GUI for editing settings instead of changing YAML by hand
-- validation of the data being saved
-- version history so earlier states can be inspected or restored
-- protection against conflicting edits when multiple users work on the same project
+## How does FMU Settings work?
 
-The global config can still be a useful source of existing information during initialization, but FMU Settings is meant to be the easier place to maintain project settings afterwards.
+By initializing FMU Settings for your FMU project a folder called `.fmu` is automatically created in your project’s root folder.
+This `.fmu` folder is used to store all your project settings and project metadata. FMU Settings allows you to work with the content in the `.fmu` folder in a GUI, instead of having to edit configuration files manually.
 
-## What you can do in FMU Settings
+**NB! You should not edit anything inside the `.fmu` folder manually. All configuration and changes should be done through the FMU Settings GUI!**
 
-FMU Settings helps you:
-
-- initialize a project and create `.fmu/`
-- work with project metadata and masterdata through the GUI
-- map RMS stratigraphic framework to the SMDA stratigraphic column
-- inspect version history and restore earlier versions if needed
 
 From here, continue with [Getting started](getting_started.md).
