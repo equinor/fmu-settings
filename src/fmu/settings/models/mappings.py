@@ -19,7 +19,7 @@ from fmu.datamodels.context.mappings import (
 
 
 class InternalRelationType(StrEnum):
-    """The kind of relation a .fmu mapping represents."""
+    """The kind of relation this internal .fmu mapping represents."""
 
     primary = "primary"
     """The main source identifier to use for this mapping."""
@@ -32,7 +32,11 @@ class InternalRelationType(StrEnum):
 
 
 class InternalBaseMapping(BaseModel):
-    """Base mapping fields stored in a .fmu mappings file."""
+    """Base fields for internal mappings stored in .fmu/mappings.json.
+
+    Unlike the fmu-datamodels mapping models, internal mappings may represent
+    same-system relationships and unmappable source identifiers.
+    """
 
     source_system: DataSystem
     target_system: DataSystem
@@ -60,7 +64,13 @@ class InternalBaseMapping(BaseModel):
 
 
 class InternalIdentifierMapping(InternalBaseMapping):
-    """Identifier mapping stored in a .fmu mappings file."""
+    """Identifier mapping stored in .fmu/mappings.json.
+
+    The internal storage schema allows same-system primaries and aliases, and it
+    allows cross-system unmappable mappings without target identifiers.
+    fmu-datamodels identifier mappings only represent cross-system primary and
+    alias mappings with targets.
+    """
 
     source_id: str
     source_uuid: UUID | None = None
@@ -132,13 +142,21 @@ class InternalIdentifierMapping(InternalBaseMapping):
 
 
 class InternalStratigraphyIdentifierMapping(InternalIdentifierMapping):
-    """Stratigraphy identifier mapping stored in a .fmu mappings file."""
+    """Stratigraphy identifier mapping stored in .fmu/mappings.json.
+
+    Use ``to_stratigraphy_mappings()`` on the collection model when consumers
+    need the fmu-datamodels mapping schema.
+    """
 
     mapping_type: Literal[MappingType.stratigraphy] = MappingType.stratigraphy
 
 
 class InternalWellboreIdentifierMapping(InternalIdentifierMapping):
-    """Wellbore identifier mapping stored in a .fmu mappings file."""
+    """Wellbore identifier mapping stored in .fmu/mappings.json.
+
+    Use ``to_wellbore_mappings()`` on the collection model when consumers need
+    the fmu-datamodels mapping schema.
+    """
 
     mapping_type: Literal[MappingType.wellbore] = MappingType.wellbore
 
@@ -146,7 +164,12 @@ class InternalWellboreIdentifierMapping(InternalIdentifierMapping):
 class InternalStratigraphyMappings(
     RootModel[list[InternalStratigraphyIdentifierMapping]]
 ):
-    """Collection of stratigraphy mappings stored in a .fmu mappings file."""
+    """Collection of stratigraphy mappings stored in .fmu/mappings.json.
+
+    This internal model can keep same-system alias information and unmappable
+    relation. Converting to fmu-datamodels drops unmappable entries and expands
+    same-system aliases onto matching cross-system primary mappings.
+    """
 
     root: list[InternalStratigraphyIdentifierMapping]
 
@@ -161,7 +184,7 @@ class InternalStratigraphyMappings(
         return StratigraphyMappings(
             root=[
                 StratigraphyIdentifierMapping(**mapping)
-                for mapping in _get_identifier_mapping_payloads(self.root)
+                for mapping in _to_datamodels_identifier_mapping_payloads(self.root)
             ]
         )
 
@@ -179,7 +202,12 @@ class InternalStratigraphyMappings(
 
 
 class InternalWellboreMappings(RootModel[list[InternalWellboreIdentifierMapping]]):
-    """Collection of wellbore mappings stored in a .fmu mappings file."""
+    """Collection of wellbore mappings stored in .fmu/mappings.json.
+
+    This internal model can keep same-system alias information and unmappable
+    relation. Converting to fmu-datamodels drops unmappable entries and expands
+    same-system aliases onto matching cross-system primary mappings.
+    """
 
     root: list[InternalWellboreIdentifierMapping]
 
@@ -194,7 +222,7 @@ class InternalWellboreMappings(RootModel[list[InternalWellboreIdentifierMapping]
         return WellboreMappings(
             root=[
                 WellboreIdentifierMapping(**mapping)
-                for mapping in _get_identifier_mapping_payloads(self.root)
+                for mapping in _to_datamodels_identifier_mapping_payloads(self.root)
             ]
         )
 
@@ -212,7 +240,7 @@ class InternalWellboreMappings(RootModel[list[InternalWellboreIdentifierMapping]
 
 
 class InternalMappings(BaseModel):
-    """Represents the mappings file in a .fmu directory."""
+    """Represents the .fmu/mappings.json storage schema."""
 
     stratigraphy: InternalStratigraphyMappings = Field(
         default_factory=lambda: InternalStratigraphyMappings(root=[])
@@ -228,7 +256,7 @@ class InternalMappings(BaseModel):
 def _validate_identifier_mappings_collection(
     mappings: Sequence[InternalIdentifierMapping],
 ) -> None:
-    """Validate how mappings are allowed to fit together.
+    """Validate how mappings are allowed to fit together when stored internally.
 
     The collection must satisfy three invariants:
 
@@ -349,10 +377,10 @@ def _validate_identifier_mappings_collection(
             )
 
 
-def _get_identifier_mapping_payloads(
+def _to_datamodels_identifier_mapping_payloads(
     mappings: Sequence[InternalIdentifierMapping],
 ) -> list[dict[str, Any]]:
-    """Return payloads for the identifier mapping models from fmu-datamodels.
+    """Convert internal mappings to fmu-datamodels identifier mapping payloads.
 
     Stored .fmu mappings can describe relationships inside the same system, for
     example ``rms -> rms`` primaries and aliases. Downstream consumers often need
