@@ -736,7 +736,7 @@ def test_list_restorable_files_skips_project_mappings_without_cache(
     assert fmu_dir.list_restorable_files() == []
 
 
-def test_internal_directory_base_exposes_lock_timeout_kwarg() -> None:
+def test_fmu_directory_base_exposes_lock_timeout_kwarg() -> None:
     """Tests that the kw-only lock timeout argument remains available."""
     signature = inspect.signature(FMUDirectoryBase.__init__)
     lock_timeout = signature.parameters.get("lock_timeout_seconds")
@@ -870,7 +870,7 @@ def test_find_rms_projects_with_config_path(
     assert fmu_dir2.get_config_value("rms").path == rms_project
 
 
-def test_internal_directory_base_get_dir_diff_with_other_fmu_dir(
+def test_fmu_directory_base_get_dir_diff_with_other_fmu_dir(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
@@ -888,7 +888,7 @@ def test_internal_directory_base_get_dir_diff_with_other_fmu_dir(
     assert diff_fmu_dir["config"][0][2] == Masterdata.model_validate(masterdata_dict)
 
 
-def test_internal_directory_base_get_dir_diff_only_diff_whitelisted_resources(
+def test_fmu_directory_base_get_dir_diff_only_diff_whitelisted_resources(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
@@ -910,7 +910,7 @@ def test_internal_directory_base_get_dir_diff_only_diff_whitelisted_resources(
     assert "_lock" not in diff_fmu_dir
 
 
-def test_internal_directory_base_get_dir_diff_skip_when_resource_not_exist(
+def test_fmu_directory_base_get_dir_diff_skip_when_resource_not_exist(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -926,7 +926,7 @@ def test_internal_directory_base_get_dir_diff_skip_when_resource_not_exist(
     assert len(diff_fmu_dir) == 0
 
 
-def test_internal_directory_base_sync_dir_with_other_fmu_dir(
+def test_fmu_directory_base_sync_dir_with_other_fmu_dir(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
@@ -948,7 +948,7 @@ def test_internal_directory_base_sync_dir_with_other_fmu_dir(
     assert new_fmu_dir.config.load().masterdata == fmu_dir.config.load().masterdata
 
 
-def test_internal_directory_base_sync_dir_only_whitelisted_resources(
+def test_fmu_directory_base_sync_dir_only_whitelisted_resources(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
@@ -971,7 +971,7 @@ def test_internal_directory_base_sync_dir_only_whitelisted_resources(
     assert not fmu_dir._lock.exists
 
 
-def test_internal_directory_base_sync_dir_skip_when_resource_not_exist(
+def test_fmu_directory_base_sync_dir_skip_when_resource_not_exist(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -986,7 +986,7 @@ def test_internal_directory_base_sync_dir_skip_when_resource_not_exist(
     assert len(updates) == 0
 
 
-def test_internal_directory_base_sync_dir_skip_when_no_diff(
+def test_fmu_directory_base_sync_dir_skip_when_no_diff(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1003,7 +1003,7 @@ def test_internal_directory_base_sync_dir_skip_when_no_diff(
     assert len(updates) == 0
 
 
-def test_internal_directory_base_sync_runtime_variables(
+def test_fmu_directory_base_sync_runtime_variables(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1171,7 +1171,7 @@ def test_restore_from_cache_higher_cache_max_revisions_does_not_trim_to_old_limi
     assert len(fmu_dir.cache.list_revisions("config.json")) == expected_revision_count
 
 
-def test_internal_directory_base_get_dir_diff_with_same_changelog(
+def test_fmu_directory_base_get_dir_diff_with_same_changelog(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1193,7 +1193,7 @@ def test_internal_directory_base_get_dir_diff_with_same_changelog(
         assert len(change_list) == 0, f"Resource {resource} has changes"
 
 
-def test_internal_directory_base_get_dir_diff_with_changelog(
+def test_fmu_directory_base_get_dir_diff_with_changelog(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1241,7 +1241,7 @@ def test_internal_directory_base_get_dir_diff_with_changelog(
     assert changelog_diff[0][2].root[0] == new_log_entry
 
 
-def test_internal_directory_base_sync_dir_with_changelog(
+def test_fmu_directory_base_sync_dir_with_changelog(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1287,7 +1287,7 @@ def test_internal_directory_base_sync_dir_with_changelog(
     assert updated_changelog[2].path == fmu_dir.path
 
 
-def test_internal_directory_base_sync_dir_with_all_resources(
+def test_fmu_directory_base_sync_dir_with_all_resources(
     fmu_dir: ProjectFMUDirectory,
     masterdata_dict: dict[str, Any],
     extra_fmu_dir: ProjectFMUDirectory,
@@ -1351,7 +1351,7 @@ def test_internal_directory_base_sync_dir_with_all_resources(
     assert "_mappings" in updated_changelog[5].file
 
 
-def test_internal_directory_base_sync_dir_dont_sync_ignored_fields(
+def test_fmu_directory_base_sync_dir_dont_sync_ignored_fields(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1418,7 +1418,7 @@ def test_internal_directory_base_sync_dir_dont_sync_ignored_fields(
     assert "Old value: user -> New value: johndoe" in updates["_changelog"][4].change
 
 
-def test_internal_directory_base_get_dir_diff_with_mappings(
+def test_fmu_directory_base_get_dir_diff_with_mappings(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -1463,7 +1463,7 @@ def test_internal_directory_base_get_dir_diff_with_mappings(
     assert changelog_diff[2][0].file == "mappings.json"
 
 
-def test_internal_directory_base_sync_dir_with_mappings(
+def test_fmu_directory_base_sync_dir_with_mappings(
     fmu_dir: ProjectFMUDirectory,
     extra_fmu_dir: ProjectFMUDirectory,
 ) -> None:

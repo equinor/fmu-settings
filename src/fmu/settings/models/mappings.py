@@ -68,7 +68,7 @@ class InternalIdentifierMapping(InternalBaseMapping):
 
     The internal storage schema allows same-system primaries and aliases, and it
     allows cross-system unmappable mappings without target identifiers.
-    fmu-datamodels identifier mappings only represent cross-system primary and
+    fmu-datamodels ``IdentifierMapping`` only represent cross-system primary and
     alias mappings with targets.
     """
 

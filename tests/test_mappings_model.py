@@ -1,15 +1,18 @@
 """Tests for validators in the .fmu mapping models."""
 
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
 from fmu.datamodels.context.mappings import (
     DataSystem,
     MappingType,
+    RelationType,
     StratigraphyMappings,
     WellboreMappings,
 )
 
+import fmu.settings.models.mappings as mappings_model
 from fmu.settings.models.mappings import (
     InternalBaseMapping,
     InternalIdentifierMapping,
@@ -406,7 +409,27 @@ def test_internal_stratigraphy_mappings_serializes_to_json_list() -> None:
     ]
 
 
-def test_internal_stratigraphy_mappings_reject_alias_without_primary() -> None:
+def test_internal_stratigraphy_mappings_validates_collection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """InternalStratigraphyMappings validates mappings through the shared helper."""
+    mapping = create_stratigraphy_mapping()
+    validate_collection = Mock()
+
+    monkeypatch.setattr(
+        mappings_model,
+        "_validate_identifier_mappings_collection",
+        validate_collection,
+    )
+
+    InternalStratigraphyMappings(root=[mapping])
+
+    validate_collection.assert_called_once_with([mapping])
+
+
+def test_validate_identifier_mappings_collection_rejects_alias_without_primary() -> (
+    None
+):
     """Same-system aliases must point to an existing same-system primary."""
     alias = create_stratigraphy_mapping(
         relation_type=InternalRelationType.alias,
@@ -421,10 +444,10 @@ def test_internal_stratigraphy_mappings_reject_alias_without_primary() -> None:
             "same-system primary source_id"
         ),
     ):
-        InternalStratigraphyMappings(root=[alias])
+        mappings_model._validate_identifier_mappings_collection([alias])
 
 
-def test_internal_stratigraphy_mappings_reject_cross_system_alias_sources() -> None:
+def test_validate_collection_rejects_cross_system_alias_sources() -> None:
     """Cross-system mappings must use same-system primary source identifiers."""
     primary = create_stratigraphy_mapping()
     alias = create_stratigraphy_mapping(
@@ -447,10 +470,12 @@ def test_internal_stratigraphy_mappings_reject_cross_system_alias_sources() -> N
             "as a same-system primary"
         ),
     ):
-        InternalStratigraphyMappings(root=[primary, alias, mapped_alias])
+        mappings_model._validate_identifier_mappings_collection(
+            [primary, alias, mapped_alias]
+        )
 
 
-def test_internal_stratigraphy_mappings_reject_multiple_cross_system_outcomes() -> None:
+def test_validate_collection_rejects_multiple_cross_system_outcomes() -> None:
     """A same-system primary identifier can only have one outcome per target system."""
     primary = create_stratigraphy_mapping()
     mapped = create_stratigraphy_mapping(
@@ -472,10 +497,12 @@ def test_internal_stratigraphy_mappings_reject_multiple_cross_system_outcomes() 
         ValueError,
         match=("A source_id can only have one cross-system mapping per target system"),
     ):
-        InternalStratigraphyMappings(root=[primary, mapped, unmappable])
+        mappings_model._validate_identifier_mappings_collection(
+            [primary, mapped, unmappable]
+        )
 
 
-def test_internal_stratigraphy_mappings_reject_reused_same_system_source_id() -> None:
+def test_validate_collection_rejects_reused_same_system_source_id() -> None:
     """A source_id cannot be both a primary and an alias in the same collection."""
     primary = create_stratigraphy_mapping()
     other_primary = create_stratigraphy_mapping(
@@ -492,7 +519,28 @@ def test_internal_stratigraphy_mappings_reject_reused_same_system_source_id() ->
         ValueError,
         match=("Same-system mappings cannot reuse the same source_id"),
     ):
-        InternalStratigraphyMappings(root=[primary, other_primary, conflicting_alias])
+        mappings_model._validate_identifier_mappings_collection(
+            [primary, other_primary, conflicting_alias]
+        )
+
+
+def test_validate_identifier_mappings_collection_allows_multiple_target_systems() -> (
+    None
+):
+    """A primary source identifier can map once to each target system."""
+    primary = create_stratigraphy_mapping()
+    smda_mapping = create_stratigraphy_mapping(
+        target_system=DataSystem.smda,
+        target_id="VOLANTIS GP. Top",
+    )
+    simulator_mapping = create_stratigraphy_mapping(
+        target_system=DataSystem.simulator,
+        target_id="TopVolantis",
+    )
+
+    mappings_model._validate_identifier_mappings_collection(
+        [primary, smda_mapping, simulator_mapping]
+    )
 
 
 @pytest.mark.parametrize(
@@ -561,6 +609,123 @@ def test_internal_wellbore_mappings_support_dunder_methods() -> None:
     assert mappings[0] == primary
     assert list(mappings) == expected
     assert len(mappings) == len(expected)
+
+
+def test_to_datamodels_identifier_mapping_payloads_drops_internal_only_mappings() -> (
+    None
+):
+    """Only cross-system primary mappings are returned as datamodels payloads."""
+    primary = create_stratigraphy_mapping()
+    alias = create_stratigraphy_mapping(
+        source_id="TopVOLANTIS",
+        target_id="TopVolantis",
+        relation_type=InternalRelationType.alias,
+    )
+    unmappable = create_stratigraphy_mapping(
+        target_system=DataSystem.smda,
+        target_id=None,
+        relation_type=InternalRelationType.unmappable,
+    )
+
+    payloads = mappings_model._to_datamodels_identifier_mapping_payloads(
+        [primary, alias, unmappable]
+    )
+
+    assert payloads == []
+
+
+def test_to_datamodels_identifier_mapping_payloads_expands_aliases_to_targets() -> None:
+    """Same-system aliases are expanded to matching cross-system primary mappings."""
+    primary = create_stratigraphy_mapping()
+    alias = create_stratigraphy_mapping(
+        source_id="TopVOLANTIS",
+        target_id="TopVolantis",
+        relation_type=InternalRelationType.alias,
+    )
+    smda_mapping = create_stratigraphy_mapping(
+        target_system=DataSystem.smda,
+        target_id="VOLANTIS GP. Top",
+    )
+    simulator_mapping = create_stratigraphy_mapping(
+        target_system=DataSystem.simulator,
+        target_id="TopVolantis",
+    )
+
+    payloads = mappings_model._to_datamodels_identifier_mapping_payloads(
+        [primary, alias, smda_mapping, simulator_mapping]
+    )
+
+    assert payloads == [
+        {
+            "source_system": DataSystem.rms,
+            "target_system": DataSystem.smda,
+            "mapping_type": MappingType.stratigraphy,
+            "relation_type": RelationType.primary,
+            "source_id": "TopVolantis",
+            "source_uuid": None,
+            "target_id": "VOLANTIS GP. Top",
+            "target_uuid": None,
+        },
+        {
+            "source_system": DataSystem.rms,
+            "target_system": DataSystem.smda,
+            "mapping_type": MappingType.stratigraphy,
+            "relation_type": RelationType.alias,
+            "source_id": "TopVOLANTIS",
+            "source_uuid": None,
+            "target_id": "VOLANTIS GP. Top",
+            "target_uuid": None,
+        },
+        {
+            "source_system": DataSystem.rms,
+            "target_system": DataSystem.simulator,
+            "mapping_type": MappingType.stratigraphy,
+            "relation_type": RelationType.primary,
+            "source_id": "TopVolantis",
+            "source_uuid": None,
+            "target_id": "TopVolantis",
+            "target_uuid": None,
+        },
+        {
+            "source_system": DataSystem.rms,
+            "target_system": DataSystem.simulator,
+            "mapping_type": MappingType.stratigraphy,
+            "relation_type": RelationType.alias,
+            "source_id": "TopVOLANTIS",
+            "source_uuid": None,
+            "target_id": "TopVolantis",
+            "target_uuid": None,
+        },
+    ]
+
+
+def test_to_datamodels_identifier_mapping_payloads_preserves_relevant_uuids() -> None:
+    """Alias payloads use the alias source UUID and cross-system target UUID."""
+    alias_source_uuid = uuid4()
+    target_uuid = uuid4()
+    alias = InternalStratigraphyIdentifierMapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.rms,
+        relation_type=InternalRelationType.alias,
+        source_id="TopVOLANTIS",
+        source_uuid=alias_source_uuid,
+        target_id="TopVolantis",
+    )
+    smda_mapping = InternalStratigraphyIdentifierMapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.smda,
+        relation_type=InternalRelationType.primary,
+        source_id="TopVolantis",
+        target_id="VOLANTIS GP. Top",
+        target_uuid=target_uuid,
+    )
+
+    payloads = mappings_model._to_datamodels_identifier_mapping_payloads(
+        [alias, smda_mapping]
+    )
+
+    assert payloads[1]["source_uuid"] == alias_source_uuid
+    assert payloads[1]["target_uuid"] == target_uuid
 
 
 def test_internal_stratigraphy_mappings_converts_to_datamodels_mappings() -> None:
