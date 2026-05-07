@@ -128,3 +128,10 @@ combine-as-imports = true
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.uv]
+exclude-newer = "1 week"
+
+[tool.uv.exclude-newer-package]
+"fmu-config" = false
+"fmu-datamodels" = false
