@@ -25,10 +25,12 @@ def test_create_drogon_fmu_roundtrip(tmp_path: Path) -> None:
     assert config_dict["model"] == MODEL
     assert config_dict["access"] == ACCESS
 
-    mappings_dict = fmu_dir.mappings.load().model_dump(mode="json")
+    stratigraphy_mappings = fmu_dir.mappings.stratigraphy_mappings.model_dump(
+        mode="json"
+    )
 
     strat_mappings = []
-    for strat_mapping in mappings_dict.get("stratigraphy", []):
+    for strat_mapping in stratigraphy_mappings:
         assert strat_mapping.get("mapping_type") == "stratigraphy"
         assert strat_mapping.get("source_uuid") is None
 
