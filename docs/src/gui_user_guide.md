@@ -174,7 +174,22 @@ If the project contains horizons or zones that no longer exist in RMS, FMU Setti
 
 ## Step 5: Map RMS stratigraphy to SMDA
 
-<!-- TODO: Add content for the Mappings page -->
+The **Stratigraphy** page allows you to map your RMS names and aliases to the SMDA names. 
+
+The stratigraphy you configured in **Step 4**  will be displayed here, with your RMS elements marked as "RMS". Each stratigraphic element (zones and horizons) will have a corresponding SMDA field. 
+
+#### How to map RMS to SMDA name:
+1. Click the Edit icon (pen symbol) for the zone or horizon you want to edit.
+2. A window will pop up with a drop-down menu listing available SMDA stratigraphic elements.
+3. Select the corresponding SMDA horizon or zone from the list.
+4. If needed, add one or more aliases for the RMS name.
+5. Save your changes.
+
+If an RMS zone or horizon does not exist in SMDA, select “Zone does not exist in SMDA”.
+
+#### Upcoming feature: Automatic mapping
+An upcoming feature for FMU Settings is an automatic mapping functionality. This will attempt to auto-match RMS names to SMDA names. You will then only need to verify the results and manually map any horizons or zones that could not be automatically matched.
+
 
 ## Optional: Review earlier saved versions
 
