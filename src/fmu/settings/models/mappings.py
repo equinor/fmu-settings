@@ -258,7 +258,7 @@ def _validate_identifier_mappings_collection(
 ) -> None:
     """Validate how mappings are allowed to fit together when stored internally.
 
-    The collection must satisfy three invariants:
+    The collection must satisfy four invariants:
 
     - A same-system ``source_id`` can appear only once per mapping type.
       Example valid mappings::
@@ -303,11 +303,31 @@ def _validate_identifier_mappings_collection(
       The cross-system mapping is invalid because it starts from an alias instead
       of a same-system primary. It is also invalid to add two ``rms -> smda``
       mappings for the same ``source_id``.
+
+    - A cross-system ``target_id`` can be used only once per target system.
+      Example valid mappings::
+
+          rms -> rms, primary, source_id="TopVolantis", target_id="TopVolantis"
+          rms -> rms, alias, source_id="TOP_VOLANTIS", target_id="TopVolantis"
+          rms -> smda, primary, source_id="TopVolantis", target_id="VOLANTIS GP. Top"
+
+      Example invalid mappings::
+
+          rms -> rms, primary, source_id="TopVolantis", target_id="TopVolantis"
+          rms -> rms, primary, source_id="Volon", target_id="Volon"
+          rms -> smda, primary, source_id="TopVolantis", target_id="VOLANTIS GP. Top"
+          rms -> smda, primary, source_id="Volon", target_id="VOLANTIS GP. Top"
+
+    The second cross-system mapping is invalid because one cross-system
+    ``target_id`` cannot be mapped to more than one same-system primary.
     """
     same_system_source_keys: set[tuple[DataSystem, MappingType, str]] = set()
     same_system_primary_source_keys: set[tuple[DataSystem, MappingType, str]] = set()
     same_system_aliases: list[InternalIdentifierMapping] = []
     cross_system_source_keys: set[tuple[MappingType, DataSystem, DataSystem, str]] = (
+        set()
+    )
+    cross_system_target_keys: set[tuple[MappingType, DataSystem, DataSystem, str]] = (
         set()
     )
     cross_system_mappings: list[InternalIdentifierMapping] = []
@@ -333,17 +353,33 @@ def _validate_identifier_mappings_collection(
             continue
 
         # A source_id can map to each target system only once.
-        cross_system_key = (
+        cross_system_source_key = (
             mapping.mapping_type,
             mapping.source_system,
             mapping.target_system,
             mapping.source_id,
         )
-        if cross_system_key in cross_system_source_keys:
+        if cross_system_source_key in cross_system_source_keys:
             raise ValueError(
                 "A source_id can only have one cross-system mapping per target system"
             )
-        cross_system_source_keys.add(cross_system_key)
+        cross_system_source_keys.add(cross_system_source_key)
+
+        # A cross-system target_id can only belong to one same-system primary.
+        if mapping.target_id is not None:
+            cross_system_target_key = (
+                mapping.mapping_type,
+                mapping.source_system,
+                mapping.target_system,
+                mapping.target_id,
+            )
+            if cross_system_target_key in cross_system_target_keys:
+                raise ValueError(
+                    "A target_id can only be used by one cross-system mapping "
+                    "per target system"
+                )
+            cross_system_target_keys.add(cross_system_target_key)
+
         cross_system_mappings.append(mapping)
 
     # Every alias must point to a same-system primary source_id that already
