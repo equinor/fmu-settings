@@ -502,6 +502,39 @@ def test_validate_collection_rejects_multiple_cross_system_outcomes() -> None:
         )
 
 
+def test_validate_collection_rejects_reused_cross_system_target_id() -> None:
+    """A cross-system target identifier can only belong to one primary source."""
+    first_primary = create_stratigraphy_mapping()
+    second_primary = create_stratigraphy_mapping(
+        source_id="Volon",
+        target_id="Volon",
+    )
+    first_mapping = create_stratigraphy_mapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.smda,
+        relation_type=InternalRelationType.primary,
+        source_id="TopVolantis",
+        target_id="VOLANTIS GP. Top",
+    )
+    second_mapping = create_stratigraphy_mapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.smda,
+        relation_type=InternalRelationType.primary,
+        source_id="Volon",
+        target_id="VOLANTIS GP. Top",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "A target_id can only be used by one cross-system mapping per target system"
+        ),
+    ):
+        mappings_model._validate_identifier_mappings_collection(
+            [first_primary, second_primary, first_mapping, second_mapping]
+        )
+
+
 def test_validate_collection_rejects_reused_same_system_source_id() -> None:
     """A source_id cannot be both a primary and an alias in the same collection."""
     primary = create_stratigraphy_mapping()
