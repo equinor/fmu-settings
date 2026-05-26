@@ -2,7 +2,7 @@
 
 This page describes the architecture owned by this repository and the high-level relationship between `fmu-settings` and the surrounding FMU Settings repositories.
 
-`fmu-settings` is the behavioral core. It knows what a project `.fmu/` directory is and how to lock, diff, cache, restore, and validate its managed resources.
+`fmu-settings` is the behavioral core. It reads, writes, and manages resources in project and user `.fmu/` directories, including locking, diffing, caching, restoring, and validation.
 
 ## Ecosystem Overview
 
@@ -29,11 +29,11 @@ flowchart LR
 
 The dependency chain is intentionally layered:
 
-- [`fmu-settings`](https://github.com/equinor/fmu-settings) owns `.fmu/` directory behavior and core resource workflows.
+- [`fmu-settings`](https://github.com/equinor/fmu-settings) reads, writes, and manages the resources stored in `.fmu/` directories.
 - [`fmu-datamodels`](https://github.com/equinor/fmu-datamodels) provides the shared vocabulary for masterdata, access, global configuration, and mappings.
-- [`fmu-settings-api`](https://github.com/equinor/fmu-settings-api) wraps the core library in a session-oriented application layer.
+- [`fmu-settings-api`](https://github.com/equinor/fmu-settings-api) wraps `fmu-settings` in a session-oriented application layer and coordinates interaction with external systems.
 - [`fmu-settings-gui`](https://github.com/equinor/fmu-settings-gui) talks to the API and should not edit `.fmu/` files directly.
-- [`fmu-settings-cli`](https://github.com/equinor/fmu-settings-cli) is the local orchestrator for bootstrapping user state, launching the API and GUI, and running utility commands.
+- [`fmu-settings-cli`](https://github.com/equinor/fmu-settings-cli) is the user-facing command line interface for bootstrapping user state, launching the API and GUI, and running utility commands.
 
 ## Core Library
 
@@ -146,9 +146,9 @@ The main library split is:
 
 ## Runtime Flow
 
-The full runtime spans multiple repositories, but this repository owns the `.fmu/` directory operations used by the API and CLI.
+The full runtime spans multiple repositories, but `fmu-settings` owns the `.fmu/` directory operations used by the API and CLI.
 
-When a user runs `fmu settings`, the CLI starts a local application stack around this library:
+When a user runs `fmu settings`, `fmu-settings-cli` starts a local application stack around `fmu-settings`:
 
 1. The CLI ensures the user-level `.fmu/` directory exists, creating `$HOME/.fmu/` through `init_user_fmu_directory()` when needed.
 2. It creates a short-lived bootstrap token used only to authenticate the browser session startup.
@@ -158,7 +158,7 @@ When a user runs `fmu settings`, the CLI starts a local application stack around
 6. The React app reads the token from the fragment, stores it in browser session storage, and exchanges it for an API session.
 7. The API verifies the bootstrap token, ensures user settings are available, creates or renews a server-side session, and sets an HttpOnly session cookie.
 8. If the command was launched from inside an initialized FMU project, the API locates the nearest project `.fmu/` directory and tries to acquire its lock.
-9. After session setup, the GUI talks to the API with the session cookie, and the API uses `ProjectFMUDirectory` and `UserFMUDirectory` to read and write managed resources.
+9. After session setup, the GUI talks to the API with the session cookie, and the API uses `ProjectFMUDirectory` and `UserFMUDirectory` from `fmu-settings` to read and write managed resources.
 
 ```mermaid
 sequenceDiagram
@@ -168,9 +168,9 @@ sequenceDiagram
     participant Browser
     participant SPA as React SPA
     participant API as fmu-settings-api
-    participant Session as SessionManager
-    participant UserFMU as UserFMUDirectory
-    participant ProjectFMU as ProjectFMUDirectory
+    participant Session as SessionManager<br/>fmu-settings-api
+    participant UserFMU as UserFMUDirectory<br/>fmu-settings
+    participant ProjectFMU as ProjectFMUDirectory<br/>fmu-settings
 
     User->>CLI: run `fmu settings`
     CLI->>UserFMU: init_user_fmu_directory() if needed

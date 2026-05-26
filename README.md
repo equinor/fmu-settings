@@ -7,11 +7,11 @@
 
 **Source code**: <a href="https://github.com/equinor/fmu-settings/" target="_blank">https://github.com/equinor/fmu-settings/</a>
 
-`fmu-settings` is the Python core library for managing `.fmu/` directories in FMU projects and user environments.
+`fmu-settings` is the Python core library for reading, writing, and managing resources in `.fmu/` directories for FMU projects and user environments.
 
-It owns the filesystem behavior around project settings: initialization, discovery, configuration models, resource managers, locking, cache handling, changelogs, restore behavior, and synchronization helpers.
+It owns the filesystem behavior around those resources: initialization, discovery, configuration models, resource managers, locking, cache handling, changelogs, restore behavior, and synchronization helpers.
 
-## Where It Fits
+## FMU Settings Architecture
 
 FMU Settings is split across a few repositories:
 
@@ -32,11 +32,11 @@ flowchart LR
     API --> MODELS
 ```
 
-- [`fmu-settings`](https://github.com/equinor/fmu-settings) is the core `.fmu/` library.
+- [`fmu-settings`](https://github.com/equinor/fmu-settings) is the core library for reading, writing, and managing `.fmu/` resources.
 - [`fmu-datamodels`](https://github.com/equinor/fmu-datamodels) provides shared Pydantic domain models.
-- [`fmu-settings-api`](https://github.com/equinor/fmu-settings-api) exposes the library through a FastAPI application layer.
+- [`fmu-settings-api`](https://github.com/equinor/fmu-settings-api) exposes `fmu-settings` through a FastAPI application layer.
 - [`fmu-settings-gui`](https://github.com/equinor/fmu-settings-gui) provides the browser-based user interface.
-- [`fmu-settings-cli`](https://github.com/equinor/fmu-settings-cli) bootstraps local user state, launches the API and GUI, and exposes utility commands.
+- [`fmu-settings-cli`](https://github.com/equinor/fmu-settings-cli) provides the user-facing command line interface, including commands that bootstrap local user state and launch the API and GUI.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the library architecture and a high-level ecosystem overview.
 
