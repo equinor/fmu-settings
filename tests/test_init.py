@@ -9,15 +9,15 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from fmu.settings import __version__
-from fmu.settings._global_config import find_global_config
-from fmu.settings._init import (
+from fmu.settings import (
     REQUIRED_FMU_PROJECT_SUBDIRS,
     InvalidFMUProjectPathError,
-    _create_fmu_directory,
+    __version__,
+    find_global_config,
     init_fmu_directory,
     init_user_fmu_directory,
 )
+from fmu.settings._init import _create_fmu_directory
 from fmu.settings._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
@@ -174,7 +174,7 @@ def test_write_fmu_config_with_global_config(fmuconfig_with_output: Path) -> Non
         (fmuconfig_with_output / dir).mkdir(parents=True, exist_ok=True)
     cfg = find_global_config(fmuconfig_with_output, strict=False)
     assert cfg is not None
-    with patch("fmu.settings._init.find_global_config") as mock_find_global_config:
+    with patch("fmu.settings.find_global_config") as mock_find_global_config:
         fmu_dir = init_fmu_directory(fmuconfig_with_output, global_config=cfg)
 
     mock_find_global_config.assert_not_called()
