@@ -32,6 +32,11 @@ from fmu.datamodels.fmu_results.global_configuration import (
 )
 from pytest import MonkeyPatch
 
+from fmu.settings import (
+    REQUIRED_FMU_PROJECT_SUBDIRS,
+    init_fmu_directory,
+    init_user_fmu_directory,
+)
 from fmu.settings._drogon import (
     ACCESS,
     GLOBAL_CONFIG_STRATIGRAPHY,
@@ -45,11 +50,6 @@ from fmu.settings._drogon import (
     create_drogon_fmu_dir,
 )
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
-from fmu.settings._init import (
-    REQUIRED_FMU_PROJECT_SUBDIRS,
-    init_fmu_directory,
-    init_user_fmu_directory,
-)
 from fmu.settings._version import __version__
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
