@@ -16,6 +16,8 @@ from ._fmu_dir import (
 from ._init import (
     REQUIRED_FMU_PROJECT_SUBDIRS,
     InvalidFMUProjectPathError,
+    InvalidGlobalConfigurationError,
+    find_global_config,
     init_fmu_directory,
     init_user_fmu_directory,
 )
@@ -49,4 +51,6 @@ __all__ = [
     "REQUIRED_FMU_PROJECT_SUBDIRS",
     "UserFMUDirectory",
     "find_nearest_fmu_directory",
+    "find_global_config",
+    "InvalidGlobalConfigurationError",
 ]
