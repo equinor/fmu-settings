@@ -189,7 +189,7 @@ STRATIGRAPHY_MAPPINGS: Final[list[dict[str, Any]]] = [
         "relation_type": "primary",
         "source_id": "TopVolon",
         "target_id": "Volon Fm. Top",
-        "target_uuid": "0240dc8e-659a-4925-b569-6f1570ba6770",
+        "target_uuid": "8aeab228-6b92-4875-8b13-2b68a3108c8d",
     },
     {
         "source_system": "rms",
