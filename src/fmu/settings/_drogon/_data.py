@@ -57,6 +57,12 @@ RMS_ZONES: Final[list[dict[str, Any]]] = [
         "stratigraphic_column_name": ["Column"],
     },
     {
+        "name": "TopVolantis_BaseVolantis",
+        "top_horizon_name": "TopVolantis",
+        "base_horizon_name": "BaseVolantis",
+        "stratigraphic_column_name": ["Column_1"],
+    },
+    {
         "name": "Therys",
         "top_horizon_name": "TopTherys",
         "base_horizon_name": "TopVolon",
@@ -148,6 +154,7 @@ GLOBAL_CONFIG_STRATIGRAPHY: Final[dict[str, Any]] = {
     "Therys": {"stratigraphic": True, "name": "Therys Fm."},
     "Volon": {"stratigraphic": True, "name": "Volon Fm."},
     "Below": {"stratigraphic": False, "name": "Below"},
+    "TopVolantis_BaseVolantis": {"stratigraphic": True, "name": "VOLANTIS GP."},
 }
 
 STRATIGRAPHY_MAPPINGS: Final[list[dict[str, Any]]] = [
@@ -230,5 +237,13 @@ STRATIGRAPHY_MAPPINGS: Final[list[dict[str, Any]]] = [
         "source_id": "Volon",
         "target_id": "Volon Fm.",
         "target_uuid": "a6d740be-ef58-4569-9fad-2daf17aa214c",
+    },
+    {
+        "source_system": "rms",
+        "target_system": "smda",
+        "relation_type": "primary",
+        "source_id": "TopVolantis_BaseVolantis",
+        "target_id": "VOLANTIS GP.",
+        "target_uuid": "08d5f9e0-56bc-4956-b0f3-68f2a3047ef9",
     },
 ]
