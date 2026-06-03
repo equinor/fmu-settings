@@ -174,7 +174,7 @@ def test_write_fmu_config_with_global_config(fmuconfig_with_output: Path) -> Non
         (fmuconfig_with_output / dir).mkdir(parents=True, exist_ok=True)
     cfg = find_global_config(fmuconfig_with_output, strict=False)
     assert cfg is not None
-    with patch("fmu.settings.find_global_config") as mock_find_global_config:
+    with patch("fmu.settings._init.find_global_config") as mock_find_global_config:
         fmu_dir = init_fmu_directory(fmuconfig_with_output, global_config=cfg)
 
     mock_find_global_config.assert_not_called()
