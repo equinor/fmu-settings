@@ -124,6 +124,21 @@ class ChangelogManager(LogManager[ChangeInfo]):
             )
         )
 
+    def log_init_to_changelog(self: Self) -> None:
+        """Logs a change entry indicating that the project .fmu was initialized."""
+        self.add_log_entry(
+            ChangeInfo(
+                timestamp=datetime.now(UTC),
+                change_type=ChangeType.add,
+                user=os.getenv("USER", "unknown"),
+                path=self.fmu_dir.path,
+                change=f"Initialized .fmu directory at '{self.fmu_dir.path}'.",
+                hostname=socket.gethostname(),
+                file=".fmu",
+                key=".fmu",
+            )
+        )
+
     def _get_latest_change_timestamp(self: Self) -> datetime:
         """Get the timestamp of the latest change entry in the changelog."""
         return self.load()[-1].timestamp

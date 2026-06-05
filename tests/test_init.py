@@ -19,6 +19,7 @@ from fmu.settings import (
 )
 from fmu.settings._init import _create_fmu_directory
 from fmu.settings._readme_texts import PROJECT_README_CONTENT, USER_README_CONTENT
+from fmu.settings.models._enums import ChangeType
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
 
@@ -105,6 +106,23 @@ def test_write_fmu_config_roundtrip(fmu_project_root: Path) -> None:
         config_data = json.loads(f.read())
     # Fails if invalid
     ProjectConfig.model_validate(config_data)
+
+
+def test_init_fmu_directory_writes_initial_changelog_entry(
+    fmu_project_root: Path,
+) -> None:
+    """Tests that initializing a project writes an initial changelog entry."""
+    fmu_dir = init_fmu_directory(fmu_project_root)
+
+    changelog = fmu_dir.changelog.load()
+    assert len(changelog) == 1
+
+    init_entry = changelog[0]
+    assert init_entry.change_type == ChangeType.add
+    assert init_entry.path == fmu_dir.path
+    assert init_entry.file == ".fmu"
+    assert init_entry.key == ".fmu"
+    assert init_entry.change == f"Initialized .fmu directory at '{fmu_dir.path}'."
 
 
 def test_init_fmu_directory_rejects_invalid_project_path(tmp_path: Path) -> None:
