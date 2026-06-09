@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 import annotated_types
 from pydantic import (
@@ -40,6 +40,9 @@ class UserConfig(ResettableBaseModel):
 
     Stored as config.json.
     """
+
+    schema_version: Literal[1] = 1
+    """The version of the data schema defined by this data model."""
 
     version: VersionStr
     created_at: AwareDatetime

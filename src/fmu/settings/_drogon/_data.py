@@ -34,7 +34,7 @@ MASTERDATA: Final[dict[str, Any]] = {
 MODEL: Final[dict[str, Any]] = {
     "name": "Drogon",
     "revision": "26.0.0",
-    "description": None,
+    "description": ["Drogon model with revision 26.0.0."],
 }
 
 
@@ -116,18 +116,20 @@ RMS_WELLS: Final[list[dict[str, str | bool]]] = [
 # Yes, this is the actual value in Drogon.
 RMS_COORDINATE_SYSTEM: Final[dict[str, str]] = {"name": "westeros"}
 
+RMS_PROJECT: Final[dict[str, Any]] = {
+    "path": "rms/model/drogon.rms15.0.1.0",
+    "version": "15.0.1.0",
+    "coordinate_system": RMS_COORDINATE_SYSTEM,
+    "zones": RMS_ZONES,
+    "horizons": RMS_HORIZONS,
+    "wells": RMS_WELLS,
+}
+
 PROJECT_CONFIG_DICT: Final[dict[str, Any]] = {
     "masterdata": MASTERDATA,
     "model": MODEL,
     "access": ACCESS,
-    "rms": {
-        "path": "rms/model/drogon.rms15.0.1.0",
-        "version": "15.0.1.0",
-        "coordinate_system": RMS_COORDINATE_SYSTEM,
-        "zones": RMS_ZONES,
-        "horizons": RMS_HORIZONS,
-        "wells": RMS_WELLS,
-    },
+    "rms": RMS_PROJECT,
 }
 
 GLOBAL_CONFIG_STRATIGRAPHY: Final[dict[str, Any]] = {

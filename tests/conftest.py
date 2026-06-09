@@ -44,6 +44,7 @@ from fmu.settings._drogon import (
     MODEL,
     RMS_COORDINATE_SYSTEM,
     RMS_HORIZONS,
+    RMS_PROJECT,
     RMS_WELLS,
     RMS_ZONES,
     STRATIGRAPHY_MAPPINGS,
@@ -87,6 +88,7 @@ def fmu_project_root(tmp_path: Path) -> Path:
 def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
     """A dictionary representing a .fmu config."""
     return {
+        "schema_version": 1,
         "version": __version__,
         "created_at": unix_epoch_utc,
         "created_by": "user",
@@ -152,6 +154,12 @@ def rms_wells_list() -> list[dict[str, str | bool]]:
 def rms_coordinate_system() -> dict[str, str]:
     """Example RMS coordinate system."""
     return deepcopy(RMS_COORDINATE_SYSTEM)
+
+
+@pytest.fixture
+def rms_project() -> dict[str, Any]:
+    """Example RMS project."""
+    return deepcopy(RMS_PROJECT)
 
 
 @pytest.fixture
@@ -319,6 +327,30 @@ def config_dict_with_masterdata(
 
 
 @pytest.fixture
+def mocked_project_config_with_all_fields(
+    unix_epoch_utc: datetime,
+    masterdata_dict: dict[str, Any],
+    model_dict: dict[str, Any],
+    access_dict: dict[str, Any],
+    rms_project: dict[str, Any],
+) -> dict[str, Any]:
+    """A dictionary representing a .fmu project config file with all fields set."""
+    return {
+        "schema_version": 1,
+        "version": __version__,
+        "created_at": unix_epoch_utc,
+        "created_by": "user",
+        "last_modified_at": unix_epoch_utc,
+        "last_modified_by": "user",
+        "cache_max_revisions": 5,
+        "masterdata": masterdata_dict,
+        "model": model_dict,
+        "access": access_dict,
+        "rms": rms_project,
+    }
+
+
+@pytest.fixture
 def config_model(config_dict: dict[str, Any]) -> ProjectConfig:
     """A ProjectConfig model representing a .fmu config file."""
     return ProjectConfig.model_validate(config_dict)
@@ -344,6 +376,22 @@ def user_config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
             "smda_subscription": None,
         },
         "recent_project_directories": [],
+    }
+
+
+@pytest.fixture
+def mocked_user_config_with_all_fields(unix_epoch_utc: datetime) -> dict[str, Any]:
+    """A dictionary representing a .fmu user config file with all fields set."""
+    return {
+        "schema_version": 1,
+        "version": __version__,
+        "created_at": unix_epoch_utc,
+        "last_modified_at": unix_epoch_utc,
+        "cache_max_revisions": 5,
+        "user_api_keys": {
+            "smda_subscription": "very_secret_string",
+        },
+        "recent_project_directories": ["/a/project/path"],
     }
 
 
@@ -436,3 +484,55 @@ def user_fmu_dir(tmp_path: Path, unix_epoch_utc: datetime) -> UserFMUDirectory:
         mock_cm_datetime.now.return_value = unix_epoch_utc
 
         return init_user_fmu_directory()
+
+
+@pytest.fixture
+def mocked_internal_mappings_with_all_fields() -> dict[str, Any]:
+    """A dictionary representing a .fmu mappings file with all fields set."""
+    return {
+        "schema_version": 1,
+        "stratigraphy": [
+            {
+                "source_system": "rms",
+                "target_system": "rms",
+                "mapping_type": "stratigraphy",
+                "relation_type": "primary",
+                "source_id": "TopVolantis",
+                "source_uuid": "00000000-0000-0000-0000-000000000000",
+                "target_id": "TopVolantis",
+                "target_uuid": "00000000-0000-0000-0000-000000000000",
+            },
+            {
+                "source_system": "rms",
+                "target_system": "smda",
+                "mapping_type": "stratigraphy",
+                "relation_type": "primary",
+                "source_id": "TopVolantis",
+                "source_uuid": "00000000-0000-0000-0000-000000000000",
+                "target_id": "VOLANTIS GP. Top",
+                "target_uuid": "00000000-0000-0000-0000-000000000000",
+            },
+        ],
+        "wellbore": [
+            {
+                "source_system": "rms",
+                "target_system": "rms",
+                "mapping_type": "wellbore",
+                "relation_type": "primary",
+                "source_id": "30_9-B-43_A",
+                "source_uuid": "00000000-0000-0000-0000-000000000000",
+                "target_id": "30_9-B-43_A",
+                "target_uuid": "00000000-0000-0000-0000-000000000000",
+            },
+            {
+                "source_system": "rms",
+                "target_system": "simulator",
+                "mapping_type": "wellbore",
+                "relation_type": "primary",
+                "source_id": "30_9-B-43_A",
+                "source_uuid": "00000000-0000-0000-0000-000000000000",
+                "target_id": "B43A",
+                "target_uuid": "00000000-0000-0000-0000-000000000000",
+            },
+        ],
+    }
