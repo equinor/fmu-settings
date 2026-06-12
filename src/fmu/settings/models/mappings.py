@@ -242,6 +242,9 @@ class InternalWellboreMappings(RootModel[list[InternalWellboreIdentifierMapping]
 class InternalMappings(BaseModel):
     """Represents the .fmu/mappings.json storage schema."""
 
+    schema_version: Literal[1] = 1
+    """The version of the data schema defined by this data model."""
+
     stratigraphy: InternalStratigraphyMappings = Field(
         default_factory=lambda: InternalStratigraphyMappings(root=[])
     )

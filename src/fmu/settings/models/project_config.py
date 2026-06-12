@@ -80,6 +80,9 @@ class ProjectConfig(ResettableBaseModel):
     Stored as config.json.
     """
 
+    schema_version: Literal[1] = 1
+    """The version of the data schema defined by this data model."""
+
     version: VersionStr
     created_at: AwareDatetime
     created_by: str

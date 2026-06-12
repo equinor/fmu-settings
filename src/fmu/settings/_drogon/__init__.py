@@ -6,6 +6,7 @@ from ._data import (
     PROJECT_CONFIG_DICT,
     RMS_COORDINATE_SYSTEM,
     RMS_HORIZONS,
+    RMS_PROJECT,
     RMS_WELLS,
     RMS_ZONES,
     STRATIGRAPHY_MAPPINGS,
@@ -24,4 +25,5 @@ __all__ = [
     "RMS_HORIZONS",
     "RMS_COORDINATE_SYSTEM",
     "RMS_WELLS",
+    "RMS_PROJECT",
 ]
