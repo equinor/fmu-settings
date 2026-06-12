@@ -13,7 +13,7 @@ It owns the filesystem behavior around those resources: initialization, discover
 
 ## FMU Settings Architecture
 
-FMU Settings is split across a few repositories:
+FMU Settings is split across a few repositories: 
 
 ```mermaid
 flowchart LR
