@@ -1,13 +1,14 @@
 # FMU Settings documentation
 
-**FMU Settings** is a tool that will simplify the handling of FMU model metadata, meaning metadata related to the FMU model itself and metadata needed when you are exporting data objects from FMU models.
+**FMU Settings** is a tool that will simplify the handling of FMU model metadata (metadata related to the FMU model itself) and references to master data (required for making FMU results usable in other applications and contexts).
 
 FMU Settings lets you manage static configuration through a graphical user interface (GUI) instead of editing files manually. In FMU Settings GUI, you can:
 - Set up FMU project metadata
-- Link FMU models to SMDA and other official metadata sources, including 
-    - mapping of RMS stratigraphy to the SMDA stratigraphic column
-    - *mapping of wells between RMS, Eclipse and SMDA (future feature, currently not implemented)*
+- Add master data references in FMU models, including 
+    - referencing stratigraphic units in e.g. RMS to the stratigraphic column
+    - *mapping of wells between different FMU components and to the official definitions (SMDA) (future feature, currently not implemented)*
 - keeping track of version history for your FMU project settings
+
 
 ### If you are new to FMU Settings
 1. Read the [Overview](overview.md) page to learn what FMU Settings is and how it is used.
@@ -19,12 +20,6 @@ FMU Settings lets you manage static configuration through a graphical user inter
 If you find bugs, need help or have questions or if you have suggestions for new features, use:
 - <a href="https://equinor.enterprise.slack.com/archives/C09MFKN4NC9" target="_blank" rel="noopener noreferrer">#fmu-settings slack channel</a>
 - <a href="https://fmu.equinor.com" target="_blank" rel="noopener noreferrer">FMU portal</a>
-
-### Upcoming features
-
-FMU Settings is still being developed and some of the coming features will be:
-- mapping of well names between RMS, Eclipse/Flow (or other simulators) and SMDA (or other sources)
-- handling of and synchronization between user copies and the master project
 
 
 ```{toctree}

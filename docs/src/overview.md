@@ -6,14 +6,13 @@ FMU Settings is a web application (localhost) that provides a user-friendly solu
 
 ## Why FMU Settings?
 
-Today, configuring your FMU project and connecting the data produced by FMU to the official masterdata in SMDA, is done by manually editing the global configuration yaml file. This can be a tedious and error-prone process. 
+For FMU results to be usable by other applications, they need to be referenced to master data - unique and shared definitions. Configuring these references by manually editing config files can be a tedious and error-prone process. Especially the mapping of stratigraphic data to official definitions in the stratigraphic column has a high risk of typos, and quality checking and validation is difficult.
 
-Especially the mapping of stratigraphic data to official data in SMDA has a high risk of typos, and quality checking and validation is difficult.
-Example: A zone called `Upper Tarbert 2.3` in RMS can be equal to a grid zone called `UT2-3` in the simulator, and the corresponding unit in SMDA could be `Tarbert Upper Fm.`. When moving data to cloud (SUMO) these must be connected and identified as the same zone/unit. 
+Example: A zone called `UpperTarbert23` in RMS can be equal to a grid zone called `UT2-3` in the simulator, and the corresponding unit in SMDA could be `Tarbert Upper Fm.`. When storing data to cloud (Sumo) these must be connected and identified as the same zone/unit.
 
-This process that requires editing yaml files and manually adding master data from official databases does not scale when the amount of data that needs to be mapped increases. FMU Settings is made to address these concerns by offering a simple user interface to configure your FMU project and connect FMU data to the official databases, including validation of the data.
+FMU Settings is made to address these concerns by offering a simple user interface to configure your FMU project and connect FMU data to the official databases, including validation of the data.
 
-The need for mapping of FMU data from RMS and simulators to official databases is not limited to stratigraphy, it will also include wells, production data etc.
+The need for referencing master data is not limited to stratigraphy. It will also include wells, production data etc.
 
 **FMU Settings can:**
 
@@ -31,7 +30,7 @@ By using FMU Settings you get benefits like a **web-based GUI**, **simplified co
 
 | Task | How it is done today | How it will be done in FMU Settings |
 | ----- | ---------------------- | ---------------------------------------- |
-| Start using SUMO | Manually add masterdata and metadata to global config yaml file. | Run a terminal command to initialize a FMU Settings project. Configuration of masterdata and metadata is then done through the FMU Settings GUI.
+| Start using Sumo | Manually add masterdata and metadata to global config yaml file. | Run a terminal command to initialize a FMU Settings project. Configuration of masterdata and metadata is then done through the FMU Settings GUI.
 | Add model masterdata | Open SMDA, find field and copy masterdata (on FMU format), manually paste masterdata into yaml file. Prone to errors. | GUI is connected to SMDA, masterdata is fetched and validated in the GUI, and stored to FMU project.
 | Add model stratigraphy | Manually add and update stratigraphic column (horizons and zones) in yaml file, based on stratigraphic column in SMDA. Highly prone to errors. | GUI is connected to SMDA and RMS, stratigraphy in RMS and stratigraphic column in SMDA can be mapped in the GUI, creating a consistent stratigraphic column between several data sources.
 | Track changes in global config | No version control of global config, all changes are done manually and anyone with access to project area can edit the yaml file. | Tracking of version history and functionality for restoring earlier versions if needed. |
@@ -44,4 +43,13 @@ This `.fmu` folder is used to store all your project settings and project metada
 **NB! You should not edit anything inside the `.fmu` folder manually. All configuration and changes should be done through the FMU Settings GUI!**
 
 
+
 From here, continue with [Getting started](getting_started.md).
+
+--------------
+
+```{note}
+*Aspen RMS™ is a registered trademark of Aspen Technology, Inc. (AspenTech). Use of RMS™ is governed by AspenTech's licensing terms and conditions. It is proprietary software and is neither open-source nor free. A valid license agreement with AspenTech is required for its use.*
+
+*FMU Settings is an independent project developed by Equinor and is neither produced by nor affiliated with AspenTech. It is open-source and free software released under the GPL v3 license.*
+```
