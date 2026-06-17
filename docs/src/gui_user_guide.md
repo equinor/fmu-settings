@@ -185,7 +185,7 @@ The stratigraphy you configured in **Step 4**  will be displayed here, with your
 #### How to map RMS to the SMDA stratigraphic column:
 1. Click the Edit icon (pen symbol) for the zone or horizon you want to edit.
 2. A window will pop up with a drop-down menu listing stratigraphy definitions from the stratigraphic column in SMDA.
-3. Select the corresponding strat.col. horizon or zone from the list.
+3. Select the corresponding horizon or zone from the list.
 4. If needed, add one or more aliases for the RMS name.
 5. Save your changes.
 
