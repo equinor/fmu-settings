@@ -129,7 +129,7 @@ After you save the key, it is hidden in the application.
 
 ## Step 3: Set up masterdata
 
-The **Masterdata** page shows the masterdata saved in the project, including:
+The **Masterdata** page shows the masterdata references saved in the project, including:
 
 - field
 - country
@@ -176,20 +176,20 @@ You can click horizons and zones to add or remove them. There are also **Add all
 
 If the project contains horizons or zones that no longer exist in RMS, FMU Settings asks you to remove them before saving.
 
-## Step 5: Map RMS stratigraphy to the stratigraphic column
+## Step 5: Map RMS stratigraphy to the SMDA stratigraphic column
 
-The **Stratigraphy** page allows you to map your RMS names and aliases to the names in the stratigraphic columns. 
+The **Stratigraphy** page allows you to map your RMS names and aliases to the names in the SMDA stratigraphic columns. 
 
 The stratigraphy you configured in **Step 4**  will be displayed here, with your RMS elements marked as "RMS". Each stratigraphic element (zones and horizons) will have a corresponding SMDA field. 
 
-#### How to map RMS to the stratigraphic column:
+#### How to map RMS to the SMDA stratigraphic column:
 1. Click the Edit icon (pen symbol) for the zone or horizon you want to edit.
-2. A window will pop up with a drop-down menu listing stratigraphy definitions from the stratigraphic column.
+2. A window will pop up with a drop-down menu listing stratigraphy definitions from the stratigraphic column in SMDA.
 3. Select the corresponding strat.col. horizon or zone from the list.
 4. If needed, add one or more aliases for the RMS name.
 5. Save your changes.
 
-If an RMS zone or horizon is not defined in the stratigraphic column, select “Zone does not exist in SMDA”.
+If an RMS zone or horizon is not defined in the SMDA stratigraphic column, select “Zone does not exist in SMDA”.
 
 
 ## Optional: Review earlier saved versions

@@ -6,7 +6,7 @@ FMU Settings is a web application (localhost) that provides a user-friendly solu
 
 ## Why FMU Settings?
 
-For FMU results to be usable by other applications, they need to be referenced to master data - unique and shared definitions. Configuring these references by manually editing config files can be a tedious and error-prone process. Especially the mapping of stratigraphic data to official definitions in the stratigraphic column has a high risk of typos, and quality checking and validation is difficult.
+For FMU results to be usable by other applications, they need to be referenced to master data - unique and shared definitions. Configuring these references by manually editing config files can be a tedious and error-prone process. Especially the mapping of stratigraphic data to definitions in the official stratigraphic column has a high risk of typos, and quality checking and validation is difficult.
 
 Example: A zone called `UpperTarbert23` in RMS can be equal to a grid zone called `UT2-3` in the simulator, and the corresponding unit in SMDA could be `Tarbert Upper Fm.`. When storing data to cloud (Sumo) these must be connected and identified as the same zone/unit.
 
