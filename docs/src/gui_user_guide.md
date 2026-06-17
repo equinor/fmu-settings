@@ -189,7 +189,7 @@ The stratigraphy you configured in **Step 4**  will be displayed here, with your
 4. If needed, add one or more aliases for the RMS name.
 5. Save your changes.
 
-If an RMS zone or horizon is not defined in the SMDA stratigraphic column, select “Zone does not exist in SMDA”.
+If an RMS zone or horizon is not defined in the SMDA stratigraphic column, select “Zone doesn't exist in SMDA” or "Horizon doesn't exist in SMDA".
 
 
 ## Optional: Review earlier saved versions
