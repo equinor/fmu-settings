@@ -5,7 +5,7 @@
 FMU Settings lets you manage static configuration through a graphical user interface (GUI) instead of editing files manually. In FMU Settings GUI, you can:
 - Set up FMU project metadata
 - Add master data references in FMU models, including 
-    - referencing stratigraphic units in e.g. RMS to the stratigraphic column
+    - referencing stratigraphic units in e.g. RMS to the stratigraphic column in SMDA
     - *mapping of wells between different FMU components and to the official definitions (SMDA) (future feature, currently not implemented)*
 - keeping track of version history for your FMU project settings
 
