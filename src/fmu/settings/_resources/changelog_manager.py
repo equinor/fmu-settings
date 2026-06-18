@@ -125,17 +125,17 @@ class ChangelogManager(LogManager[ChangeInfo]):
         )
 
     def log_init_to_changelog(self: Self) -> None:
-        """Logs a change entry indicating that the project .fmu was initialized."""
+        """Logs a change entry indicating that the project was initialized."""
         self.add_log_entry(
             ChangeInfo(
                 timestamp=datetime.now(UTC),
-                change_type=ChangeType.add,
+                change_type=ChangeType.init,
                 user=os.getenv("USER", "unknown"),
                 path=self.fmu_dir.path,
-                change=f"Initialized .fmu directory at '{self.fmu_dir.path}'.",
+                change="Initialized the project",
                 hostname=socket.gethostname(),
-                file=".fmu",
-                key=".fmu",
+                file="Project configurations",
+                key="project_initialization",
             )
         )
 

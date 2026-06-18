@@ -6,6 +6,7 @@ from enum import StrEnum
 class ChangeType(StrEnum):
     """The types of change that can be made on a file."""
 
+    init = "init"
     update = "update"
     remove = "remove"
     add = "add"

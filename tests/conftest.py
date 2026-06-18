@@ -422,6 +422,7 @@ def fmu_dir(fmu_project_root: Path, unix_epoch_utc: datetime) -> ProjectFMUDirec
         fmu_directory = init_fmu_directory(fmu_project_root)
         if fmu_directory.changelog.exists:
             fmu_directory.changelog.path.unlink()
+            fmu_directory.changelog._cache = None
         return fmu_directory
 
 
@@ -474,6 +475,7 @@ def extra_fmu_dir(
         fmu_directory = init_fmu_directory(extra_fmu_path)
         if fmu_directory.changelog.exists:
             fmu_directory.changelog.path.unlink()
+            fmu_directory.changelog._cache = None
         return fmu_directory
 
 
