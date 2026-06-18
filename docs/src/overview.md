@@ -45,3 +45,11 @@ This `.fmu` folder is used to store all your project settings and project metada
 
 
 From here, continue with [Getting started](getting_started.md).
+
+--------------
+
+```{note}
+*Aspen RMS™ is a registered trademark of Aspen Technology, Inc. (AspenTech). Use of RMS™ is governed by AspenTech's licensing terms and conditions. It is proprietary software and is neither open-source nor free. A valid license agreement with AspenTech is required for its use.*
+
+*FMU Settings is an independent project developed by Equinor and is neither produced by nor affiliated with AspenTech. It is open-source and free software released under the GPL v3 license.*
+```
