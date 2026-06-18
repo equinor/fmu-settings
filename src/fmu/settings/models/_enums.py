@@ -11,6 +11,7 @@ class ChangeType(StrEnum):
     remove = "remove"
     add = "add"
     reset = "reset"
+    restore = "restore"
     merge = "merge"
     copy = "copy"
 

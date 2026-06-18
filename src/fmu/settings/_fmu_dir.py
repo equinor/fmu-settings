@@ -396,6 +396,33 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
         return restorable_files
 
+    def restore_from_changelog(self: Self) -> list[Path]:
+        """Run restore() and append restore operations to the changelog."""
+        config_was_missing = not path_exists(self.config.path)
+        mappings_was_missing = not path_exists(self.mappings.path)
+        config_had_cache = getattr(self.config, "_cache", None) is not None
+
+        restorable_files = self.restore()
+
+        if config_was_missing:
+            config_source = (
+                "in-memory session state"
+                if config_had_cache
+                else "default configuration"
+            )
+            self.changelog.log_restore_to_changelog(
+                relative_path=self.config.relative_path,
+                source=config_source,
+            )
+
+        if mappings_was_missing and self.mappings.relative_path in restorable_files:
+            self.changelog.log_restore_to_changelog(
+                relative_path=self.mappings.relative_path,
+                source="in-memory session state",
+            )
+
+        return restorable_files
+
     def update_config(self: Self, updates: dict[str, Any]) -> ProjectConfig:
         """Updates multiple configuration values at once.
 
@@ -426,6 +453,7 @@ class ProjectFMUDirectory(FMUDirectoryBase):
                 supported for cache restoration.
         """
         relative_path = Path(relative_path)
+        restore_source = f"cache revision '{revision_id}'"
 
         manager = self._cacheable_resource_managers().get(relative_path)
         if manager is None:
@@ -454,6 +482,10 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             self._sync_runtime_variables()
             if restored_config.cache_max_revisions < previous_max_revisions:
                 self._cache_manager.trim_all_revisions()
+            self.changelog.log_restore_to_changelog(
+                relative_path=relative_path,
+                source=restore_source,
+            )
             return
 
         self.cache.restore_revision(
@@ -462,6 +494,10 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
         # Refresh the resource manager's in-memory cache
         manager.load(force=True, store_cache=True)
+        self.changelog.log_restore_to_changelog(
+            relative_path=relative_path,
+            source=restore_source,
+        )
 
     def get_cache_content(
         self: Self, relative_path: Path | str, revision_id: str

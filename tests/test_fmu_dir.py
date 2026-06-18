@@ -324,6 +324,11 @@ def test_restore_from_cache_restores_mappings(
     restored = fmu_dir.mappings.load()
     assert restored.model_dump() == cached_mappings.model_dump()
 
+    changelog_entry = fmu_dir.changelog.load()[-1]
+    assert changelog_entry.change_type == ChangeType.restore
+    assert changelog_entry.file == CacheResource.mappings.value
+    assert snapshot.name in changelog_entry.change
+
 
 def test_restore_from_cache_raises_for_unsupported_resource(
     fmu_dir: ProjectFMUDirectory,
@@ -646,7 +651,7 @@ def test_acquire_lock_on_user_fmu(
 def test_restore_rebuilds_project_fmu_from_cache(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Tests that restore should recreate missing files using cached config data."""
+    """Tests restore_from_changelog recreates files and logs restore entries."""
     fmu_dir.update_config({"version": "123.4.5"})
     cached_dump = json.loads((fmu_dir.path / "config.json").read_text())
     fmu_dir.mappings.update_internal_stratigraphy_mappings(
@@ -657,7 +662,7 @@ def test_restore_rebuilds_project_fmu_from_cache(
     shutil.rmtree(fmu_dir.path)
     assert not fmu_dir.path.exists()
 
-    restored_files = fmu_dir.restore()
+    restored_files = fmu_dir.restore_from_changelog()
 
     assert fmu_dir.path.exists()
     assert restored_files == [
@@ -684,6 +689,37 @@ def test_restore_rebuilds_project_fmu_from_cache(
     mappings_cache_dir = fmu_dir.path / "cache" / "mappings"
     assert mappings_cache_dir.is_dir()
     assert any(mappings_cache_dir.iterdir())
+
+    changelog = fmu_dir.changelog.load()
+    assert len(changelog) == 2
+    assert changelog[0].change_type == ChangeType.restore
+    assert changelog[0].file == CacheResource.config.value
+    assert "in-memory session state" in changelog[0].change
+    assert changelog[1].change_type == ChangeType.restore
+    assert changelog[1].file == CacheResource.mappings.value
+    assert "in-memory session state" in changelog[1].change
+
+
+def test_restore_rebuilds_project_fmu_without_changelog_side_effects(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests restore keeps original behavior and does not write changelog entries."""
+    fmu_dir.update_config({"version": "123.4.5"})
+    fmu_dir.mappings.update_internal_stratigraphy_mappings(
+        _stratigraphy_mappings("TopVolantis", "VOLANTIS GP. Top")
+    )
+
+    shutil.rmtree(fmu_dir.path)
+    assert not fmu_dir.path.exists()
+
+    restored_files = fmu_dir.restore()
+
+    assert restored_files == [
+        Path("README"),
+        Path("config.json"),
+        Path("mappings.json"),
+    ]
+    assert not fmu_dir.changelog.exists
 
 
 def test_restore_resets_when_cache_missing(
@@ -1092,6 +1128,11 @@ def test_restore_from_cache_syncs_runtime_variables(
     )
     assert fmu_dir.cache_max_revisions == restored_cache_max_revisions
     assert fmu_dir.cache.max_revisions == restored_cache_max_revisions
+
+    changelog_entry = fmu_dir.changelog.load()[-1]
+    assert changelog_entry.change_type == ChangeType.restore
+    assert changelog_entry.file == CacheResource.config.value
+    assert revision_path.name in changelog_entry.change
 
 
 def test_restore_from_cache_restores_runtime_retention_on_config_restore_failure(
