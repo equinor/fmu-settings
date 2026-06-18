@@ -25,12 +25,15 @@ fmu init
 
 You have now initialized FMU Settings.
 
-   >##### Important:
-   >**For early onboarders to SUMO**, that already have masterdata in the global config before initialization of FMU Settings: 
-   >
-   >The initialization triggers FMU Settings to look for an existing global config file at the standard location: `fmuconfig/output/global_variables.yml`. If a valid configuration is found here, FMU Settings will import the sections `masterdata`, `model` and `access`,  so that you will not have to configure everything again.
-   >
-   >**NB! Stratigraphy is not imported**. Stratigraphy data must be configured directly in the GUI. When configuration of the stratigraphy is completed in the FMU Settings GUI, these sections should be deleted from the global config yaml file.
+
+```{important}
+**For early onboarders to Sumo**, that already have masterdata in the global config before initialization of FMU Settings: 
+
+The initialization triggers FMU Settings to look for an existing global config file at the standard location: `fmuconfig/output/global_variables.yml`. If a valid configuration is found here, FMU Settings will import the sections `masterdata`, `model` and `access`,  so that you will not have to configure everything again.
+
+**NB! Stratigraphy is not imported**. Stratigraphy data must be configured directly in the GUI. When configuration of the stratigraphy is completed in the FMU Settings GUI, these sections should be deleted from the global config yaml file.
+```
+
 
 3. Open FMU Settings:
 ```bash
@@ -74,6 +77,8 @@ cd project/asset/resmod/ff/25.0.0
 fmu settings
 ```
 
-NB: FMU Settings can be opened from anywhere in your project folder hierarchy by running the command `fmu settings`. FMU Settings will in that case automatically detect the nearest project. Inside the FMU Settings GUI you will be able to open a project either from the list of **recent projects** or by entering the project path manually. 
+```{tip}
+FMU Settings can be opened from anywhere in your project folder hierarchy by running the command `fmu settings`. FMU Settings will in that case automatically detect the nearest project. Inside the FMU Settings GUI you will be able to open a project either from the list of **recent projects** or by entering the project path manually. 
 
 Once the FMU Settings project is open, continue with the [GUI user guide](gui_user_guide.md).
+```
