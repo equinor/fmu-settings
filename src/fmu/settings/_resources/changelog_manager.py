@@ -132,7 +132,7 @@ class ChangelogManager(LogManager[ChangeInfo]):
                 change_type=ChangeType.init,
                 user=os.getenv("USER", "unknown"),
                 path=self.fmu_dir.path,
-                change="Initialized the project",
+                change=f"Initialized .fmu directory at '{self.fmu_dir.path}'.",
                 hostname=socket.gethostname(),
                 file="N/A",
                 key="project_initialization",

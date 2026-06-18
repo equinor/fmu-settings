@@ -187,7 +187,7 @@ def test_changelog_manager_log_init_to_changelog(
     assert init_entry.path == fmu_dir.path
     assert init_entry.file == "N/A"
     assert init_entry.key == "project_initialization"
-    assert init_entry.change == "Initialized the project"
+    assert init_entry.change == f"Initialized .fmu directory at '{fmu_dir.path}'."
 
 
 def test_changelog_filter_equal_operator(
