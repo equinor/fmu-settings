@@ -134,7 +134,7 @@ class ChangelogManager(LogManager[ChangeInfo]):
                 path=self.fmu_dir.path,
                 change="Initialized the project",
                 hostname=socket.gethostname(),
-                file="Project configurations",
+                file="N/A",
                 key="project_initialization",
             )
         )

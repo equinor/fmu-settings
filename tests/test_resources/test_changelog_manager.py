@@ -185,7 +185,7 @@ def test_changelog_manager_log_init_to_changelog(
     init_entry = changelog[0]
     assert init_entry.change_type == ChangeType.init
     assert init_entry.path == fmu_dir.path
-    assert init_entry.file == "Project configurations"
+    assert init_entry.file == "N/A"
     assert init_entry.key == "project_initialization"
     assert init_entry.change == "Initialized the project"
 
