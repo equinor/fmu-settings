@@ -171,6 +171,25 @@ def test_changelog_manager_add_invalid_entry_no_file_created(
     assert changelog_resource.exists is False
 
 
+def test_changelog_manager_log_init_to_changelog(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that init logging writes the expected changelog entry."""
+    changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
+
+    changelog_resource.log_init_to_changelog()
+
+    changelog = changelog_resource.load()
+    assert len(changelog) == 1
+
+    init_entry = changelog[0]
+    assert init_entry.change_type == ChangeType.init
+    assert init_entry.path == fmu_dir.path
+    assert init_entry.file == "N/A"
+    assert init_entry.key == "project_initialization"
+    assert init_entry.change == f"Initialized .fmu directory at '{fmu_dir.path}'."
+
+
 def test_changelog_filter_equal_operator(
     fmu_dir: ProjectFMUDirectory, change_entry_list: list[ChangeInfo]
 ) -> None:

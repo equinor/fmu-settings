@@ -138,6 +138,8 @@ def init_fmu_directory(
     fmu_dir.write_text_file("README", PROJECT_README_CONTENT)
 
     fmu_dir.config.reset()
+    fmu_dir.changelog.log_init_to_changelog()
+
     if config_data:
         if isinstance(config_data, ProjectConfig):
             config_data = config_data.model_dump()

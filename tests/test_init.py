@@ -107,6 +107,16 @@ def test_write_fmu_config_roundtrip(fmu_project_root: Path) -> None:
     ProjectConfig.model_validate(config_data)
 
 
+def test_init_fmu_directory_writes_initial_changelog_entry(
+    fmu_project_root: Path,
+) -> None:
+    """Tests that initialization triggers changelog logging and stores an entry."""
+    fmu_dir = init_fmu_directory(fmu_project_root)
+
+    changelog = fmu_dir.changelog.load()
+    assert len(changelog) == 1
+
+
 def test_init_fmu_directory_rejects_invalid_project_path(tmp_path: Path) -> None:
     """Tests that init reports a semantic error for non-FMU project paths."""
     required_dirs = ", ".join(f"'{dir}'" for dir in REQUIRED_FMU_PROJECT_SUBDIRS)

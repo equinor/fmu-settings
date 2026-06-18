@@ -419,7 +419,11 @@ def fmu_dir(fmu_project_root: Path, unix_epoch_utc: datetime) -> ProjectFMUDirec
         mock_datetime.now.return_value = unix_epoch_utc
         mock_datetime.datetime.now.return_value = unix_epoch_utc
         mock_cm_datetime.now.return_value = unix_epoch_utc
-        return init_fmu_directory(fmu_project_root)
+        fmu_directory = init_fmu_directory(fmu_project_root)
+        if fmu_directory.changelog.exists:
+            fmu_directory.changelog.path.unlink()
+            fmu_directory.changelog._cache = None
+        return fmu_directory
 
 
 @pytest.fixture(scope="function")
@@ -468,7 +472,11 @@ def extra_fmu_dir(
         mock_datetime.now.return_value = unix_epoch_utc
         mock_datetime.datetime.now.return_value = unix_epoch_utc
         mock_cm_datetime.now.return_value = unix_epoch_utc
-        return init_fmu_directory(extra_fmu_path)
+        fmu_directory = init_fmu_directory(extra_fmu_path)
+        if fmu_directory.changelog.exists:
+            fmu_directory.changelog.path.unlink()
+            fmu_directory.changelog._cache = None
+        return fmu_directory
 
 
 @pytest.fixture
