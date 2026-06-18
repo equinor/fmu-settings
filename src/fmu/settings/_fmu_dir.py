@@ -1,6 +1,9 @@
 """Main interface for working with .fmu directory."""
 
+import os
+import socket
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self, TypeAlias, cast
 
@@ -18,7 +21,8 @@ from ._resources.config_managers import (
 )
 from ._resources.lock_manager import DEFAULT_LOCK_TIMEOUT, LockManager
 from ._utils import path_exists, path_is_dir, path_is_file
-from .models._enums import CacheResource
+from .models._enums import CacheResource, ChangeType
+from .models.change_info import ChangeInfo
 from .models.project_config import ProjectConfig
 from .models.user_config import UserConfig
 
@@ -383,43 +387,53 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
     def restore(self: Self) -> list[Path]:
         """Attempt to reconstruct missing project .fmu files from in-memory state."""
+        config_had_cache = getattr(self.config, "_cache", None) is not None
         restorable_files = super().restore()
 
+        if self.config.relative_path in restorable_files:
+            config_source = (
+                "in-memory session state"
+                if config_had_cache
+                else "default configuration"
+            )
+            self.changelog.add_log_entry(
+                ChangeInfo(
+                    timestamp=datetime.now(UTC),
+                    change_type=ChangeType.restore,
+                    user=os.getenv("USER", "unknown"),
+                    path=self.path,
+                    change=(
+                        f"Restored '{self.config.relative_path}' from {config_source}."
+                    ),
+                    hostname=socket.gethostname(),
+                    file=str(self.config.relative_path),
+                    key=self.config.relative_path.stem,
+                )
+            )
+
         mappings_path = self.mappings.path
-        if not path_exists(mappings_path):
+        if self.mappings.relative_path in restorable_files:
             cached_model = getattr(self.mappings, "_cache", None)
             if cached_model is not None:
                 self.mappings.save(cached_model)
                 logger.info(
                     f"Restored mappings.json from cached model at {mappings_path}"
                 )
-
-        return restorable_files
-
-    def restore_from_changelog(self: Self) -> list[Path]:
-        """Run restore() and append restore operations to the changelog."""
-        config_was_missing = not path_exists(self.config.path)
-        mappings_was_missing = not path_exists(self.mappings.path)
-        config_had_cache = getattr(self.config, "_cache", None) is not None
-
-        restorable_files = self.restore()
-
-        if config_was_missing:
-            config_source = (
-                "in-memory session state"
-                if config_had_cache
-                else "default configuration"
-            )
-            self.changelog.log_restore_to_changelog(
-                relative_path=self.config.relative_path,
-                source=config_source,
-            )
-
-        if mappings_was_missing and self.mappings.relative_path in restorable_files:
-            self.changelog.log_restore_to_changelog(
-                relative_path=self.mappings.relative_path,
-                source="in-memory session state",
-            )
+                self.changelog.add_log_entry(
+                    ChangeInfo(
+                        timestamp=datetime.now(UTC),
+                        change_type=ChangeType.restore,
+                        user=os.getenv("USER", "unknown"),
+                        path=self.path,
+                        change=(
+                            f"Restored '{self.mappings.relative_path}' "
+                            "from in-memory session state."
+                        ),
+                        hostname=socket.gethostname(),
+                        file=str(self.mappings.relative_path),
+                        key=self.mappings.relative_path.stem,
+                    )
+                )
 
         return restorable_files
 
@@ -482,9 +496,17 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             self._sync_runtime_variables()
             if restored_config.cache_max_revisions < previous_max_revisions:
                 self._cache_manager.trim_all_revisions()
-            self.changelog.log_restore_to_changelog(
-                relative_path=relative_path,
-                source=restore_source,
+            self.changelog.add_log_entry(
+                ChangeInfo(
+                    timestamp=datetime.now(UTC),
+                    change_type=ChangeType.restore,
+                    user=os.getenv("USER", "unknown"),
+                    path=self.path,
+                    change=f"Restored '{relative_path}' from {restore_source}.",
+                    hostname=socket.gethostname(),
+                    file=str(relative_path),
+                    key=relative_path.stem,
+                )
             )
             return
 
@@ -494,9 +516,17 @@ class ProjectFMUDirectory(FMUDirectoryBase):
 
         # Refresh the resource manager's in-memory cache
         manager.load(force=True, store_cache=True)
-        self.changelog.log_restore_to_changelog(
-            relative_path=relative_path,
-            source=restore_source,
+        self.changelog.add_log_entry(
+            ChangeInfo(
+                timestamp=datetime.now(UTC),
+                change_type=ChangeType.restore,
+                user=os.getenv("USER", "unknown"),
+                path=self.path,
+                change=f"Restored '{relative_path}' from {restore_source}.",
+                hostname=socket.gethostname(),
+                file=str(relative_path),
+                key=relative_path.stem,
+            )
         )
 
     def get_cache_content(

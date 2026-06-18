@@ -651,7 +651,7 @@ def test_acquire_lock_on_user_fmu(
 def test_restore_rebuilds_project_fmu_from_cache(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Tests restore_from_changelog recreates files and logs restore entries."""
+    """Tests restore recreates files and logs restore entries."""
     fmu_dir.update_config({"version": "123.4.5"})
     cached_dump = json.loads((fmu_dir.path / "config.json").read_text())
     fmu_dir.mappings.update_internal_stratigraphy_mappings(
@@ -662,7 +662,7 @@ def test_restore_rebuilds_project_fmu_from_cache(
     shutil.rmtree(fmu_dir.path)
     assert not fmu_dir.path.exists()
 
-    restored_files = fmu_dir.restore_from_changelog()
+    restored_files = fmu_dir.restore()
 
     assert fmu_dir.path.exists()
     assert restored_files == [
@@ -700,28 +700,6 @@ def test_restore_rebuilds_project_fmu_from_cache(
     assert "in-memory session state" in changelog[1].change
 
 
-def test_restore_rebuilds_project_fmu_without_changelog_side_effects(
-    fmu_dir: ProjectFMUDirectory,
-) -> None:
-    """Tests restore keeps original behavior and does not write changelog entries."""
-    fmu_dir.update_config({"version": "123.4.5"})
-    fmu_dir.mappings.update_internal_stratigraphy_mappings(
-        _stratigraphy_mappings("TopVolantis", "VOLANTIS GP. Top")
-    )
-
-    shutil.rmtree(fmu_dir.path)
-    assert not fmu_dir.path.exists()
-
-    restored_files = fmu_dir.restore()
-
-    assert restored_files == [
-        Path("README"),
-        Path("config.json"),
-        Path("mappings.json"),
-    ]
-    assert not fmu_dir.changelog.exists
-
-
 def test_restore_resets_when_cache_missing(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -742,6 +720,11 @@ def test_restore_resets_when_cache_missing(
     assert readme_path.exists()
     assert readme_path.read_text() == PROJECT_README_CONTENT
     assert (fmu_dir.config.path).exists()
+    changelog = fmu_dir.changelog.load()
+    assert len(changelog) == 1
+    assert changelog[0].change_type == ChangeType.restore
+    assert changelog[0].file == CacheResource.config.value
+    assert "default configuration" in changelog[0].change
 
 
 def test_restore_rebuilds_user_fmu(user_fmu_dir: UserFMUDirectory) -> None:
