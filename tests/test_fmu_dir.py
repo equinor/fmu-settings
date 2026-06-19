@@ -700,10 +700,10 @@ def test_restore_rebuilds_project_fmu_from_cache(
     assert "in-memory session state" in changelog[1].change
 
 
-def test_restore_resets_when_cache_missing(
+def test_restore_resets_when_cache_missing_and_logs_restore(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Tests that restore should fall back to reset when no cached config exists."""
+    """Tests restore falls back to reset and logs when no cached config exists."""
     fmu_dir.config._cache = None
     shutil.rmtree(fmu_dir.path)
     assert not fmu_dir.path.exists()
@@ -1087,10 +1087,10 @@ def test_fmu_directory_base_sync_runtime_variables(
     assert fmu_dir.cache.max_revisions == old_cache_max_revisions
 
 
-def test_restore_from_cache_syncs_runtime_variables(
+def test_restore_from_cache_syncs_runtime_variables_and_logs_restore(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Tests config restore updates runtime cache retention variables."""
+    """Tests config restore updates runtime variables and logs the restore."""
     current_config = fmu_dir.config.load()
     original_cache_max_revisions = current_config.cache_max_revisions
     restored_cache_max_revisions = original_cache_max_revisions + 1

@@ -139,6 +139,21 @@ class ChangelogManager(LogManager[ChangeInfo]):
             )
         )
 
+    def log_restore_to_changelog(self: Self, relative_path: Path, source: str) -> None:
+        """Logs a change entry indicating that a resource was restored."""
+        self.add_log_entry(
+            ChangeInfo(
+                timestamp=datetime.now(UTC),
+                change_type=ChangeType.restore,
+                user=os.getenv("USER", "unknown"),
+                path=self.fmu_dir.path,
+                change=f"Restored '{relative_path}' from {source}.",
+                hostname=socket.gethostname(),
+                file=str(relative_path),
+                key=relative_path.stem,
+            )
+        )
+
     def _get_latest_change_timestamp(self: Self) -> datetime:
         """Get the timestamp of the latest change entry in the changelog."""
         return self.load()[-1].timestamp
