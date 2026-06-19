@@ -299,10 +299,10 @@ def test_get_cache_content_raises_for_unsupported_resource(
         fmu_dir.get_cache_content("unsupported.json", "missing.json")
 
 
-def test_restore_from_cache_restores_mappings(
+def test_restore_from_cache_restores_mappings_cache_and_logs_restore(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Restoring mappings should refresh the resource cache."""
+    """Restoring mappings should refresh cache and append a restore changelog."""
     cached_mappings = InternalMappings(
         stratigraphy=_stratigraphy_mappings("TopVolantis", "VOLANTIS GP. Top")
     )

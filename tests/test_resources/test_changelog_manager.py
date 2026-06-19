@@ -190,6 +190,29 @@ def test_changelog_manager_log_init_to_changelog(
     assert init_entry.change == f"Initialized .fmu directory at '{fmu_dir.path}'."
 
 
+def test_changelog_manager_log_restore_to_changelog(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that restore logging writes the expected changelog entry."""
+    changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
+    relative_path = Path("mappings.json")
+    source = "cache revision '20260619090000'"
+
+    changelog_resource.log_restore_to_changelog(
+        relative_path=relative_path, source=source
+    )
+
+    changelog = changelog_resource.load()
+    assert len(changelog) == 1
+
+    restore_entry = changelog[0]
+    assert restore_entry.change_type == ChangeType.restore
+    assert restore_entry.path == fmu_dir.path
+    assert restore_entry.file == str(relative_path)
+    assert restore_entry.key == "mappings"
+    assert restore_entry.change == f"Restored '{relative_path}' from {source}."
+
+
 def test_changelog_filter_equal_operator(
     fmu_dir: ProjectFMUDirectory, change_entry_list: list[ChangeInfo]
 ) -> None:
