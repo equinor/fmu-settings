@@ -398,7 +398,21 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         restorable_files = super().restore()
 
         if self.config.relative_path in restorable_files:
-            self._log_config_restore_to_changelog(config_had_cache)
+            config_source = (
+                "in-memory session state"
+                if config_had_cache
+                else "default configuration"
+            )
+            try:
+                self.changelog.log_restore_to_changelog(
+                    relative_path=self.config.relative_path,
+                    source=config_source,
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to write config restore entry to changelog. "
+                    "Continuing with mappings restore."
+                )
 
         mappings_path = self.mappings.path
         if self.mappings.relative_path in restorable_files:
@@ -414,23 +428,6 @@ class ProjectFMUDirectory(FMUDirectoryBase):
                 )
 
         return restorable_files
-
-    def _log_config_restore_to_changelog(self: Self, config_had_cache: bool) -> None:
-        """Log config restore without blocking subsequent mappings restore."""
-        config_source = (
-            "in-memory session state" if config_had_cache else "default configuration"
-        )
-
-        try:
-            self.changelog.log_restore_to_changelog(
-                relative_path=self.config.relative_path,
-                source=config_source,
-            )
-        except Exception:
-            logger.warning(
-                "Failed to write config restore entry to changelog. "
-                "Continuing with mappings restore."
-            )
 
     def update_config(self: Self, updates: dict[str, Any]) -> ProjectConfig:
         """Updates multiple configuration values at once.
