@@ -382,10 +382,20 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         return files
 
     def restore(self: Self) -> list[Path]:
-        """Attempt to reconstruct missing project .fmu files from in-memory state."""
+        """Attempt to reconstruct missing project .fmu files from in-memory state.
+
+        The restore sequence is:
+        1. Delegate config (and README) restore to the base class.
+        2. Log the config restore to the changelog immediately, suppressing any write
+           errors so that a changelog failure cannot prevent the mappings restore.
+        3. Restore the mappings file from in-memory state (if applicable).
+        4. Log the mappings restore to the changelog.
+
+        Returns:
+            List of relative paths that were restored.
+        """
         config_had_cache = getattr(self.config, "_cache", None) is not None
         restorable_files = super().restore()
-        restore_logs: list[tuple[Path, str]] = []
 
         if self.config.relative_path in restorable_files:
             config_source = (
@@ -393,7 +403,16 @@ class ProjectFMUDirectory(FMUDirectoryBase):
                 if config_had_cache
                 else "default configuration"
             )
-            restore_logs.append((self.config.relative_path, config_source))
+            try:
+                self.changelog.log_restore_to_changelog(
+                    relative_path=self.config.relative_path,
+                    source=config_source,
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to write config restore entry to changelog. "
+                    "Continuing with mappings restore."
+                )
 
         mappings_path = self.mappings.path
         if self.mappings.relative_path in restorable_files:
@@ -403,15 +422,10 @@ class ProjectFMUDirectory(FMUDirectoryBase):
                 logger.info(
                     f"Restored mappings.json from cached model at {mappings_path}"
                 )
-                restore_logs.append(
-                    (self.mappings.relative_path, "in-memory session state")
+                self.changelog.log_restore_to_changelog(
+                    relative_path=self.mappings.relative_path,
+                    source="in-memory session state",
                 )
-
-        for relative_path, source in restore_logs:
-            self.changelog.log_restore_to_changelog(
-                relative_path=relative_path,
-                source=source,
-            )
 
         return restorable_files
 
