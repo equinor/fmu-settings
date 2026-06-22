@@ -700,6 +700,71 @@ def test_restore_rebuilds_project_fmu_from_cache(
     assert "in-memory session state" in changelog[1].change
 
 
+def test_restore_logs_config_entry_even_when_mappings_restore_fails(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Config changelog entry is written before mappings restore is attempted.
+
+    If the mappings restore raises an exception, the config restore should still
+    be recorded in the changelog because the two steps are independent.
+    """
+    fmu_dir.update_config({"version": "1.2.3"})
+    fmu_dir.mappings.update_internal_stratigraphy_mappings(
+        _stratigraphy_mappings("TopVolantis", "VOLANTIS GP. Top")
+    )
+
+    shutil.rmtree(fmu_dir.path)
+    assert not fmu_dir.path.exists()
+
+    with (
+        patch.object(fmu_dir.mappings, "save", side_effect=RuntimeError("disk full")),
+        pytest.raises(RuntimeError, match="disk full"),
+    ):
+        fmu_dir.restore()
+
+    changelog = fmu_dir.changelog.load()
+    assert len(changelog) == 1
+    assert changelog[0].change_type == ChangeType.restore
+    assert changelog[0].file == CacheResource.config.value
+    assert "in-memory session state" in changelog[0].change
+
+
+def test_restore_mappings_when_config_changelog_write_fails(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Config changelog write failures should not block mappings restore."""
+    fmu_dir.update_config({"version": "1.2.3"})
+    fmu_dir.mappings.update_internal_stratigraphy_mappings(
+        _stratigraphy_mappings("TopVolantis", "VOLANTIS GP. Top")
+    )
+    cached_mappings_dump = json.loads((fmu_dir.path / "mappings.json").read_text())
+
+    shutil.rmtree(fmu_dir.path)
+    assert not fmu_dir.path.exists()
+
+    with patch.object(
+        fmu_dir.changelog,
+        "log_restore_to_changelog",
+        side_effect=[RuntimeError("changelog locked"), None],
+    ) as mock_log_restore:
+        restored_files = fmu_dir.restore()
+
+    assert restored_files == [
+        Path("README"),
+        Path("config.json"),
+        Path("mappings.json"),
+    ]
+    restored_mappings_dump = json.loads((fmu_dir.path / "mappings.json").read_text())
+    assert restored_mappings_dump == cached_mappings_dump
+    assert mock_log_restore.call_count == 2
+    assert mock_log_restore.call_args_list[0].kwargs["relative_path"] == Path(
+        "config.json"
+    )
+    assert mock_log_restore.call_args_list[1].kwargs["relative_path"] == Path(
+        "mappings.json"
+    )
+
+
 def test_restore_resets_when_cache_missing_and_logs_restore(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
