@@ -155,26 +155,27 @@ class MappingsManager(PydanticResourceManager[InternalMappings]):
             self.stratigraphy_mappings if self.exists else StratigraphyMappings(root=[])
         )
 
-        primaries: dict[str, str] = {}  # source_id -> target_id
-        aliases_by_target: dict[str, list[str]] = {}  # target_id -> [alias source_ids]
+        aliases_by_target_id: dict[
+            str, list[str]
+        ] = {}  # target_id -> [alias source_ids]
 
         # Stratigraphic entries from stratigraphy mappings
         for mapping in stratigraphy_mappings:
-            if mapping.relation_type == RelationType.primary:
-                primaries[mapping.source_id] = mapping.target_id
-            elif mapping.relation_type == RelationType.alias:
-                aliases_by_target.setdefault(mapping.target_id, []).append(
+            if mapping.relation_type == RelationType.alias:
+                aliases_by_target_id.setdefault(mapping.target_id, []).append(
                     mapping.source_id
                 )
 
-        for source_id, target_id in primaries.items():
-            entry: dict[str, Any] = {
-                "stratigraphic": True,
-                "name": target_id,
-            }
-            if aliases := aliases_by_target.get(target_id):
-                entry["alias"] = aliases
-            stratigraphy[source_id] = entry
+        for mapping in stratigraphy_mappings:
+            if mapping.relation_type == RelationType.primary:
+                entry: dict[str, Any] = {
+                    "stratigraphic": True,
+                    "name": mapping.target_id,
+                    "uuid": mapping.target_uuid,
+                }
+                if aliases := aliases_by_target_id.get(mapping.target_id):
+                    entry["alias"] = aliases
+                stratigraphy[mapping.source_id] = entry
 
         # Non-stratigraphic entries from RMS
         rms_config = self.fmu_dir.get_config_value("rms")
