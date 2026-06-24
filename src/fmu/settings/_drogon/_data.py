@@ -145,18 +145,51 @@ GLOBAL_CONFIG_STRATIGRAPHY: Final[dict[str, Any]] = {
         "stratigraphic": True,
         "name": "VOLANTIS GP. Top",
         "alias": ["TopVOLANTIS", "TOP_VOLANTIS"],
+        "uuid": "1629c229-0a2b-4f0a-94f7-dc01b171cb1c",
     },
-    "TopTherys": {"stratigraphic": True, "name": "Therys Fm. Top"},
-    "TopVolon": {"stratigraphic": True, "name": "Volon Fm. Top"},
-    "BaseVolon": {"stratigraphic": True, "name": "Volon Fm. Base"},
-    "BaseVolantis": {"stratigraphic": True, "name": "VOLANTIS GP. Base"},
+    "TopTherys": {
+        "stratigraphic": True,
+        "name": "Therys Fm. Top",
+        "uuid": "0240dc8e-659a-4925-b569-6f1570ba6770",
+    },
+    "TopVolon": {
+        "stratigraphic": True,
+        "name": "Volon Fm. Top",
+        "uuid": "8aeab228-6b92-4875-8b13-2b68a3108c8d",
+    },
+    "BaseVolon": {
+        "stratigraphic": True,
+        "name": "Volon Fm. Base",
+        "uuid": "433bd00d-9cf8-4eec-9a35-8bac0821f07c",
+    },
+    "BaseVolantis": {
+        "stratigraphic": True,
+        "name": "VOLANTIS GP. Base",
+        "uuid": "3c36a234-91e3-4bc5-8642-f32b910c5c6c",
+    },
     "BaseVelmodel": {"stratigraphic": False, "name": "BaseVelmodel"},
     "Above": {"stratigraphic": False, "name": "Above"},
-    "Valysar": {"stratigraphic": True, "name": "Valysar Fm."},
-    "Therys": {"stratigraphic": True, "name": "Therys Fm."},
-    "Volon": {"stratigraphic": True, "name": "Volon Fm."},
+    "Valysar": {
+        "stratigraphic": True,
+        "name": "Valysar Fm.",
+        "uuid": "a9cdeb70-af4f-4e86-a209-4eb124ac096a",
+    },
+    "Therys": {
+        "stratigraphic": True,
+        "name": "Therys Fm.",
+        "uuid": "a21c5998-9506-44d8-b29d-208c817e3a0b",
+    },
+    "Volon": {
+        "stratigraphic": True,
+        "name": "Volon Fm.",
+        "uuid": "a6d740be-ef58-4569-9fad-2daf17aa214c",
+    },
     "Below": {"stratigraphic": False, "name": "Below"},
-    "TopVolantis_BaseVolantis": {"stratigraphic": True, "name": "VOLANTIS GP."},
+    "TopVolantis_BaseVolantis": {
+        "stratigraphic": True,
+        "name": "VOLANTIS GP.",
+        "uuid": "08d5f9e0-56bc-4956-b0f3-68f2a3047ef9",
+    },
 }
 
 STRATIGRAPHY_MAPPINGS: Final[list[dict[str, Any]]] = [

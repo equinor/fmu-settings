@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import pytest
 from fmu.datamodels.context.mappings import (
@@ -34,6 +35,7 @@ def _stratigraphy_mappings(
     source_id: str,
     target_id: str,
     *aliases: str,
+    target_uuid: UUID | None = None,
 ) -> InternalStratigraphyMappings:
     return InternalStratigraphyMappings(
         root=[
@@ -60,6 +62,7 @@ def _stratigraphy_mappings(
                 relation_type=InternalRelationType.primary,
                 source_id=source_id,
                 target_id=target_id,
+                target_uuid=target_uuid,
             ),
         ]
     )
@@ -555,14 +558,21 @@ def test_build_global_config_stratigraphy_only_mappings(
 ) -> None:
     """Only stratigraphic entries when there is no RMS config."""
     mappings_manager = MappingsManager(fmu_dir)
+    target_uuid = UUID("00000000-0000-0000-0000-000000000001")
     mappings_manager.update_internal_stratigraphy_mappings(
-        _stratigraphy_mappings("TopX", "X Fm. Top")
+        _stratigraphy_mappings("TopX", "X Fm. Top", target_uuid=target_uuid)
     )
 
     strat = mappings_manager.build_global_config_stratigraphy()
 
     result = strat.model_dump(mode="json", exclude_none=True, exclude_unset=True)
-    assert result == {"TopX": {"stratigraphic": True, "name": "X Fm. Top"}}
+    assert result == {
+        "TopX": {
+            "stratigraphic": True,
+            "name": "X Fm. Top",
+            "uuid": str(target_uuid),
+        }
+    }
 
 
 def test_build_global_config_stratigraphy_mapped_horizon_not_duplicated(
