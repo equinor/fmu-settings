@@ -33,7 +33,7 @@ dependencies = [
     "PyYAML",
     "annotated_types", # Dependency in Pydantic also
     "fmu-config",
-    "fmu-datamodels",
+    "fmu-datamodels>=0.23.1", # StratigraphyElement.uuid support
     "pandas",
     "pydantic",
 ]

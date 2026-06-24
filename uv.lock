@@ -420,7 +420,7 @@ requires-dist = [
     { name = "annotated-types" },
     { name = "autodoc-pydantic", marker = "extra == 'docs'" },
     { name = "fmu-config" },
-    { name = "fmu-datamodels" },
+    { name = "fmu-datamodels", specifier = ">=0.23.1" },
     { name = "furo", marker = "extra == 'docs'" },
     { name = "mypy", marker = "extra == 'dev'" },
     { name = "myst-parser", marker = "extra == 'docs'" },
