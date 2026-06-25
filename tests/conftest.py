@@ -99,6 +99,10 @@ def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
         "model": None,
         "access": None,
         "rms": None,
+        "validation": {
+            "masterdata_smda": None,
+            "rms_project": None,
+        },
     }
 
 
@@ -347,6 +351,16 @@ def mocked_project_config_with_all_fields(
         "model": model_dict,
         "access": access_dict,
         "rms": rms_project,
+        "validation": {
+            "masterdata_smda": {
+                "last_validated_at": unix_epoch_utc,
+                "validated_by": "user",
+            },
+            "rms_project": {
+                "last_validated_at": unix_epoch_utc,
+                "validated_by": "user",
+            },
+        },
     }
 
 
