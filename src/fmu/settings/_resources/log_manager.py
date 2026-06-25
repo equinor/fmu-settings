@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, Self
+from datetime import datetime
+from typing import TYPE_CHECKING, Generic, Self, get_args, get_origin
 
 import pandas as pd
-from pydantic import ValidationError
+from pydantic import AwareDatetime, ValidationError
 
 from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
 from fmu.settings.models._enums import FilterType
@@ -48,9 +49,16 @@ class LogManager(PydanticResourceManager[Log[LogEntryType]], Generic[LogEntryTyp
         """Filters the log resource with the provided filter."""
         if self._cached_dataframe is None:
             log_model: Log[LogEntryType] = self.load()
+            if len(log_model) == 0:
+                self._cached_dataframe = pd.DataFrame()
+                return self.model_class([])
             df_log = pd.DataFrame([entry.model_dump() for entry in log_model])
             self._cached_dataframe = df_log
         df_log = self._cached_dataframe
+        if df_log.empty:
+            return self.model_class([])
+
+        self._validate_filter_field(filter)
 
         if filter.filter_type == FilterType.text and filter.operator not in {
             "==",
@@ -96,3 +104,50 @@ class LogManager(PydanticResourceManager[Log[LogEntryType]], Generic[LogEntryTyp
 
         filtered_dict = filtered_df.to_dict("records")
         return self.model_class.model_validate(filtered_dict)
+
+    def _validate_filter_field(self: Self, filter: Filter) -> None:
+        """Validate that the filter matches a field on the log entry model."""
+        entry_model = self._entry_model_class()
+        if filter.field_name not in entry_model.model_fields:
+            raise ValueError(
+                f"Invalid filter field '{filter.field_name}' when filtering "
+                f"log resource {self.model_class.__name__}."
+            )
+
+        field = entry_model.model_fields[filter.field_name]
+        expected_filter_type = self._filter_type_for_annotation(field.annotation)
+        if expected_filter_type is None or filter.filter_type != expected_filter_type:
+            raise ValueError(
+                f"Invalid filter type '{filter.filter_type}' applied to field "
+                f"'{filter.field_name}' when filtering log resource "
+                f"{self.model_class.__name__}."
+            )
+
+    def _entry_model_class(self: Self) -> type[LogEntryType]:
+        """Return the concrete Pydantic model used for log entries."""
+        model_args = self.model_class.__pydantic_generic_metadata__["args"]
+        return model_args[0]
+
+    @staticmethod
+    def _filter_type_for_annotation(annotation: object) -> FilterType | None:
+        """Return the supported filter type for a model field annotation."""
+        origin = get_origin(annotation)
+        if origin is not None:
+            annotation_args = [
+                arg for arg in get_args(annotation) if arg is not type(None)
+            ]
+            if len(annotation_args) == 1:
+                return LogManager._filter_type_for_annotation(annotation_args[0])
+
+        if annotation in {datetime, AwareDatetime}:
+            return FilterType.date
+        if isinstance(annotation, type):
+            if issubclass(annotation, str):
+                return FilterType.text
+            if issubclass(annotation, (int, float)) and not issubclass(
+                annotation, bool
+            ):
+                return FilterType.number
+            if issubclass(annotation, datetime):
+                return FilterType.date
+        return None
