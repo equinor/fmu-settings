@@ -1,5 +1,6 @@
 """Tests for LogManager."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Self
 
@@ -10,6 +11,27 @@ from fmu.settings._fmu_dir import ProjectFMUDirectory
 from fmu.settings._resources.log_manager import LogManager
 from fmu.settings.models._enums import FilterType
 from fmu.settings.models.log import Filter, Log
+
+
+class MixedLogEntry(BaseModel):
+    """Log entry with fields for testing all filter types."""
+
+    user: str = "test_user"
+    timestamp: datetime = datetime(2026, 1, 1, tzinfo=UTC)
+    count: int = 1
+
+
+class MixedLogManager(LogManager[MixedLogEntry]):
+    """Log manager with fields for testing all filter types."""
+
+    def __init__(self: Self, fmu_dir: ProjectFMUDirectory) -> None:
+        """Initializes the mixed log manager."""
+        super().__init__(fmu_dir, Log[MixedLogEntry])
+
+    @property
+    def relative_path(self: Self) -> Path:
+        """Returns the relative path to the mixed log file."""
+        return Path("logs") / "mixedlog.json"
 
 
 def test_log_manager_instantiation(fmu_dir: ProjectFMUDirectory) -> None:
@@ -94,3 +116,107 @@ def test_changelog_filtering_on_numbers(fmu_dir: ProjectFMUDirectory) -> None:
     filtered_log = log_manager.filter_log(filter)
     assert len(filtered_log) == 1
     assert all(entry.count >= filter_value for entry in filtered_log)
+
+
+def test_filtering_empty_log_returns_empty_log(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests filtering an existing empty log with a valid filter."""
+    log_manager = MixedLogManager(fmu_dir=fmu_dir)
+    log_manager.save(Log[MixedLogEntry]([]))
+
+    filtered_log = log_manager.filter_log(
+        Filter(
+            field_name="user",
+            filter_value="test_user",
+            filter_type=FilterType.text,
+            operator="==",
+        )
+    )
+
+    assert filtered_log.__class__ is log_manager.model_class
+    assert len(filtered_log) == 0
+
+
+@pytest.mark.parametrize(
+    ("filter", "match"),
+    [
+        (
+            Filter(
+                field_name="unknown",
+                filter_value="test_user",
+                filter_type=FilterType.text,
+                operator="==",
+            ),
+            "unknown",
+        ),
+        (
+            Filter(
+                field_name="user",
+                filter_value="1",
+                filter_type=FilterType.number,
+                operator="==",
+            ),
+            "user",
+        ),
+    ],
+)
+def test_filtering_empty_log_with_invalid_filter_raises_value_error(
+    fmu_dir: ProjectFMUDirectory, filter: Filter, match: str
+) -> None:
+    """Tests filtering an existing empty log with an invalid filter."""
+    log_manager = MixedLogManager(fmu_dir=fmu_dir)
+    log_manager.save(Log[MixedLogEntry]([]))
+
+    with pytest.raises(ValueError, match=match):
+        log_manager.filter_log(filter)
+
+
+def test_filtering_unknown_field_raises_value_error(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests filtering on fields that are not part of the log entry model."""
+    log_manager = MixedLogManager(fmu_dir=fmu_dir)
+    log_manager.add_log_entry(MixedLogEntry())
+
+    with pytest.raises(ValueError, match="unknown"):
+        log_manager.filter_log(
+            Filter(
+                field_name="unknown",
+                filter_value="test_user",
+                filter_type=FilterType.text,
+                operator="==",
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "filter_value", "filter_type"),
+    [
+        ("user", "10", FilterType.number),
+        ("user", "2026-01-01T00:00:00+00:00", FilterType.date),
+        ("timestamp", "2026-01-01T00:00:00+00:00", FilterType.text),
+        ("timestamp", "10", FilterType.number),
+        ("count", "1", FilterType.text),
+        ("count", "2026-01-01T00:00:00+00:00", FilterType.date),
+    ],
+)
+def test_filtering_with_incompatible_filter_type_raises_value_error(
+    fmu_dir: ProjectFMUDirectory,
+    field_name: str,
+    filter_value: str,
+    filter_type: FilterType,
+) -> None:
+    """Tests filter type validation against the selected model field."""
+    log_manager = MixedLogManager(fmu_dir=fmu_dir)
+    log_manager.add_log_entry(MixedLogEntry())
+
+    with pytest.raises(ValueError, match=field_name):
+        log_manager.filter_log(
+            Filter(
+                field_name=field_name,
+                filter_value=filter_value,
+                filter_type=filter_type,
+                operator=">",
+            )
+        )
