@@ -74,6 +74,26 @@ class RmsProject(BaseModel):
     wells: list[RmsWell] | None = None
 
 
+class ValidationRecord(BaseModel):
+    """Metadata for a successful validation of project configuration data."""
+
+    last_validated_at: AwareDatetime
+    """Timestamp when the data was last validated."""
+
+    last_validated_by: str
+    """User who performed the last validation."""
+
+
+class ProjectValidation(BaseModel):
+    """Validation metadata for project configuration data."""
+
+    masterdata_smda: ValidationRecord | None = None
+    """Validation metadata for masterdata checked against SMDA."""
+
+    rms_project: ValidationRecord | None = None
+    """Validation metadata for RMS configuration checked against the RMS project."""
+
+
 class ProjectConfig(ResettableBaseModel):
     """The configuration file in a .fmu directory.
 
@@ -93,6 +113,7 @@ class ProjectConfig(ResettableBaseModel):
     access: Access | None = None
     cache_max_revisions: int = Field(default=5, ge=5)
     rms: RmsProject | None = None
+    validation: ProjectValidation = Field(default_factory=ProjectValidation)
 
     @classmethod
     def reset(cls: type[Self]) -> Self:
@@ -112,4 +133,5 @@ class ProjectConfig(ResettableBaseModel):
             access=None,
             cache_max_revisions=5,
             rms=None,
+            validation=ProjectValidation(),
         )
