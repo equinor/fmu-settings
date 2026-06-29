@@ -51,14 +51,15 @@ class LogManager(PydanticResourceManager[Log[LogEntryType]], Generic[LogEntryTyp
             log_model: Log[LogEntryType] = self.load()
             if len(log_model) == 0:
                 self._cached_dataframe = pd.DataFrame()
-                return self.model_class([])
-            df_log = pd.DataFrame([entry.model_dump() for entry in log_model])
-            self._cached_dataframe = df_log
+            else:
+                df_log = pd.DataFrame([entry.model_dump() for entry in log_model])
+                self._cached_dataframe = df_log
         df_log = self._cached_dataframe
-        if df_log.empty:
-            return self.model_class([])
 
         self._validate_filter_field(filter)
+
+        if df_log.empty:
+            return self.model_class([])
 
         if filter.filter_type == FilterType.text and filter.operator not in {
             "==",
@@ -133,11 +134,13 @@ class LogManager(PydanticResourceManager[Log[LogEntryType]], Generic[LogEntryTyp
         """Return the supported filter type for a model field annotation."""
         origin = get_origin(annotation)
         if origin is not None:
-            annotation_args = [
+            non_none_annotation_args = [
                 arg for arg in get_args(annotation) if arg is not type(None)
             ]
-            if len(annotation_args) == 1:
-                return LogManager._filter_type_for_annotation(annotation_args[0])
+            if len(non_none_annotation_args) == 1:
+                return LogManager._filter_type_for_annotation(
+                    non_none_annotation_args[0]
+                )
 
         if annotation in {datetime, AwareDatetime}:
             return FilterType.date

@@ -121,7 +121,7 @@ def test_changelog_filtering_on_numbers(fmu_dir: ProjectFMUDirectory) -> None:
 def test_filtering_empty_log_returns_empty_log(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Tests filtering an existing empty log."""
+    """Tests filtering an existing empty log with a valid filter."""
     log_manager = MixedLogManager(fmu_dir=fmu_dir)
     log_manager.save(Log[MixedLogEntry]([]))
 
@@ -136,6 +136,40 @@ def test_filtering_empty_log_returns_empty_log(
 
     assert filtered_log.__class__ is log_manager.model_class
     assert len(filtered_log) == 0
+
+
+@pytest.mark.parametrize(
+    ("filter", "match"),
+    [
+        (
+            Filter(
+                field_name="unknown",
+                filter_value="test_user",
+                filter_type=FilterType.text,
+                operator="==",
+            ),
+            "unknown",
+        ),
+        (
+            Filter(
+                field_name="user",
+                filter_value="1",
+                filter_type=FilterType.number,
+                operator="==",
+            ),
+            "user",
+        ),
+    ],
+)
+def test_filtering_empty_log_with_invalid_filter_raises_value_error(
+    fmu_dir: ProjectFMUDirectory, filter: Filter, match: str
+) -> None:
+    """Tests filtering an existing empty log with an invalid filter."""
+    log_manager = MixedLogManager(fmu_dir=fmu_dir)
+    log_manager.save(Log[MixedLogEntry]([]))
+
+    with pytest.raises(ValueError, match=match):
+        log_manager.filter_log(filter)
 
 
 def test_filtering_unknown_field_raises_value_error(
