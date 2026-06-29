@@ -80,8 +80,8 @@ class ValidationRecord(BaseModel):
     last_validated_at: AwareDatetime
     """Timestamp when the data was last validated."""
 
-    validated_by: str
-    """User who performed the validation."""
+    last_validated_by: str
+    """User who performed the last validation."""
 
 
 class ProjectValidation(BaseModel):

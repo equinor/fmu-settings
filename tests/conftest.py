@@ -354,11 +354,11 @@ def mocked_project_config_with_all_fields(
         "validation": {
             "masterdata_smda": {
                 "last_validated_at": unix_epoch_utc,
-                "validated_by": "user",
+                "last_validated_by": "user",
             },
             "rms_project": {
                 "last_validated_at": unix_epoch_utc,
-                "validated_by": "user",
+                "last_validated_by": "user",
             },
         },
     }
