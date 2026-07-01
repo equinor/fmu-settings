@@ -21,9 +21,8 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P1W"
 
 [options.exclude-newer-package]
-fmu-datamodels = false
-pydantic-settings = { timestamp = "0001-01-01T00:00:00Z", span = "PT0S" }
 fmu-config = false
+fmu-datamodels = false
 
 [[package]]
 name = "accessible-pygments"
@@ -362,14 +361,14 @@ wheels = [
 
 [[package]]
 name = "fmu-config"
-version = "1.7.1"
+version = "1.7.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1f/44/a0ef98b2a5d2c7603f950aa0d86f42366866b83b960ae81a7133cb4bbe3a/fmu_config-1.7.1.tar.gz", hash = "sha256:8a550a2d436d4daf721b8518fe5c7d482346ac4945dbd91a5f202773707f441a", size = 198437, upload-time = "2026-04-07T08:03:30.435Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/af/78/f0fa4d29d96fed50d031fcd3c65ee225c291974994ce4e9e6be471eddc04/fmu_config-1.7.2.tar.gz", hash = "sha256:1d7a60ce866a2c021c565f9512084bc2ac2d57aa7c1df72cc40e2e1bd11414be", size = 201067, upload-time = "2026-06-30T08:26:22.635Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/81/4053d690755941685d055db70575202c88578cbb57880f446c1d6ddb0357/fmu_config-1.7.1-py3-none-any.whl", hash = "sha256:5109da678e080c68423492cf3d98bcf4da9324fefe237b0568463fc97187ba1f", size = 27285, upload-time = "2026-04-07T08:03:28.814Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/ab/b6a36d5eb6d0150497815d9f9abaa4c9f8ca5ec47d12ec750771c4919ea0/fmu_config-1.7.2-py3-none-any.whl", hash = "sha256:c6ec3b3c434c6c25d2a120d5deb129a5339959862e5d579042fd98a6ac24104b", size = 28407, upload-time = "2026-06-30T08:26:21.429Z" },
 ]
 
 [[package]]
@@ -1077,7 +1076,7 @@ wheels = [
 
 [[package]]
 name = "pytest"
-version = "9.1.0"
+version = "9.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
@@ -1086,9 +1085,9 @@ dependencies = [
     { name = "pluggy" },
     { name = "pygments" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/84/0e/b5858858d74958632c49b72cb25a3976ff9f632397626715be71c89d3971/pytest-9.1.0.tar.gz", hash = "sha256:41dd9148c08072446394cefd3d79701701335a9f4cae69ba92e39f6c7f5c061c", size = 1634181, upload-time = "2026-06-13T18:52:45.983Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/47/b9efed96c114afcfa3c9d3fe98a76a1d14c74a9e266d397cf6eb64be5e01/pytest-9.1.1.tar.gz", hash = "sha256:1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313", size = 1636369, upload-time = "2026-06-19T10:58:32.857Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/5a/ba30a81239b909821b3153e303e7def45178bf353da4f72380e6c5e8793b/pytest-9.1.0-py3-none-any.whl", hash = "sha256:8ebb0e7888bdf2bdfc602ec51f8f62d50200af37356c74e503c79a94f5c81f32", size = 386453, upload-time = "2026-06-13T18:52:44.045Z" },
+    { url = "https://files.pythonhosted.org/packages/24/25/1de2678b631f5a49215c6c96fff41ba892b0a34df68d6d80292b1b48aa7f/pytest-9.1.1-py3-none-any.whl", hash = "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c", size = 386536, upload-time = "2026-06-19T10:58:31.347Z" },
 ]
 
 [[package]]
