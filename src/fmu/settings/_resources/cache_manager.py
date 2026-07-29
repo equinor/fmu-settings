@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Final, Self, TypeVar
@@ -10,10 +11,12 @@ from uuid import uuid4
 from pydantic import BaseModel, ValidationError
 
 from fmu.settings._logging import null_logger
+from fmu.settings._migrations import MigrationError
 from fmu.settings._utils import path_is_dir, path_is_file
 
 if TYPE_CHECKING:
     from fmu.settings._fmu_dir import FMUDirectoryBase
+    from fmu.settings._migrations import MigrationManager
 
 logger: Final = null_logger(__name__)
 
@@ -134,6 +137,8 @@ class CacheManager:
         resource_file_path: Path | str,
         revision_id: str,
         model_class: type[RequestedModel],
+        *,
+        migration_manager: MigrationManager[RequestedModel] | None = None,
     ) -> RequestedModel:
         """Get the content of a specific cache revision as a validated model.
 
@@ -143,12 +148,15 @@ class CacheManager:
             revision_id: The revision filename (e.g.,
                 ``20260114T123045.123456Z-a1b2c3d4.json``).
             model_class: Pydantic model class to validate the cached content against.
+            migration_manager: Optional migration manager for versioned content.
 
         Returns:
             Validated Pydantic model instance containing the cached data.
 
         Raises:
             FileNotFoundError: If the cache revision doesn't exist.
+            MigrationError: If the cached content cannot be migrated to the current
+                schema.
             ValueError: If the cached file contains invalid JSON or fails model
                 validation.
         """
@@ -164,8 +172,16 @@ class CacheManager:
         content_str = self._fmu_dir.read_text_file(cache_relative)
 
         try:
-            return model_class.model_validate_json(content_str)
-        except ValidationError as e:
+            return self._validate_content(
+                content_str,
+                model_class,
+                migration_manager,
+            )
+        except MigrationError as e:
+            raise MigrationError(
+                f"Cannot migrate cached content for '{resource_file_path}': {e}"
+            ) from e
+        except (json.JSONDecodeError, ValidationError) as e:
             raise ValueError(
                 f"Invalid cached content for '{resource_file_path}': {e}"
             ) from e
@@ -175,6 +191,8 @@ class CacheManager:
         resource_file_path: Path | str,
         revision_id: str,
         model_class: type[RequestedModel],
+        *,
+        migration_manager: MigrationManager[RequestedModel] | None = None,
     ) -> None:
         """Restore a resource file from a cache revision.
 
@@ -187,15 +205,21 @@ class CacheManager:
             revision_id: The revision filename to restore from.
             model_class: Pydantic model class to validate the cached content
                 against before restoring.
+            migration_manager: Optional migration manager for versioned content.
 
         Raises:
             FileNotFoundError: If the cache revision doesn't exist.
+            MigrationError: If the cached content cannot be migrated to the current
+                schema.
             ValueError: If the cached content is invalid JSON or fails model validation.
         """
         resource_file_path = Path(resource_file_path)
 
         validated_model = self.get_revision_content(
-            resource_file_path, revision_id, model_class
+            resource_file_path,
+            revision_id,
+            model_class,
+            migration_manager=migration_manager,
         )
         content_str = validated_model.model_dump_json(by_alias=True, indent=2)
 
@@ -203,8 +227,12 @@ class CacheManager:
             current_content = self._fmu_dir.read_text_file(resource_file_path)
 
             try:
-                model_class.model_validate_json(current_content)
-            except ValidationError as e:
+                self._validate_content(
+                    current_content,
+                    model_class,
+                    migration_manager,
+                )
+            except (json.JSONDecodeError, MigrationError, ValidationError) as e:
                 logger.warning(
                     "Skipped caching current state of "
                     f"{resource_file_path} before restore because it is invalid: {e}"
@@ -217,6 +245,20 @@ class CacheManager:
         self._fmu_dir.write_text_file(resource_file_path, content_str)
 
         logger.info(f"Restored {resource_file_path} from cache revision {revision_id}")
+
+    @staticmethod
+    def _validate_content(
+        content: str,
+        model_class: type[RequestedModel],
+        migration_manager: MigrationManager[RequestedModel] | None,
+    ) -> RequestedModel:
+        """Validate current or versioned cached resource content."""
+        if migration_manager is None:
+            return model_class.model_validate_json(content)
+        if migration_manager.model_class is not model_class:
+            raise TypeError("Migration manager model must match the requested model")
+
+        return migration_manager.migrate_resource(json.loads(content))
 
     def _ensure_resource_cache_dir(self: Self, resource_file_path: Path) -> Path:
         """Create (if needed) and return the cache directory for resource file."""

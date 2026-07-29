@@ -65,7 +65,10 @@ classDiagram
 
     class UserFMUDirectory
 
-    class CacheManager
+    class CacheManager {
+        +get_revision_content(..., migration_manager)
+        +restore_revision(..., migration_manager)
+    }
     class LockManager {
         +acquire()
         +ensure_can_write()
@@ -75,10 +78,18 @@ classDiagram
     }
 
     class PydanticResourceManager~PydanticResource~ {
+        +migration_manager
         +load(force, store_cache)
         +save(model)
         +get_resource_diff(incoming_resource)
         +get_structured_model_diff(current_model, incoming_model)
+    }
+
+    class MigrationManager~MigratableResource~ {
+        +model_class
+        +current_version: int
+        +migrate_resource(data)
+        +requires_backup(data)
     }
 
     class MutablePydanticResourceManager~MutablePydanticResource~ {
@@ -129,6 +140,8 @@ classDiagram
 
     FMUDirectoryBase *-- LockManager
     FMUDirectoryBase *-- CacheManager
+    PydanticResourceManager o-- MigrationManager
+    CacheManager ..> MigrationManager
     ProjectFMUDirectory *-- ProjectConfigManager
     ProjectFMUDirectory *-- ChangelogManager
     ProjectFMUDirectory *-- MappingsManager
@@ -140,9 +153,43 @@ The main library split is:
 - `FMUDirectoryBase` is the filesystem-centered abstraction. It owns the `.fmu` path, lock manager, cache manager, and generic read/write helpers.
 - `ProjectFMUDirectory` and `UserFMUDirectory` specialize the base class for project-local `.fmu/` directories and `$HOME/.fmu/`.
 - `PydanticResourceManager` is the generic resource engine for loading, saving, diffing, and caching JSON-backed Pydantic models.
+- `MigrationManager` applies registered, forward-only schema migrations and validates the result as the current Pydantic model.
 - `MutablePydanticResourceManager` adds dot-notation `get`, `set`, `update`, `reset`, and merge behavior for editable resources.
 - `ProjectConfigManager`, `UserConfigManager`, `MappingsManager`, and `LogManager` bind specific Pydantic models to managed files inside `.fmu/`.
 - Directory objects compose the correct managers and delegate resource operations to them.
+
+## Schema Migration
+
+`ProjectConfig`, `UserConfig`, and `InternalMappings` are versioned resources. Each
+model declares its current schema version, and each resource manager has a
+`MigrationManager` with the migration registry for that model.
+
+Migration is forward-only. Data without `schema_version` is treated as version 1.
+Each registered function advances the data by one version. The manager rejects a
+newer schema, a missing migration step, an invalid version, or data that does not
+validate as the current model.
+
+The migration boundary depends on the resource operation:
+
+- **Load:** `PydanticResourceManager` decodes the stored JSON and asks
+  `MigrationManager` for a validated current model. Migration happens in memory.
+  Loading does not write the resource, create a cache revision, or add a changelog
+  entry.
+- **Save:** The resource manager checks the write lock first. If the stored data is
+  unversioned or older, it stores the original JSON as a normal cache revision
+  before writing the current model. Normal cache retention applies.
+- **Cache read:** `CacheManager` uses the migration manager to return old revisions
+  as current validated models.
+- **Restore:** `CacheManager` migrates the selected revision before writing it, so
+  the restored resource uses the current schema. Project restore operations use the
+  existing restore changelog entry.
+
+There is no backward migration. After a current-schema resource is saved, an older
+`fmu-settings` release can reject it as newer than supported.
+
+See the
+[schema migration guide](src/fmu/settings/_migrations/README.md)
+for the implementation, test, and coordinated release process.
 
 ## Runtime Flow
 

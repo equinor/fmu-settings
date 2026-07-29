@@ -81,6 +81,11 @@ ruff format --check
 mypy src tests
 ```
 
+If you need to change the schema of `ProjectConfig`, `UserConfig`, or
+`InternalMappings`, see the
+[schema migration guide](src/fmu/settings/_migrations/README.md) for implementation
+and testing details.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 > [!NOTE]

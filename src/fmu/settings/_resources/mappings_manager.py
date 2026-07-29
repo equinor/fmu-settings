@@ -10,6 +10,8 @@ from fmu.datamodels.context.mappings import (
     WellboreMappings,
 )
 from fmu.datamodels.fmu_results.global_configuration import Stratigraphy
+from fmu.settings._migrations import MigrationManager
+from fmu.settings._migrations.mappings import MAPPINGS_MIGRATIONS
 from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
 from fmu.settings.models.mappings import (
     InternalMappings,
@@ -31,7 +33,14 @@ class MappingsManager(PydanticResourceManager[InternalMappings]):
 
     def __init__(self: Self, fmu_dir: ProjectFMUDirectory) -> None:
         """Initializes the mappings resource manager."""
-        super().__init__(fmu_dir, InternalMappings)
+        super().__init__(
+            fmu_dir,
+            InternalMappings,
+            migration_manager=MigrationManager(
+                InternalMappings,
+                MAPPINGS_MIGRATIONS,
+            ),
+        )
 
     @property
     def relative_path(self: Self) -> Path:

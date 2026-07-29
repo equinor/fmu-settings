@@ -28,6 +28,9 @@ from .models.project_config import (
 )
 from .models.user_config import UserConfig
 
+if TYPE_CHECKING:
+    from ._migrations import MigrationManager
+
 logger: Final = null_logger(__name__)
 
 FMUConfigManager: TypeAlias = ProjectConfigManager | UserConfigManager
@@ -494,13 +497,19 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         if manager is self.config:
             previous_max_revisions = self._cache_manager.max_revisions
             restored_config = self.cache.get_revision_content(
-                relative_path, revision_id, model_class=ProjectConfig
+                relative_path,
+                revision_id,
+                model_class=ProjectConfig,
+                migration_manager=self.config.migration_manager,
             )
             self._cache_manager.max_revisions = restored_config.cache_max_revisions
 
             try:
                 self.cache.restore_revision(
-                    relative_path, revision_id, model_class=ProjectConfig
+                    relative_path,
+                    revision_id,
+                    model_class=ProjectConfig,
+                    migration_manager=self.config.migration_manager,
                 )
             except Exception:
                 # Restore the previous runtime retention if config restore fails
@@ -519,7 +528,13 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             return
 
         self.cache.restore_revision(
-            relative_path, revision_id, model_class=manager.model_class
+            relative_path,
+            revision_id,
+            model_class=cast("type[BaseModel]", manager.model_class),
+            migration_manager=cast(
+                "MigrationManager[BaseModel] | None",
+                manager.migration_manager,
+            ),
         )
 
         # Refresh the resource manager's in-memory cache
@@ -555,7 +570,13 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             )
 
         return self.cache.get_revision_content(
-            relative_path, revision_id, model_class=manager.model_class
+            relative_path,
+            revision_id,
+            model_class=cast("type[BaseModel]", manager.model_class),
+            migration_manager=cast(
+                "MigrationManager[BaseModel] | None",
+                manager.migration_manager,
+            ),
         )
 
     def _cacheable_resource_managers(

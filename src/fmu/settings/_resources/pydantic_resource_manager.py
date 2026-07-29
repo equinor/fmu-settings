@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
-from builtins import TypeError
 from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from fmu.settings._migrations import (
+    MigrationError,
+    MigrationManager,
+)
 from fmu.settings._utils import path_exists
 from fmu.settings.models.diff import (
     ListFieldDiff,
@@ -35,16 +38,29 @@ class PydanticResourceManager(Generic[PydanticResource]):
     automatic_caching: bool = True
 
     def __init__(
-        self: Self, fmu_dir: FMUDirectoryBase, model_class: type[PydanticResource]
+        self: Self,
+        fmu_dir: FMUDirectoryBase,
+        model_class: type[PydanticResource],
+        *,
+        migration_manager: MigrationManager[PydanticResource] | None = None,
     ) -> None:
         """Initializes the resource manager.
 
         Args:
             fmu_dir: The FMUDirectory instance
             model_class: The Pydantic model class this manager handles
+            migration_manager: Optional migration manager for versioned resources
         """
         self.fmu_dir = fmu_dir
         self.model_class = model_class
+        if (
+            migration_manager is not None
+            and migration_manager.model_class is not model_class
+        ):
+            raise TypeError(
+                "Migration manager model must match the resource manager model"
+            )
+        self.migration_manager = migration_manager
         self._cache: PydanticResource | None = None
 
     @property
@@ -109,8 +125,10 @@ class PydanticResourceManager(Generic[PydanticResource]):
             Validated Pydantic model
 
         Raises:
-            ValueError: If the resource file is missing or data does not match the
-            model schema
+            FileNotFoundError: If the resource file does not exist.
+            MigrationError: If the resource cannot be migrated to the current schema.
+            ValueError: If the resource file contains invalid JSON or does not match
+                the model schema.
         """
         if self._cache is None or force:
             if not self.exists:
@@ -122,7 +140,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
             try:
                 content = self.fmu_dir.read_text_file(self.relative_path)
                 data = json.loads(content)
-                validated_model = self.model_class.model_validate(data)
+                validated_model = self._validate_data(data)
                 if store_cache:
                     self._cache = validated_model
                 else:
@@ -150,6 +168,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
             model: Validated Pydantic model instance.
         """
         self.fmu_dir._lock.ensure_can_write()
+        self._store_pre_migration_revision()
 
         json_data = model.model_dump_json(by_alias=True, indent=2)
         self.fmu_dir.write_text_file(self.relative_path, json_data)
@@ -158,6 +177,47 @@ class PydanticResourceManager(Generic[PydanticResource]):
             self.fmu_dir.cache.store_revision(self.relative_path, json_data)
 
         self._cache = model
+
+    def _store_pre_migration_revision(self: Self) -> None:
+        """Store old disk content before a migration write.
+
+        Invalid JSON and non-object content keep the existing save behavior, which lets
+        a caller replace a corrupt resource with an already validated model.
+        """
+        if self.migration_manager is None:
+            return
+
+        try:
+            content = self.fmu_dir.read_text_file(self.relative_path)
+            data = json.loads(content)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return
+
+        if not isinstance(data, dict):
+            return
+
+        try:
+            requires_backup = self.migration_manager.requires_backup(data)
+        except MigrationError as e:
+            raise MigrationError(
+                f"Failed to migrate resource file for "
+                f"'{self.__class__.__name__}' at '{self.path}': {e}"
+            ) from e
+
+        if requires_backup:
+            self.fmu_dir.cache.store_revision(self.relative_path, content)
+
+    def _validate_data(self: Self, data: Any) -> PydanticResource:
+        """Validate decoded resource data, migrating it first when it is versioned."""
+        if self.migration_manager is None:
+            return self.model_class.model_validate(data)
+        try:
+            return self.migration_manager.migrate_resource(data)
+        except MigrationError as e:
+            raise MigrationError(
+                f"Failed to migrate resource file for "
+                f"'{self.__class__.__name__}' at '{self.path}': {e}"
+            ) from e
 
     def get_model_diff(
         self: Self,
@@ -325,10 +385,18 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
     """Manages the .fmu resource file."""
 
     def __init__(
-        self: Self, fmu_dir: FMUDirectoryBase, resource: type[MutablePydanticResource]
+        self: Self,
+        fmu_dir: FMUDirectoryBase,
+        resource: type[MutablePydanticResource],
+        *,
+        migration_manager: MigrationManager[MutablePydanticResource] | None = None,
     ) -> None:
         """Initializes the resource manager."""
-        super().__init__(fmu_dir, resource)
+        super().__init__(
+            fmu_dir,
+            resource,
+            migration_manager=migration_manager,
+        )
 
     def get(self: Self, key: str, default: Any = None) -> Any:
         """Gets a resource value by key.
