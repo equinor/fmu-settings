@@ -81,7 +81,7 @@ def test_load_migrates_in_memory_without_changing_disk(
 def test_save_after_migration_backs_up_old_content(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """The first write backs up old data and writes the current schema."""
+    """The first write backs up old data outside the normal cache."""
     manager = MigratableResourceManager(fmu_dir)
     old_content = json.dumps({"schema_version": 1, "value": "old"}, indent=2)
     fmu_dir.write_text_file(manager.relative_path, old_content)
@@ -92,11 +92,17 @@ def test_save_after_migration_backs_up_old_content(
     disk_data = json.loads(fmu_dir.read_text_file(manager.relative_path))
     assert disk_data == {"schema_version": 2, "value": "updated"}
 
+    backup_directory = fmu_dir.get_file_path("migration-backups/migratable")
+    backups = [path for path in backup_directory.iterdir() if path.is_file()]
+    assert len(backups) == 1
+    assert backups[0].name.endswith("-VersionTwoResource-v1.json")
+    assert backups[0].read_text(encoding="utf-8") == old_content
+
     cached_data = [
         json.loads(path.read_text(encoding="utf-8"))
         for path in fmu_dir.cache.list_revisions(manager.relative_path)
     ]
-    assert {"schema_version": 1, "value": "old"} in cached_data
+    assert {"schema_version": 1, "value": "old"} not in cached_data
     assert {"schema_version": 2, "value": "updated"} in cached_data
 
 
@@ -107,6 +113,8 @@ def test_cached_old_schema_is_readable_and_restorable(
     manager = MigratableResourceManager(fmu_dir)
     old_content = json.dumps({"schema_version": 1, "value": "old"}, indent=2)
     fmu_dir.write_text_file(manager.relative_path, old_content)
+    old_revision = fmu_dir.cache.store_revision(manager.relative_path, old_content)
+    assert old_revision is not None
     manager.save(VersionTwoResource(value="updated"))
 
     old_revision = next(
@@ -212,6 +220,34 @@ def test_migration_save_respects_lock_before_backup(
     assert fmu_dir.cache.list_revisions(manager.relative_path) == revisions_before
 
 
+def test_save_continues_when_migration_backup_fails(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """A failed migration backup does not block saving current data."""
+    manager = MigratableResourceManager(fmu_dir)
+    old_content = json.dumps({"schema_version": 1, "value": "old"}, indent=2)
+    fmu_dir.write_text_file(manager.relative_path, old_content)
+    original_write_text_file = fmu_dir.write_text_file
+
+    def write_text_file(
+        relative_path: Path | str,
+        content: str,
+        encoding: str = "utf-8",
+    ) -> None:
+        if Path(relative_path).parts[:1] == ("migration-backups",):
+            raise OSError("backup unavailable")
+        original_write_text_file(relative_path, content, encoding=encoding)
+
+    with patch.object(fmu_dir, "write_text_file", side_effect=write_text_file):
+        manager.save(VersionTwoResource(value="updated"))
+
+    assert json.loads(fmu_dir.read_text_file(manager.relative_path)) == {
+        "schema_version": 2,
+        "value": "updated",
+    }
+    assert not fmu_dir.get_file_path("migration-backups").exists()
+
+
 def test_current_schema_save_does_not_add_migration_backup(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -231,6 +267,7 @@ def test_current_schema_save_does_not_add_migration_backup(
         "schema_version": 2,
         "value": "updated",
     }
+    assert not fmu_dir.get_file_path("migration-backups").exists()
 
 
 def test_save_replaces_non_object_json_without_migration_backup(

@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Final, Generic, Self, TypeVar
+from uuid import uuid4
 
 from pydantic import BaseModel, ValidationError
 
+from fmu.settings._logging import null_logger
 from fmu.settings._migrations import (
     MigrationError,
     MigrationManager,
@@ -24,12 +28,13 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     # Avoid circular dependency for type hint in __init__ only
-    from pathlib import Path
-
     from fmu.settings._fmu_dir import FMUDirectoryBase
 
 PydanticResource = TypeVar("PydanticResource", bound=BaseModel)
 MutablePydanticResource = TypeVar("MutablePydanticResource", bound=ResettableBaseModel)
+
+MIGRATION_BACKUP_DIRECTORY: Final = Path("migration-backups")
+logger: Final = null_logger(__name__)
 
 
 class PydanticResourceManager(Generic[PydanticResource]):
@@ -168,7 +173,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
             model: Validated Pydantic model instance.
         """
         self.fmu_dir._lock.ensure_can_write()
-        self._store_pre_migration_revision()
+        self._store_migration_backup()
 
         json_data = model.model_dump_json(by_alias=True, indent=2)
         self.fmu_dir.write_text_file(self.relative_path, json_data)
@@ -178,12 +183,15 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
         self._cache = model
 
-    def _store_pre_migration_revision(self: Self) -> None:
-        """Preserve current disk content before replacing it with migrated data.
+    def _store_migration_backup(self: Self) -> None:
+        """Try to back up older data before saving the migrated version.
 
-        Invalid JSON and non-object content are not stored as pre-migration revisions.
+        The backup is best effort. Invalid JSON and non-object content are skipped.
+        File-system errors while writing the backup are logged, but do not stop the
+        save.
         """
-        if self.migration_manager is None:
+        migration_manager = self.migration_manager
+        if migration_manager is None:
             return
 
         try:
@@ -196,15 +204,47 @@ class PydanticResourceManager(Generic[PydanticResource]):
             return
 
         try:
-            requires_migration = self.migration_manager.requires_migration(data)
+            requires_migration = migration_manager.requires_migration(data)
         except MigrationError as e:
             raise MigrationError(
                 f"Failed to check migration requirements for resource file "
                 f"'{self.__class__.__name__}' at '{self.path}': {e}"
             ) from e
 
-        if requires_migration:
-            self.fmu_dir.cache.store_revision(self.relative_path, content)
+        if not requires_migration:
+            return
+
+        source_version = data.get("schema_version", 1)
+        self._write_migration_backup(content, source_version)
+
+    def _write_migration_backup(self: Self, content: str, source_version: int) -> None:
+        """Write a best-effort migration backup of the original content.
+
+        For example, a ``config.json`` backup can be stored under
+        ``.fmu/migration-backups/config/`` as
+        ``<timestamp>-<token>-ProjectConfig-v1.json``.
+        """
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
+        token = uuid4().hex[:8]
+        backup_directory = (
+            MIGRATION_BACKUP_DIRECTORY
+            / self.relative_path.parent
+            / self.relative_path.stem
+        )
+        backup_filename = (
+            f"{timestamp}-{token}-{self.model_class.__name__}-v{source_version}"
+            f"{self.relative_path.suffix}"
+        )
+        backup_path = backup_directory / backup_filename
+
+        try:
+            self.fmu_dir.write_text_file(backup_path, content)
+        except OSError as e:
+            logger.warning(
+                f"Failed to save migration backup for '{self.path}' at "
+                f"'{self.fmu_dir.get_file_path(backup_path)}'. "
+                f"Continuing without it: {e}"
+            )
 
     def _migrate_and_validate_data(self: Self, data: Any) -> PydanticResource:
         """Migrate decoded data with registered functions and validate the result."""

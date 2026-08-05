@@ -215,7 +215,10 @@ Migration is automatic during normal use:
 On the first save:
 
 1. The write lock is checked.
-2. The current stored data is added to a cache revision when it is older.
+2. If the stored data needs migration, the resource manager tries to save a copy of
+   the original JSON under `.fmu/migration-backups/`. This backup is separate from
+   the normal cache, is not removed automatically, and a failure to write it does not
+   stop the save.
 3. The current model is written with the new schema version.
 4. When automatic caching is enabled, the newly written data is added to a cache
    revision.
@@ -224,7 +227,10 @@ Loading a resource does not create a changelog entry. A later user update or
 restore uses the existing changelog behavior.
 
 When an old cache revision is restored, it is migrated before it is written. The
-resource file therefore uses the current schema after the restore.
+resource file therefore uses the current schema after the restore. Migration backups
+are only saved for manual recovery, and the library does not read or restore them. To
+roll back, first replace the current resource file with the appropriate backup, then
+run the older release.
 
 Migrations are forward-only. After current-schema data is saved, an older
 `fmu-settings` release can reject it as newer than its supported schema.
