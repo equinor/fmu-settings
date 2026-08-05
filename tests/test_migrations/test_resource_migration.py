@@ -62,23 +62,6 @@ class MigratableResourceManager(PydanticResourceManager[VersionTwoResource]):
         return Path("migratable.json")
 
 
-class VersionOneResourceManager(PydanticResourceManager[VersionOneResource]):
-    """Test manager for unversioned legacy resources."""
-
-    def __init__(self, fmu_dir: ProjectFMUDirectory) -> None:
-        """Initialize the test manager."""
-        super().__init__(
-            fmu_dir,
-            VersionOneResource,
-            migration_manager=MigrationManager(VersionOneResource, {}),
-        )
-
-    @property
-    def relative_path(self: Self) -> Path:
-        """Return the test resource path."""
-        return Path("version-one.json")
-
-
 def test_load_migrates_in_memory_without_changing_disk(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -176,24 +159,6 @@ def test_cache_read_rejects_newer_schema_with_resource_context(
             manager.model_class,
             migration_manager=manager.migration_manager,
         )
-
-
-def test_unversioned_current_schema_is_backed_up_before_normalization(
-    fmu_dir: ProjectFMUDirectory,
-) -> None:
-    """Adding the current schema version preserves the unversioned source."""
-    manager = VersionOneResourceManager(fmu_dir)
-    old_content = json.dumps({"value": "legacy"}, indent=2)
-    fmu_dir.write_text_file(manager.relative_path, old_content)
-
-    manager.save(manager.load())
-
-    cached_data = [
-        json.loads(path.read_text(encoding="utf-8"))
-        for path in fmu_dir.cache.list_revisions(manager.relative_path)
-    ]
-    assert {"value": "legacy"} in cached_data
-    assert {"schema_version": 1, "value": "legacy"} in cached_data
 
 
 def test_force_load_without_store_cache_preserves_existing_cached_model(
@@ -300,7 +265,8 @@ def test_save_rejects_newer_stored_schema_before_overwrite(
     with pytest.raises(
         MigrationError,
         match=(
-            "Failed to migrate resource file for 'MigratableResourceManager'.*"
+            "Failed to check migration requirements for resource file "
+            "'MigratableResourceManager'.*"
             "schema version 3 is newer than supported version 2"
         ),
     ):

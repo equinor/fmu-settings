@@ -1,9 +1,9 @@
 """Migration support for versioned resources stored in .fmu directories."""
 
-from .manager import Migration, MigrationError, MigrationManager
+from .manager import MigrationError, MigrationFunction, MigrationManager
 
 __all__ = [
-    "Migration",
     "MigrationError",
+    "MigrationFunction",
     "MigrationManager",
 ]

@@ -140,7 +140,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
             try:
                 content = self.fmu_dir.read_text_file(self.relative_path)
                 data = json.loads(content)
-                validated_model = self._validate_data(data)
+                validated_model = self._migrate_and_validate_data(data)
                 if store_cache:
                     self._cache = validated_model
                 else:
@@ -179,10 +179,9 @@ class PydanticResourceManager(Generic[PydanticResource]):
         self._cache = model
 
     def _store_pre_migration_revision(self: Self) -> None:
-        """Store old disk content before a migration write.
+        """Preserve current disk content before replacing it with migrated data.
 
-        Invalid JSON and non-object content keep the existing save behavior, which lets
-        a caller replace a corrupt resource with an already validated model.
+        Invalid JSON and non-object content are not stored as pre-migration revisions.
         """
         if self.migration_manager is None:
             return
@@ -197,18 +196,18 @@ class PydanticResourceManager(Generic[PydanticResource]):
             return
 
         try:
-            requires_backup = self.migration_manager.requires_backup(data)
+            requires_migration = self.migration_manager.requires_migration(data)
         except MigrationError as e:
             raise MigrationError(
-                f"Failed to migrate resource file for "
+                f"Failed to check migration requirements for resource file "
                 f"'{self.__class__.__name__}' at '{self.path}': {e}"
             ) from e
 
-        if requires_backup:
+        if requires_migration:
             self.fmu_dir.cache.store_revision(self.relative_path, content)
 
-    def _validate_data(self: Self, data: Any) -> PydanticResource:
-        """Validate decoded resource data, migrating it first when it is versioned."""
+    def _migrate_and_validate_data(self: Self, data: Any) -> PydanticResource:
+        """Migrate decoded data with registered functions and validate the result."""
         if self.migration_manager is None:
             return self.model_class.model_validate(data)
         try:

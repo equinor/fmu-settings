@@ -172,7 +172,7 @@ class CacheManager:
         content_str = self._fmu_dir.read_text_file(cache_relative)
 
         try:
-            return self._validate_content(
+            return self._migrate_and_validate_content(
                 content_str,
                 model_class,
                 migration_manager,
@@ -227,7 +227,7 @@ class CacheManager:
             current_content = self._fmu_dir.read_text_file(resource_file_path)
 
             try:
-                self._validate_content(
+                self._migrate_and_validate_content(
                     current_content,
                     model_class,
                     migration_manager,
@@ -247,12 +247,12 @@ class CacheManager:
         logger.info(f"Restored {resource_file_path} from cache revision {revision_id}")
 
     @staticmethod
-    def _validate_content(
+    def _migrate_and_validate_content(
         content: str,
         model_class: type[RequestedModel],
         migration_manager: MigrationManager[RequestedModel] | None,
     ) -> RequestedModel:
-        """Validate current or versioned cached resource content."""
+        """Migrate versioned content and validate it, or validate current content."""
         if migration_manager is None:
             return model_class.model_validate_json(content)
         if migration_manager.model_class is not model_class:

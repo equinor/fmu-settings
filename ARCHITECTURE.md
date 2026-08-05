@@ -89,7 +89,7 @@ classDiagram
         +model_class
         +current_version: int
         +migrate_resource(data)
-        +requires_backup(data)
+        +requires_migration(data)
     }
 
     class MutablePydanticResourceManager~MutablePydanticResource~ {
@@ -165,7 +165,7 @@ model declares its current schema version, and each resource manager has a
 `MigrationManager` with the migration registry for that model.
 
 Migration is forward-only. Data without `schema_version` is treated as version 1.
-Each registered function advances the data by one version. The manager rejects a
+Each registered function increments the schema version by one. The manager rejects a
 newer schema, a missing migration step, an invalid version, or data that does not
 validate as the current model.
 
@@ -176,8 +176,8 @@ The migration boundary depends on the resource operation:
   Loading does not write the resource, create a cache revision, or add a changelog
   entry.
 - **Save:** The resource manager checks the write lock first. If the stored data is
-  unversioned or older, it stores the original JSON as a normal cache revision
-  before writing the current model. Normal cache retention applies.
+  older, it stores the original JSON as a cache revision
+  before writing the current model. Existing cache retention applies.
 - **Cache read:** `CacheManager` uses the migration manager to return old revisions
   as current validated models.
 - **Restore:** `CacheManager` migrates the selected revision before writing it, so

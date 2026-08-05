@@ -69,7 +69,7 @@ Other changes that do not normally need a migration include:
 
 Old stored data must still produce the correct current model when no migration is
 added. If the old data needs conversion or its meaning would change, add a schema
-version and migration.
+version and migration function.
 
 ## Schema version contract
 
@@ -80,8 +80,8 @@ default values must match:
 schema_version: Literal[2] = 2
 ```
 
-Migration functions are forward-only. Each function advances the data by exactly
-one version:
+Migration functions are forward-only. Each function increments `schema_version` by
+exactly one:
 
 ```text
 1 -> 2 -> 3
@@ -126,7 +126,7 @@ such as `config.cache_max_revisions`, string keys such as
 `set_config_value("cache_max_revisions", ...)`, API models, and test input
 dictionaries. Any code that reads or writes this field must use the new name.
 
-### 2. Add one migration function
+### 2. Add a migration script with migration function
 
 Create `project_config/v1_to_v2.py`:
 
@@ -156,11 +156,11 @@ The returned data must:
 Update `project_config/__init__.py`:
 
 ```python
-from fmu.settings._migrations.manager import Migration
+from fmu.settings._migrations.manager import MigrationFunction
 
 from .v1_to_v2 import migrate_v1_to_v2
 
-PROJECT_CONFIG_MIGRATIONS: dict[int, Migration] = {
+PROJECT_CONFIG_MIGRATIONS: dict[int, MigrationFunction] = {
     1: migrate_v1_to_v2,
 }
 ```
@@ -171,7 +171,7 @@ version 1 to version 2.
 Keep every migration when later versions are added:
 
 ```python
-PROJECT_CONFIG_MIGRATIONS: dict[int, Migration] = {
+PROJECT_CONFIG_MIGRATIONS: dict[int, MigrationFunction] = {
     1: migrate_v1_to_v2,
     2: migrate_v2_to_v3,
 }
@@ -215,9 +215,10 @@ Migration is automatic during normal use:
 On the first save:
 
 1. The write lock is checked.
-2. The original stored data is added to the normal cache revisions.
+2. The current stored data is added to a cache revision when it is older.
 3. The current model is written with the new schema version.
-4. The new stored data is added to the normal cache revisions.
+4. When automatic caching is enabled, the newly written data is added to a cache
+   revision.
 
 Loading a resource does not create a changelog entry. A later user update or
 restore uses the existing changelog behavior.

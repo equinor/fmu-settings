@@ -98,6 +98,7 @@ def test_migration_manager_treats_missing_version_as_version_one() -> None:
         },
     )
 
+    assert manager.requires_migration(data) is True
     result = manager.migrate_resource(data)
 
     assert result.schema_version == 3
@@ -246,18 +247,6 @@ def test_migration_manager_validates_final_data() -> None:
                 "migrations_applied": [],
             }
         )
-
-
-def test_migration_manager_requires_backup_for_unversioned_current_data() -> None:
-    """Normalizing an unversioned resource preserves its original form."""
-    manager = MigrationManager(VersionOneModel, {})
-
-    assert manager.requires_backup({"value": "legacy"}) is True
-    assert manager.requires_backup({"schema_version": 1, "value": "current"}) is False
-    assert manager.migrate_resource({"value": "legacy"}).model_dump() == {
-        "schema_version": 1,
-        "value": "legacy",
-    }
 
 
 def test_migration_manager_requires_literal_schema_version() -> None:
