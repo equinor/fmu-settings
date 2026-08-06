@@ -1,6 +1,8 @@
 """Main interface for working with .fmu directory."""
 
+import getpass
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self, TypeAlias, cast
 
@@ -19,7 +21,11 @@ from ._resources.config_managers import (
 from ._resources.lock_manager import DEFAULT_LOCK_TIMEOUT, LockManager
 from ._utils import path_exists, path_is_dir, path_is_file
 from .models._enums import CacheResource
-from .models.project_config import ProjectConfig
+from .models.project_config import (
+    ProjectConfig,
+    ValidationRecord,
+    ValidationSource,
+)
 from .models.user_config import UserConfig
 
 logger: Final = null_logger(__name__)
@@ -340,6 +346,24 @@ class ProjectFMUDirectory(FMUDirectoryBase):
                 f"Failed to load 'cache_max_revisions' from project config. "
                 f"Using default value '{CacheManager.MIN_REVISIONS}'. Error: {e}"
             )
+
+    def update_validation_metadata(
+        self: Self,
+        validation_source: ValidationSource,
+    ) -> None:
+        """Record successful validation of project configuration data.
+
+        Args:
+            validation_source: Configuration data checked by the validation.
+        """
+        record = ValidationRecord(
+            last_validated_at=datetime.now(UTC),
+            last_validated_by=getpass.getuser(),
+        )
+        self.set_config_value(
+            f"validation.{validation_source}",
+            record.model_dump(),
+        )
 
     @property
     def changelog(self: Self) -> ChangelogManager:
