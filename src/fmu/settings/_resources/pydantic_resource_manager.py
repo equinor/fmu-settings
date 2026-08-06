@@ -216,6 +216,8 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
         source_version = data.get("schema_version", 1)
         self._write_migration_backup(content, source_version)
+        if self.automatic_caching:
+            self.fmu_dir.cache.store_revision(self.relative_path, content)
 
     def _write_migration_backup(self: Self, content: str, source_version: int) -> None:
         """Write a best-effort migration backup of the original content.

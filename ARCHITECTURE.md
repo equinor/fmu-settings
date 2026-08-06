@@ -178,18 +178,22 @@ The migration boundary depends on the resource operation:
 - **Save:** The resource manager checks the write lock first. If the stored data is
   older, it attempts to store the exact original JSON under
   `.fmu/migration-backups/` before writing the current model. This backup is
-  best-effort: a file-system failure is logged and does not stop the save. The newly
-  written current data is still added to the cache.
+  best-effort: a file-system failure is logged and does not stop the save. The
+  original JSON is also stored as a cache revision. The newly written current
+  data is added as another cache revision.
 - **Cache read:** `CacheManager` uses the migration manager to return old revisions
   as current validated models.
 - **Restore:** `CacheManager` migrates the selected revision before writing it, so
-  the restored resource uses the current schema. Project restore operations use the
-  existing restore changelog entry.
+  the restored resource uses the current schema. If you roll back to an older
+  release while the pre-migration revision is still retained, restore that revision with
+  the older release to return the resource file to the older schema. Project restore
+  operations use the existing restore changelog entry.
 
 There is no backward migration. After a current-schema resource is saved, an older
-`fmu-settings` release can reject it as newer than supported. Migration backups are
-not loaded or restored by the library. Users must copy one back manually when they
-need to use the data with an older release.
+`fmu-settings` release can reject it as newer than supported. If the pre-migration
+cache revision is still retained, restore it with the older release. Migration
+backups are not loaded or restored by the library. Users must copy one back manually
+when the cache revision is no longer available.
 
 See the
 [schema migration guide](src/fmu/settings/_migrations/README.md)

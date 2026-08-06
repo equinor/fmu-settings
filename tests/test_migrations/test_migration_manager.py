@@ -117,7 +117,7 @@ def test_migration_manager_rejects_missing_step() -> None:
 
     with pytest.raises(
         MigrationError,
-        match="Missing VersionThreeModel migration from schema version 1 to 2",
+        match="Missing VersionThreeModel migration function from schema version 1 to 2",
     ):
         manager.migrate_resource(
             {

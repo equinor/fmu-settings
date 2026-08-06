@@ -39,13 +39,13 @@ class CacheManager:
     def __init__(
         self: Self,
         fmu_dir: FMUDirectoryBase,
-        max_revisions: int = 5,
+        max_revisions: int = 10,
     ) -> None:
         """Initialize the cache manager.
 
         Args:
             fmu_dir: The FMUDirectory instance.
-            max_revisions: Maximum number of revisions to retain. Default is 5.
+            max_revisions: Maximum number of revisions to retain. Default is 10.
                 Values below 5 are set to 5.
         """
         self._fmu_dir = fmu_dir

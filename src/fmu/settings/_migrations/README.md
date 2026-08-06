@@ -2,7 +2,7 @@
 
 Use this guide when a stored `.fmu` resource needs a new schema version.
 
-The supported resources and their migration registries are:
+The supported resources and their migration function registries are:
 
 - `ProjectConfig`: `project_config/`
 - `UserConfig`: `user_config/`
@@ -10,8 +10,8 @@ The supported resources and their migration registries are:
 
 ## Decide whether to change the schema version
 
-Change the schema version when existing stored data needs a conversion before it
-can be used by the current model.
+Change the schema version when existing stored data needs a migration before it can
+be used by the current model.
 
 ### Changes that need a migration
 
@@ -40,11 +40,12 @@ old field name.
 Other changes that need a migration include:
 
 - Removing a stored field when its value must be moved or preserved elsewhere.
-- Making an optional field required and calculating its value from old data.
+- Making an optional field required and calculating its value from stored data from
+  an older schema.
 - Changing a field from one type to another, such as a string to a list of strings.
 - Moving flat fields into a nested model.
-- Changing the meaning of a value when old data must be converted to keep its
-  original meaning.
+- Changing the meaning of a value when stored data from an older schema must be
+  converted to keep its original meaning.
 
 ### Changes that do not need a migration
 
@@ -66,10 +67,6 @@ Other changes that do not normally need a migration include:
 - Changing a model method that does not change stored data.
 - Changing documentation or field descriptions.
 - Adding a computed property that is not stored.
-
-Old stored data must still produce the correct current model when no migration is
-added. If the old data needs conversion or its meaning would change, add a schema
-version and migration function.
 
 ## Schema version contract
 
@@ -108,7 +105,7 @@ class ProjectConfig(ResettableBaseModel):
 
     schema_version: Literal[2] = 2
     # ... unchanged fields ...
-    max_cache_revisions: int = Field(default=5, ge=5)
+    max_cache_revisions: int = Field(default=10, ge=5)
     # ... unchanged fields ...
 
     @classmethod
@@ -116,7 +113,7 @@ class ProjectConfig(ResettableBaseModel):
         """Reset the configuration to its defaults."""
         return cls(
             # ... unchanged defaults ...
-            max_cache_revisions=5,
+            max_cache_revisions=10,
             # ... unchanged defaults ...
         )
 ```
@@ -165,7 +162,7 @@ PROJECT_CONFIG_MIGRATIONS: dict[int, MigrationFunction] = {
 }
 ```
 
-The registry key is the source version. Key `1` registers the migration from
+The registry key is the source schema version. Key `1` registers the migration from
 version 1 to version 2.
 
 Keep every migration when later versions are added:
@@ -184,7 +181,7 @@ When you add a migration:
 - Keep `test_migration_manager.py` and the generic resource tests unchanged unless
   the framework behavior changes.
 - In `test_resource_migration.py`, update the affected resource tests that assert
-  its version, migration registry, or previous version data.
+  its version, migration function registry, or previous version data.
 - Add resource-specific tests under `tests/test_migrations/`. For example, a
   `ProjectConfig` migration can use `test_project_config_migration.py`.
 
@@ -207,7 +204,7 @@ uv run mypy src tests
 
 Migration is automatic during normal use:
 
-1. The resource manager reads old data.
+1. The resource manager reads stored data from an older schema.
 2. The migration manager converts it in memory.
 3. The resource manager returns the current validated model.
 4. The stored file remains unchanged until a save occurs.
@@ -217,20 +214,21 @@ On the first save:
 1. The write lock is checked.
 2. If the stored data needs migration, the resource manager tries to save a copy of
    the original JSON under `.fmu/migration-backups/`. This backup is separate from
-   the normal cache, is not removed automatically, and a failure to write it does not
-   stop the save.
+   the cache, is not removed automatically, and a failure to write it does not
+   stop the save. The original JSON is also added to a cache revision before
+   the migrated data is written.
 3. The current model is written with the new schema version.
-4. When automatic caching is enabled, the newly written data is added to a cache
-   revision.
+4. The newly written data is also added to a cache revision.
 
 Loading a resource does not create a changelog entry. A later user update or
 restore uses the existing changelog behavior.
 
-When an old cache revision is restored, it is migrated before it is written. The
-resource file therefore uses the current schema after the restore. Migration backups
-are only saved for manual recovery, and the library does not read or restore them. To
-roll back, first replace the current resource file with the appropriate backup, then
-run the older release.
+When an old cache revision is restored by the current release, it is migrated before
+it is written. The resource file therefore uses the current schema after the restore.
+If you roll back to an older release while the pre-migration revision is retained,
+restore that revision with the older release to return the resource file to the older
+schema. Migration backups are not read or restored by the library, copy one back
+manually when the cache revision is no longer available.
 
 Migrations are forward-only. After current-schema data is saved, an older
 `fmu-settings` release can reject it as newer than its supported schema.

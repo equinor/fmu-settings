@@ -1,4 +1,4 @@
-"""Forward-only migration support for versioned resource data."""
+"""Forward-only migration support for versioned data."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ class MigrationError(ValueError):
 
 
 class MigrationManager(Generic[MigratableResource]):
-    """Migrate versioned resource data to its current schema."""
+    """Migrate stored data to its current schema."""
 
     def __init__(
         self,
@@ -31,7 +31,7 @@ class MigrationManager(Generic[MigratableResource]):
 
         Args:
             model_class: Current Pydantic model for the resource.
-            migrations: Migration functions keyed by their source version.
+            migrations: Migration functions keyed by their source schema version.
 
         Raises:
             TypeError: If the model does not declare one positive integer
@@ -42,7 +42,7 @@ class MigrationManager(Generic[MigratableResource]):
         self.current_version = self._get_current_version()
 
     def migrate_resource(self, data: Any) -> MigratableResource:
-        """Migrate decoded JSON data with predefined migration function and validate it.
+        """Migrate decoded data with registered migration functions and validate it.
 
         Each migration function must increment the schema version by exactly one.
 
@@ -50,22 +50,22 @@ class MigrationManager(Generic[MigratableResource]):
             data: Decoded JSON data to migrate and validate.
 
         Returns:
-            The resource data as a validated current model.
+            The migrated data as a validated current model.
 
         Raises:
             MigrationError: If the data is not a JSON object, a schema version is
-                invalid or newer than supported, a required migration is missing or
-                fails, a migration function does not increment the schema version by
-                one, or the final data does not match the current model.
+                invalid or newer than supported, a required migration function is
+                missing or fails, a migration function does not increment the schema
+                version by one, or the final data does not match the current model.
         """
         if not isinstance(data, dict):
             raise MigrationError(
                 f"{self.model_class.__name__} resource must be a JSON object"
             )
-        source_version = self._get_source_version(data)
-        migration_steps = self._get_migration_steps(source_version)
+        source_schema_version = self._get_source_schema_version(data)
+        migration_steps = self._get_migration_steps(source_schema_version)
         migrated_data = copy.deepcopy(data) if migration_steps else data.copy()
-        migrated_data.setdefault("schema_version", source_version)
+        migrated_data.setdefault("schema_version", source_schema_version)
         for version, migration_function in migration_steps:
             try:
                 migrated_data = migration_function(migrated_data)
@@ -95,43 +95,44 @@ class MigrationManager(Generic[MigratableResource]):
         return validated_model
 
     def requires_migration(self, data: dict[str, Any]) -> bool:
-        """Return whether the data requires a migration before a write.
+        """Return whether stored data needs migration before a write.
 
-        This method does not run migrations. It confirms that all required forward
-        migration steps exist, then checks whether the source schema is older than
-        the current schema.
+        This check verifies that all required forward migration functions exist and
+        that the stored schema version is older than the current schema version.
 
         Args:
-            data: Existing resource data that a write would replace.
+            data: Existing stored data that a write would replace.
 
         Returns:
-            Whether the resource data requires migration.
+            Whether the stored data requires migration.
 
         Raises:
             MigrationError: If the schema version is invalid or newer than supported,
-                or a required migration step is missing.
+                or a required migration function is missing.
         """
-        source_version = self._get_source_version(data)
-        self._get_migration_steps(source_version)
-        return source_version < self.current_version
+        source_schema_version = self._get_source_schema_version(data)
+        self._get_migration_steps(source_schema_version)
+        return source_schema_version < self.current_version
 
     def _get_migration_steps(
-        self, source_version: int
+        self, source_schema_version: int
     ) -> list[tuple[int, MigrationFunction]]:
-        """Return and validate all migration steps needed by a source version."""
-        if source_version > self.current_version:
+        """Return and validate migration steps needed by a source schema version."""
+        if source_schema_version > self.current_version:
             raise MigrationError(
-                f"{self.model_class.__name__} schema version {source_version} is newer "
-                f"than supported version {self.current_version}; downgrade migration "
+                f"{self.model_class.__name__} schema version {source_schema_version} "
+                "is newer than supported version "
+                f"{self.current_version}; downgrade migration "
                 "is not supported"
             )
 
         steps: list[tuple[int, MigrationFunction]] = []
-        for version in range(source_version, self.current_version):
+        for version in range(source_schema_version, self.current_version):
             migration_function = self.migrations.get(version)
             if migration_function is None:
                 raise MigrationError(
-                    f"Missing {self.model_class.__name__} migration from schema "
+                    f"Missing {self.model_class.__name__} migration function from "
+                    "schema "
                     f"version {version} to {version + 1}"
                 )
             steps.append((version, migration_function))
@@ -179,8 +180,8 @@ class MigrationManager(Generic[MigratableResource]):
             )
         return current_version
 
-    def _get_source_version(self, data: dict[str, Any]) -> int:
-        """Get the source version, using the legacy version when it is absent."""
+    def _get_source_schema_version(self, data: dict[str, Any]) -> int:
+        """Return the stored schema version, using the legacy version when absent."""
         if "schema_version" not in data:
             return LEGACY_SCHEMA_VERSION
         return self._validate_version(data.get("schema_version"))

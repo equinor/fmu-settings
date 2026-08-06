@@ -47,7 +47,7 @@ class FMUDirectoryBase:
     def __init__(
         self: Self,
         base_path: str | Path,
-        cache_revisions: int = CacheManager.MIN_REVISIONS,
+        cache_revisions: int = 10,
         *,
         lock_timeout_seconds: int = DEFAULT_LOCK_TIMEOUT,
     ) -> None:
@@ -56,7 +56,8 @@ class FMUDirectoryBase:
         Args:
             base_path: The directory containing the .fmu directory or one of its parent
                 dirs
-            cache_revisions: Number of revisions to retain in the cache. Minimum is 5.
+            cache_revisions: Number of revisions to retain in the cache. Default is 10.
+                Minimum is 5.
             lock_timeout_seconds: Lock expiration time in seconds. Default 20 minutes.
 
         Raises:
@@ -334,20 +335,18 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         self.config = ProjectConfigManager(self)
         super().__init__(
             base_path,
-            CacheManager.MIN_REVISIONS,
+            10,
             lock_timeout_seconds=lock_timeout_seconds,
         )
         self._changelog = ChangelogManager(self)
         self._mappings = MappingsManager(self)
         try:
-            max_revisions = self.config.get(
-                "cache_max_revisions", CacheManager.MIN_REVISIONS
-            )
+            max_revisions = self.config.get("cache_max_revisions", 10)
             self._cache_manager.max_revisions = max_revisions
         except (FileNotFoundError, ValueError) as e:
             logger.warning(
                 f"Failed to load 'cache_max_revisions' from project config. "
-                f"Using default value '{CacheManager.MIN_REVISIONS}'. Error: {e}"
+                f"Using default value '10'. Error: {e}"
             )
 
     def update_validation_metadata(

@@ -81,7 +81,7 @@ def test_load_migrates_in_memory_without_changing_disk(
 def test_save_after_migration_backs_up_old_content(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """The first write backs up old data outside the normal cache."""
+    """The first write backs up and caches the old data before writing current data."""
     manager = MigratableResourceManager(fmu_dir)
     old_content = json.dumps({"schema_version": 1, "value": "old"}, indent=2)
     fmu_dir.write_text_file(manager.relative_path, old_content)
@@ -102,7 +102,7 @@ def test_save_after_migration_backs_up_old_content(
         json.loads(path.read_text(encoding="utf-8"))
         for path in fmu_dir.cache.list_revisions(manager.relative_path)
     ]
-    assert {"schema_version": 1, "value": "old"} not in cached_data
+    assert {"schema_version": 1, "value": "old"} in cached_data
     assert {"schema_version": 2, "value": "updated"} in cached_data
 
 
@@ -113,8 +113,6 @@ def test_cached_old_schema_is_readable_and_restorable(
     manager = MigratableResourceManager(fmu_dir)
     old_content = json.dumps({"schema_version": 1, "value": "old"}, indent=2)
     fmu_dir.write_text_file(manager.relative_path, old_content)
-    old_revision = fmu_dir.cache.store_revision(manager.relative_path, old_content)
-    assert old_revision is not None
     manager.save(VersionTwoResource(value="updated"))
 
     old_revision = next(

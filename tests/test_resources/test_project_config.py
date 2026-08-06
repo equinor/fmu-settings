@@ -440,17 +440,17 @@ def test_project_config_diff_with_other_config(
     config_model: ProjectConfig,
 ) -> None:
     """Tests getting the diff between the project config and another config resource."""
-    current_cache_max_revisions = 5
+    current_cache_max_revisions = 10
     assert fmu_dir.config.load().cache_max_revisions == current_cache_max_revisions
 
     incoming_config = ProjectConfigManager(extra_fmu_dir)
-    new_cache_max_revisions = 10
+    new_cache_max_revisions = 15
     config_model.cache_max_revisions = new_cache_max_revisions
     incoming_config.save(config_model)
 
     diff = fmu_dir.config.get_resource_diff(incoming_config)
     assert len(diff) == 1
-    assert diff == [("cache_max_revisions", 5, 10)]
+    assert diff == [("cache_max_revisions", 10, 15)]
 
     masterdata: Masterdata = Masterdata.model_validate(masterdata_dict)
     config_with_masterdata = copy.deepcopy(config_model)
@@ -461,7 +461,7 @@ def test_project_config_diff_with_other_config(
     expected_length = 2
     assert len(diff) == expected_length
     assert diff[0] == ("masterdata", None, masterdata)
-    assert diff[1] == ("cache_max_revisions", 5, 10)
+    assert diff[1] == ("cache_max_revisions", 10, 15)
 
     fmu_dir.config.save(config_with_masterdata)
 
@@ -601,11 +601,11 @@ def test_project_config_merge_with_other_config(
     config_model: ProjectConfig,
 ) -> None:
     """Tests merging the project config with another config resource."""
-    current_cache_max_revisions = 5
+    current_cache_max_revisions = 10
     assert fmu_dir.config.load().cache_max_revisions == current_cache_max_revisions
 
     incoming_config = ProjectConfigManager(extra_fmu_dir)
-    new_cache_max_revisions = 10
+    new_cache_max_revisions = 15
     config_model.cache_max_revisions = new_cache_max_revisions
     incoming_config.save(config_model)
 
