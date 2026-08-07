@@ -355,6 +355,25 @@ def test_set_config_value(fmu_dir: ProjectFMUDirectory) -> None:
     assert fmu_dir.config.load().version == "200.0.0"
 
 
+def test_update_validation_metadata(
+    fmu_dir: ProjectFMUDirectory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tests update_validation_metadata stores a validation record."""
+    monkeypatch.setattr(
+        "fmu.settings._fmu_dir.getpass.getuser",
+        lambda: "test-user",
+    )
+
+    fmu_dir.update_validation_metadata("rms_project")
+
+    record = fmu_dir.config.load().validation.rms_project
+    assert record is not None
+    assert record.last_validated_at.tzinfo is not None
+    assert record.last_validated_at.utcoffset() is not None
+    assert record.last_validated_by == "test-user"
+
+
 def test_update_config(fmu_dir: ProjectFMUDirectory) -> None:
     """Tests update_config updates and saves the config for multiple values."""
     updated_config = fmu_dir.update_config({"version": "2.0.0", "created_by": "user2"})

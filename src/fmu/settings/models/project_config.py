@@ -84,6 +84,9 @@ class ValidationRecord(BaseModel):
     """User who performed the last validation."""
 
 
+ValidationSource = Literal["masterdata_smda", "rms_project"]
+
+
 class ProjectValidation(BaseModel):
     """Validation metadata for project configuration data."""
 
