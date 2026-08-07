@@ -165,9 +165,9 @@ model declares its current schema version, and each resource manager has a
 `MigrationManager` with the migration registry for that model.
 
 Migration is forward-only. Data without `schema_version` is treated as version 1.
-Each registered function increments the schema version by one. The manager rejects a
-newer schema, a missing migration step, an invalid version, or data that does not
-validate as the current model.
+Each registered migration function increments the schema version by one. The manager
+rejects a newer schema, a missing migration step, an invalid version, or data that
+does not validate as the current model.
 
 The migration boundary depends on the resource operation:
 
@@ -192,8 +192,9 @@ The migration boundary depends on the resource operation:
 There is no backward migration. After a current-schema resource is saved, an older
 `fmu-settings` release can reject it as newer than supported. If the pre-migration
 cache revision is still retained, restore it with the older release. Migration
-backups are not loaded or restored by the library. Users must copy one back manually
-when the cache revision is no longer available.
+backups are not loaded or restored by the library. If the cache revision is no longer
+available, we should help users copy the appropriate migration backup back to the
+resource file before running the older release.
 
 See the
 [schema migration guide](src/fmu/settings/_migrations/README.md)

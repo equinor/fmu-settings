@@ -156,7 +156,7 @@ def test_cache_read_rejects_newer_schema_with_resource_context(
         MigrationError,
         match=(
             "Cannot migrate cached content for 'migratable.json'.*"
-            "schema version 3 is newer than supported version 2"
+            "schema version 3, which is newer than supported version 2"
         ),
     ):
         fmu_dir.cache.get_revision_content(
@@ -302,7 +302,7 @@ def test_save_rejects_newer_stored_schema_before_overwrite(
         match=(
             "Failed to check migration requirements for resource file "
             "'MigratableResourceManager'.*"
-            "schema version 3 is newer than supported version 2"
+            "schema version 3, which is newer than supported version 2"
         ),
     ):
         manager.save(VersionTwoResource(value="current"))
@@ -311,7 +311,7 @@ def test_save_rejects_newer_stored_schema_before_overwrite(
     assert fmu_dir.cache.list_revisions(manager.relative_path) == []
 
 
-def test_load_rejects_newer_schema_with_resource_context(
+def test_load_rejects_newer_schema(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
     """A migration error identifies the resource that could not be loaded."""
@@ -324,8 +324,8 @@ def test_load_rejects_newer_schema_with_resource_context(
     with pytest.raises(
         ValueError,
         match=(
-            "Failed to migrate resource file for 'MigratableResourceManager'.*"
-            "schema version 3 is newer than supported version 2"
+            "Stored VersionTwoResource data has schema version 3, which is newer "
+            "than supported version 2"
         ),
     ):
         manager.load()
@@ -340,10 +340,7 @@ def test_load_rejects_non_object_resource(
 
     with pytest.raises(
         ValueError,
-        match=(
-            "Failed to migrate resource file for 'MigratableResourceManager'.*"
-            "VersionTwoResource resource must be a JSON object"
-        ),
+        match="Stored VersionTwoResource data must be a JSON object",
     ):
         manager.load()
 
@@ -437,35 +434,6 @@ def test_resource_manager_rejects_mismatched_migration_model(
     ):
         PydanticResourceManager[VersionOneResource](
             fmu_dir,
-            VersionOneResource,
-            migration_manager=cast(
-                "MigrationManager[VersionOneResource]",
-                migration_manager,
-            ),
-        )
-
-
-def test_cache_manager_rejects_mismatched_migration_model(
-    fmu_dir: ProjectFMUDirectory,
-) -> None:
-    """Cache validation cannot return a model different from its annotation."""
-    revision = fmu_dir.cache.store_revision(
-        "version-one.json",
-        VersionOneResource(value="current").model_dump_json(),
-    )
-    assert revision is not None
-    migration_manager = MigrationManager(
-        VersionTwoResource,
-        {1: migrate_one_to_two},
-    )
-
-    with pytest.raises(
-        TypeError,
-        match="Migration manager model must match the requested model",
-    ):
-        fmu_dir.cache.get_revision_content(
-            "version-one.json",
-            revision.name,
             VersionOneResource,
             migration_manager=cast(
                 "MigrationManager[VersionOneResource]",

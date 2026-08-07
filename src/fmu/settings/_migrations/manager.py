@@ -60,7 +60,7 @@ class MigrationManager(Generic[MigratableResource]):
         """
         if not isinstance(data, dict):
             raise MigrationError(
-                f"{self.model_class.__name__} resource must be a JSON object"
+                f"Stored {self.model_class.__name__} data must be a JSON object"
             )
         source_schema_version = self._get_source_schema_version(data)
         migration_steps = self._get_migration_steps(source_schema_version)
@@ -71,37 +71,37 @@ class MigrationManager(Generic[MigratableResource]):
                 migrated_data = migration_function(migrated_data)
             except Exception as e:
                 raise MigrationError(
-                    f"{self.model_class.__name__} migration from schema version "
-                    f"{version} to {version + 1} failed"
+                    f"Failed to migrate stored {self.model_class.__name__} data "
+                    f"from schema version {version} to {version + 1}"
                 ) from e
 
             result_version = self._validate_version(migrated_data.get("schema_version"))
             expected_version = version + 1
             if result_version != expected_version:
                 raise MigrationError(
-                    f"{self.model_class.__name__} migration from schema version "
-                    f"{version} must set schema_version to {expected_version}, "
-                    f"but set it to {result_version}"
+                    f"Migration of stored {self.model_class.__name__} data from "
+                    f"schema version {version} must set schema_version to "
+                    f"{expected_version}, but set it to {result_version}"
                 )
 
         try:
             validated_model = self.model_class.model_validate(migrated_data)
         except ValidationError as e:
             raise MigrationError(
-                f"{self.model_class.__name__} data does not validate against current "
-                f"schema version {self.current_version}"
+                f"Stored {self.model_class.__name__} data does not validate against "
+                f"current schema version {self.current_version}"
             ) from e
 
         return validated_model
 
     def requires_migration(self, data: dict[str, Any]) -> bool:
-        """Return whether stored data needs migration before a write.
+        """Return whether stored data needs migration.
 
         This check verifies that all required forward migration functions exist and
         that the stored schema version is older than the current schema version.
 
         Args:
-            data: Existing stored data that a write would replace.
+            data: Existing stored data to inspect.
 
         Returns:
             Whether the stored data requires migration.
@@ -117,11 +117,11 @@ class MigrationManager(Generic[MigratableResource]):
     def _get_migration_steps(
         self, source_schema_version: int
     ) -> list[tuple[int, MigrationFunction]]:
-        """Return and validate migration steps needed by a source schema version."""
+        """Return migration functions from source to current schema version."""
         if source_schema_version > self.current_version:
             raise MigrationError(
-                f"{self.model_class.__name__} schema version {source_schema_version} "
-                "is newer than supported version "
+                f"Stored {self.model_class.__name__} data has schema version "
+                f"{source_schema_version}, which is newer than supported version "
                 f"{self.current_version}; downgrade migration "
                 "is not supported"
             )
@@ -131,9 +131,8 @@ class MigrationManager(Generic[MigratableResource]):
             migration_function = self.migrations.get(version)
             if migration_function is None:
                 raise MigrationError(
-                    f"Missing {self.model_class.__name__} migration function from "
-                    "schema "
-                    f"version {version} to {version + 1}"
+                    f"Missing {self.model_class.__name__} migration function for "
+                    f"stored data from schema version {version} to {version + 1}"
                 )
             steps.append((version, migration_function))
         return steps

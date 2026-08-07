@@ -146,9 +146,9 @@ The returned data must:
 
 - Preserve all relevant stored values.
 - Set `schema_version` to the next version.
-- Be valid input for the next migration or the current model.
+- Be valid input for the next migration function or the current model.
 
-### 3. Register the migration
+### 3. Register the migration function
 
 Update `project_config/__init__.py`:
 
@@ -162,10 +162,10 @@ PROJECT_CONFIG_MIGRATIONS: dict[int, MigrationFunction] = {
 }
 ```
 
-The registry key is the source schema version. Key `1` registers the migration from
-version 1 to version 2.
+The registry key is the source schema version. Key `1` registers the migration
+function from version 1 to version 2.
 
-Keep every migration when later versions are added:
+Keep every migration function when later versions are added:
 
 ```python
 PROJECT_CONFIG_MIGRATIONS: dict[int, MigrationFunction] = {
@@ -185,7 +185,7 @@ When you add a migration:
 - Add resource-specific tests under `tests/test_migrations/`. For example, a
   `ProjectConfig` migration can use `test_project_config_migration.py`.
 
-The resource-specific tests must cover conversion, load, save, cache restore, and
+The resource-specific tests must cover migration, load, save, cache restore, and
 invalid data. Update the complete current version fixture used by
 `tests/test_resources/test_migratable_models_up_to_date.py`. Keep the previous
 version input with the resource-specific migration tests.
@@ -205,7 +205,7 @@ uv run mypy src tests
 Migration is automatic during normal use:
 
 1. The resource manager reads stored data from an older schema.
-2. The migration manager converts it in memory.
+2. The migration manager migrates it in memory.
 3. The resource manager returns the current validated model.
 4. The stored file remains unchanged until a save occurs.
 
@@ -223,21 +223,27 @@ On the first save:
 Loading a resource does not create a changelog entry. A later user update or
 restore uses the existing changelog behavior.
 
+### Cache restore
+
 When an old cache revision is restored by the current release, it is migrated before
 it is written. The resource file therefore uses the current schema after the restore.
-If you roll back to an older release while the pre-migration revision is retained,
-restore that revision with the older release to return the resource file to the older
-schema. Migration backups are not read or restored by the library, copy one back
-manually when the cache revision is no longer available.
+
+### Rollback to an older release
 
 Migrations are forward-only. After current-schema data is saved, an older
-`fmu-settings` release can reject it as newer than its supported schema.
+`fmu-settings` release can reject it as newer than its supported schema. If the
+pre-migration revision is retained, restore that revision with the older release to
+return the resource file to the older schema. Migration backups are not read or
+restored by the library. If the cache revision is no longer available, we should help
+users copy the appropriate migration backup back to the resource file before running
+the older release.
 
 ## Release checklist for an `fmu-settings` schema version
 
-Use this checklist when releasing an `fmu-settings` package that contains a new
-stored schema version. First prepare and publish `fmu-settings`. Then update the
-downstream applications so that users receive the new package.
+Use this checklist when releasing an `fmu-settings` package with an updated
+schema version in one of the migratable models. First prepare and publish
+`fmu-settings`. Then update the downstream applications so that users receive
+the new package.
 
 ### 1. Prepare the `fmu-settings` package
 

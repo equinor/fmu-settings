@@ -117,7 +117,10 @@ def test_migration_manager_rejects_missing_step() -> None:
 
     with pytest.raises(
         MigrationError,
-        match="Missing VersionThreeModel migration function from schema version 1 to 2",
+        match=(
+            "Missing VersionThreeModel migration function for stored data from "
+            "schema version 1 to 2"
+        ),
     ):
         manager.migrate_resource(
             {
@@ -134,7 +137,10 @@ def test_migration_manager_rejects_newer_schema() -> None:
 
     with pytest.raises(
         MigrationError,
-        match=("VersionThreeModel schema version 4 is newer than supported version 3"),
+        match=(
+            "Stored VersionThreeModel data has schema version 4, which is newer "
+            "than supported version 3"
+        ),
     ):
         manager.migrate_resource(
             {
@@ -206,7 +212,9 @@ def test_migration_manager_wraps_step_error() -> None:
 
     with pytest.raises(
         MigrationError,
-        match=("VersionThreeModel migration from schema version 1 to 2 failed"),
+        match=(
+            "Failed to migrate stored VersionThreeModel data from schema version 1 to 2"
+        ),
     ) as error:
         manager.migrate_resource(
             {
@@ -237,7 +245,8 @@ def test_migration_manager_validates_final_data() -> None:
     with pytest.raises(
         MigrationError,
         match=(
-            "VersionThreeModel data does not validate against current schema version 3"
+            "Stored VersionThreeModel data does not validate against current schema "
+            "version 3"
         ),
     ):
         manager.migrate_resource(

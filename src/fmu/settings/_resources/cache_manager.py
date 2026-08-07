@@ -172,11 +172,11 @@ class CacheManager:
         content_str = self._fmu_dir.read_text_file(cache_relative)
 
         try:
-            return self._migrate_and_validate_content(
-                content_str,
-                model_class,
-                migration_manager,
-            )
+            if migration_manager is not None and migration_manager.requires_migration(
+                json.loads(content_str)
+            ):
+                return migration_manager.migrate_resource(json.loads(content_str))
+            return model_class.model_validate_json(content_str)
         except MigrationError as e:
             raise MigrationError(
                 f"Cannot migrate cached content for '{resource_file_path}': {e}"
@@ -227,11 +227,15 @@ class CacheManager:
             current_content = self._fmu_dir.read_text_file(resource_file_path)
 
             try:
-                self._migrate_and_validate_content(
-                    current_content,
-                    model_class,
-                    migration_manager,
-                )
+                if (
+                    migration_manager is not None
+                    and migration_manager.requires_migration(
+                        json.loads(current_content)
+                    )
+                ):
+                    migration_manager.migrate_resource(json.loads(current_content))
+                else:
+                    model_class.model_validate_json(current_content)
             except (json.JSONDecodeError, MigrationError, ValidationError) as e:
                 logger.warning(
                     "Skipped caching current state of "
@@ -245,20 +249,6 @@ class CacheManager:
         self._fmu_dir.write_text_file(resource_file_path, content_str)
 
         logger.info(f"Restored {resource_file_path} from cache revision {revision_id}")
-
-    @staticmethod
-    def _migrate_and_validate_content(
-        content: str,
-        model_class: type[RequestedModel],
-        migration_manager: MigrationManager[RequestedModel] | None,
-    ) -> RequestedModel:
-        """Migrate versioned content and validate it, or validate current content."""
-        if migration_manager is None:
-            return model_class.model_validate_json(content)
-        if migration_manager.model_class is not model_class:
-            raise TypeError("Migration manager model must match the requested model")
-
-        return migration_manager.migrate_resource(json.loads(content))
 
     def _ensure_resource_cache_dir(self: Self, resource_file_path: Path) -> Path:
         """Create (if needed) and return the cache directory for resource file."""

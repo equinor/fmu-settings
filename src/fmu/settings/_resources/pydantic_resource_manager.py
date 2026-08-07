@@ -145,7 +145,13 @@ class PydanticResourceManager(Generic[PydanticResource]):
             try:
                 content = self.fmu_dir.read_text_file(self.relative_path)
                 data = json.loads(content)
-                validated_model = self._migrate_and_validate_data(data)
+                if (
+                    self.migration_manager is not None
+                    and self.migration_manager.requires_migration(data)
+                ):
+                    validated_model = self.migration_manager.migrate_resource(data)
+                else:
+                    validated_model = self.model_class.model_validate(data)
                 if store_cache:
                     self._cache = validated_model
                 else:
@@ -184,11 +190,11 @@ class PydanticResourceManager(Generic[PydanticResource]):
         self._cache = model
 
     def _store_migration_backup(self: Self) -> None:
-        """Try to back up older data before saving the migrated version.
+        """Try to back up older stored data.
 
         The backup is best effort. Invalid JSON and non-object content are skipped.
-        File-system errors while writing the backup are logged, but do not stop the
-        save.
+        File-system errors while writing the backup are logged without interrupting
+        the caller.
         """
         migration_manager = self.migration_manager
         if migration_manager is None:
@@ -214,12 +220,14 @@ class PydanticResourceManager(Generic[PydanticResource]):
         if not requires_migration:
             return
 
-        source_version = data.get("schema_version", 1)
-        self._write_migration_backup(content, source_version)
+        source_schema_version = data.get("schema_version", 1)
+        self._write_migration_backup(content, source_schema_version)
         if self.automatic_caching:
             self.fmu_dir.cache.store_revision(self.relative_path, content)
 
-    def _write_migration_backup(self: Self, content: str, source_version: int) -> None:
+    def _write_migration_backup(
+        self: Self, content: str, source_schema_version: int
+    ) -> None:
         """Write a best-effort migration backup of the original content.
 
         For example, a ``config.json`` backup can be stored under
@@ -234,7 +242,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
             / self.relative_path.stem
         )
         backup_filename = (
-            f"{timestamp}-{token}-{self.model_class.__name__}-v{source_version}"
+            f"{timestamp}-{token}-{self.model_class.__name__}-v{source_schema_version}"
             f"{self.relative_path.suffix}"
         )
         backup_path = backup_directory / backup_filename
@@ -247,18 +255,6 @@ class PydanticResourceManager(Generic[PydanticResource]):
                 f"'{self.fmu_dir.get_file_path(backup_path)}'. "
                 f"Continuing without it: {e}"
             )
-
-    def _migrate_and_validate_data(self: Self, data: Any) -> PydanticResource:
-        """Migrate decoded data with registered functions and validate the result."""
-        if self.migration_manager is None:
-            return self.model_class.model_validate(data)
-        try:
-            return self.migration_manager.migrate_resource(data)
-        except MigrationError as e:
-            raise MigrationError(
-                f"Failed to migrate resource file for "
-                f"'{self.__class__.__name__}' at '{self.path}': {e}"
-            ) from e
 
     def get_model_diff(
         self: Self,
