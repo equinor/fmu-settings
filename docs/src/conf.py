@@ -54,6 +54,8 @@ version = ".".join(release.split(".")[:2])
 
 html_theme = "furo"
 html_title = f"{project} {version}"
+html_static_path = ["_static"]
+html_css_files = ["custom.css"]
 copyright = f"Equinor {current_year} ({project} release {release})"
 
 
