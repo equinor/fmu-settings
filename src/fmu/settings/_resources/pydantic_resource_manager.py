@@ -173,13 +173,49 @@ class PydanticResourceManager(Generic[PydanticResource]):
         self: Self,
         model: PydanticResource,
     ) -> None:
-        """Save the Pydantic model to disk.
+        """Save the Pydantic model and preserve stored data that needs migration.
+
+        Before overwriting older stored data, save its original content as a manual
+        migration backup and a normal cache revision.
 
         Args:
             model: Validated Pydantic model instance.
+
+        Raises:
+            MigrationError: If the stored schema version cannot be checked or cannot
+                be migrated to the current version.
+            PermissionError: If another process holds the write lock.
         """
         self.fmu_dir._lock.ensure_can_write()
-        self._store_migration_backup()
+
+        migration_manager = self.migration_manager
+        if migration_manager is not None:
+            try:
+                content = self.fmu_dir.read_text_file(self.relative_path)
+                data = json.loads(content)
+            except (FileNotFoundError, json.JSONDecodeError):
+                pass
+            else:
+                if isinstance(data, dict):
+                    try:
+                        requires_migration = migration_manager.requires_migration(data)
+                    except MigrationError as e:
+                        raise MigrationError(
+                            "Failed to check migration requirements for resource "
+                            f"file '{self.__class__.__name__}' at '{self.path}': {e}"
+                        ) from e
+
+                    if requires_migration:
+                        source_schema_version = data.get("schema_version", 1)
+                        self._write_migration_backup(
+                            content,
+                            source_schema_version,
+                        )
+                        if self.automatic_caching:
+                            self.fmu_dir.cache.store_revision(
+                                self.relative_path,
+                                content,
+                            )
 
         json_data = model.model_dump_json(by_alias=True, indent=2)
         self.fmu_dir.write_text_file(self.relative_path, json_data)
@@ -188,42 +224,6 @@ class PydanticResourceManager(Generic[PydanticResource]):
             self.fmu_dir.cache.store_revision(self.relative_path, json_data)
 
         self._cache = model
-
-    def _store_migration_backup(self: Self) -> None:
-        """Try to back up older stored data.
-
-        The backup is best effort. Invalid JSON and non-object content are skipped.
-        File-system errors while writing the backup are logged without interrupting
-        the caller.
-        """
-        migration_manager = self.migration_manager
-        if migration_manager is None:
-            return
-
-        try:
-            content = self.fmu_dir.read_text_file(self.relative_path)
-            data = json.loads(content)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return
-
-        if not isinstance(data, dict):
-            return
-
-        try:
-            requires_migration = migration_manager.requires_migration(data)
-        except MigrationError as e:
-            raise MigrationError(
-                f"Failed to check migration requirements for resource file "
-                f"'{self.__class__.__name__}' at '{self.path}': {e}"
-            ) from e
-
-        if not requires_migration:
-            return
-
-        source_schema_version = data.get("schema_version", 1)
-        self._write_migration_backup(content, source_schema_version)
-        if self.automatic_caching:
-            self.fmu_dir.cache.store_revision(self.relative_path, content)
 
     def _write_migration_backup(
         self: Self, content: str, source_schema_version: int
