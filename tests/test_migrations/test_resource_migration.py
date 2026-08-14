@@ -141,6 +141,42 @@ def test_cached_version_one_content_can_be_read_and_restored(
     }
 
 
+def test_restore_caches_older_current_state_without_migrating_it(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Restore keeps an undo snapshot of a version-one file exactly as stored.
+
+    The current data is migrated only to validate it before it is cached.
+    """
+    manager = MigratableResourceManager(fmu_dir)
+    target_revision = fmu_dir.cache.store_revision(
+        manager.relative_path,
+        json.dumps({"schema_version": 2, "value": "cached"}),
+    )
+    assert target_revision is not None
+
+    current_content = json.dumps({"schema_version": 1, "value": "current"}, indent=2)
+    fmu_dir.write_text_file(manager.relative_path, current_content)
+
+    fmu_dir.cache.restore_revision(
+        manager.relative_path,
+        target_revision.name,
+        manager.model_class,
+        migration_manager=manager.migration_manager,
+    )
+
+    assert json.loads(fmu_dir.read_text_file(manager.relative_path)) == {
+        "schema_version": 2,
+        "value": "cached",
+    }
+
+    cached_revisions = [
+        path.read_text(encoding="utf-8")
+        for path in fmu_dir.cache.list_revisions(manager.relative_path)
+    ]
+    assert current_content in cached_revisions
+
+
 def test_cache_manager_cannot_read_content_from_a_newer_schema_version(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
