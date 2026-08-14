@@ -80,8 +80,11 @@ def test_migration_manager_applies_all_steps_without_mutating_input() -> None:
         value="old",
         migrations_applied=[1, 2],
     )
-    assert data["migrations_applied"] == []
-    assert data["schema_version"] == 1
+    assert data == {
+        "schema_version": 1,
+        "value": "old",
+        "migrations_applied": [],
+    }
 
 
 def test_migration_manager_treats_missing_version_as_version_one() -> None:
@@ -104,6 +107,72 @@ def test_migration_manager_treats_missing_version_as_version_one() -> None:
     assert result.schema_version == 3
     assert result.migrations_applied == [1, 2]
     assert "schema_version" not in data
+
+
+def test_migration_manager_adds_legacy_version_to_returned_model() -> None:
+    """Unversioned data returns a version-one model without changing the input."""
+    data = {"value": "old"}
+    manager = MigrationManager(VersionOneModel, {})
+
+    result = manager.migrate_resource(data)
+
+    assert result == VersionOneModel(schema_version=1, value="old")
+    assert data == {"value": "old"}
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        ({"schema_version": 3}, False),
+        ({"schema_version": 2}, True),
+        ({}, True),
+    ],
+)
+def test_migration_manager_reports_when_migration_is_required(
+    data: dict[str, Any],
+    expected: bool,
+) -> None:
+    """The requirement check compares stored and current schema versions."""
+    manager = MigrationManager(
+        VersionThreeModel,
+        {
+            1: migrate_one_to_two,
+            2: migrate_two_to_three,
+        },
+    )
+
+    assert manager.requires_migration(data) is expected
+
+
+def test_requires_migration_rejects_missing_step() -> None:
+    """The requirement check rejects an incomplete migration path."""
+    manager = MigrationManager(
+        VersionThreeModel,
+        {2: migrate_two_to_three},
+    )
+
+    with pytest.raises(
+        MigrationError,
+        match=(
+            "Missing VersionThreeModel migration function for stored data from "
+            "schema version 1 to 2"
+        ),
+    ):
+        manager.requires_migration({"schema_version": 1})
+
+
+def test_requires_migration_rejects_newer_schema() -> None:
+    """The requirement check rejects stored data from a newer schema."""
+    manager = MigrationManager(VersionThreeModel, {})
+
+    with pytest.raises(
+        MigrationError,
+        match=(
+            "Stored VersionThreeModel data has schema version 4, which is newer "
+            "than supported version 3"
+        ),
+    ):
+        manager.requires_migration({"schema_version": 4})
 
 
 def test_migration_manager_rejects_missing_step() -> None:

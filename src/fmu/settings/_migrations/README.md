@@ -95,26 +95,27 @@ The following example changes the current `ProjectConfig` from schema version 1 
 ### 1. Update the current model
 
 Edit the existing model in `models/project_config.py`. Do not create a second
-`ProjectConfig` class. The `...` lines below represent all unchanged fields in the
-current model, such as `version`, `created_at`, `created_by`, `masterdata`, and
-`rms`. Only the schema version and the renamed field change in this example:
+`ProjectConfig` class. Some existing fields and default values are not shown in the
+shortened example. The comments show where they belong. These fields include `version`,
+`created_at`, `created_by`, `masterdata`, and `rms`. Only the schema version and the
+renamed field change in this example:
 
 ```python
 class ProjectConfig(ResettableBaseModel):
     """The configuration file in a .fmu directory."""
 
     schema_version: Literal[2] = 2
-    # ... unchanged fields ...
+    # Existing fields before this field are not shown in this example.
     max_cache_revisions: int = Field(default=10, ge=5)
-    # ... unchanged fields ...
+    # Existing fields after this field are not shown in this example.
 
     @classmethod
     def reset(cls: type[Self]) -> Self:
         """Reset the configuration to its defaults."""
         return cls(
-            # ... unchanged defaults ...
+            # Existing default values before this one are not shown.
             max_cache_revisions=10,
-            # ... unchanged defaults ...
+            # Existing default values after this one are not shown.
         )
 ```
 

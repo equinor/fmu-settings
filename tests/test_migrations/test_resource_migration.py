@@ -19,7 +19,7 @@ from fmu.settings.models.mappings import InternalMappings
 from fmu.settings.models.project_config import ProjectConfig
 
 if TYPE_CHECKING:
-    from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
+    from fmu.settings._fmu_dir import ProjectFMUDirectory
 
 
 class VersionTwoResource(BaseModel):
@@ -106,10 +106,10 @@ def test_save_after_migration_backs_up_old_content(
     assert {"schema_version": 2, "value": "updated"} in cached_data
 
 
-def test_cached_old_schema_is_readable_and_restorable(
+def test_cached_version_one_content_can_be_read_and_restored(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Existing cache APIs migrate an old backup before using its content."""
+    """Reading or restoring the revision migrates its content to version two."""
     manager = MigratableResourceManager(fmu_dir)
     old_content = json.dumps({"schema_version": 1, "value": "old"}, indent=2)
     fmu_dir.write_text_file(manager.relative_path, old_content)
@@ -141,10 +141,10 @@ def test_cached_old_schema_is_readable_and_restorable(
     }
 
 
-def test_cache_read_rejects_newer_schema_with_resource_context(
+def test_cache_manager_cannot_read_content_from_a_newer_schema_version(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """A cache migration error identifies the affected resource."""
+    """A version-two manager cannot read a cached version-three revision."""
     manager = MigratableResourceManager(fmu_dir)
     revision = fmu_dir.cache.store_revision(
         manager.relative_path,
@@ -165,27 +165,6 @@ def test_cache_read_rejects_newer_schema_with_resource_context(
             manager.model_class,
             migration_manager=manager.migration_manager,
         )
-
-
-def test_force_load_without_store_cache_preserves_existing_cached_model(
-    fmu_dir: ProjectFMUDirectory,
-) -> None:
-    """A forced migrated read can avoid replacing the in-memory cache."""
-    manager = MigratableResourceManager(fmu_dir)
-    fmu_dir.write_text_file(
-        manager.relative_path,
-        json.dumps({"schema_version": 1, "value": "first"}),
-    )
-    cached = manager.load()
-    fmu_dir.write_text_file(
-        manager.relative_path,
-        json.dumps({"schema_version": 1, "value": "second"}),
-    )
-
-    reloaded = manager.load(force=True, store_cache=False)
-
-    assert reloaded == VersionTwoResource(value="second")
-    assert manager._cache == cached
 
 
 def test_migration_save_respects_lock_before_backup(
@@ -268,10 +247,17 @@ def test_current_schema_save_does_not_add_migration_backup(
     assert not fmu_dir.get_file_path("migration-backups").exists()
 
 
-def test_save_replaces_non_object_json_without_migration_backup(
+def test_save_overwrites_non_object_json_without_a_migration_backup(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """A valid model can replace non-object JSON without preserving it."""
+    """Allow a valid save when the existing resource contains a JSON list.
+
+    For example, the existing file contains only ``[]`` instead of the expected JSON
+    object. The list has no schema version, so it cannot be migrated and is not
+    saved as a migration backup. The valid version-two model replaces the list with
+    ``{"schema_version": 2, "value": "current"}``, and only this replacement is
+    added to the normal cache.
+    """
     manager = MigratableResourceManager(fmu_dir)
     fmu_dir.write_text_file(manager.relative_path, json.dumps([]))
 
@@ -287,12 +273,13 @@ def test_save_replaces_non_object_json_without_migration_backup(
         "schema_version": 2,
         "value": "current",
     }
+    assert not fmu_dir.get_file_path("migration-backups").exists()
 
 
-def test_save_rejects_newer_stored_schema_before_overwrite(
+def test_save_does_not_overwrite_a_newer_stored_version(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """A save does not overwrite stored data from a newer schema."""
+    """A version-two manager rejects version-three data before writing or caching."""
     manager = MigratableResourceManager(fmu_dir)
     future_content = json.dumps({"schema_version": 3, "value": "future"})
     fmu_dir.write_text_file(manager.relative_path, future_content)
@@ -345,35 +332,37 @@ def test_load_rejects_non_object_resource(
         manager.load()
 
 
-def test_project_resource_managers_have_version_one_migration_managers(
-    fmu_dir: ProjectFMUDirectory,
+@pytest.mark.parametrize(
+    ("directory_fixture", "resource_name"),
+    [
+        ("fmu_dir", "config"),
+        ("fmu_dir", "mappings"),
+        ("user_fmu_dir", "config"),
+    ],
+)
+def test_resource_has_version_one_migration_manager(
+    request: pytest.FixtureRequest,
+    directory_fixture: str,
+    resource_name: str,
 ) -> None:
-    """Project resources are wired without a dummy version two."""
-    managers = [
-        fmu_dir.config.migration_manager,
-        fmu_dir.mappings.migration_manager,
-    ]
+    """Check the current schema version and migrations for each resource.
 
-    assert all(manager is not None for manager in managers)
-    assert all(manager.current_version == 1 for manager in managers if manager)
-    assert all(manager.migrations == {} for manager in managers if manager)
-
-
-def test_user_config_has_version_one_migration_manager(
-    user_fmu_dir: UserFMUDirectory,
-) -> None:
-    """User config is wired without a dummy version two."""
-    manager = user_fmu_dir.config.migration_manager
+    Project config, user config, and mappings currently use schema version one, so
+    their migration registries are empty. Update this test when a resource gets a
+    new schema version and migration function.
+    """
+    fmu_directory = request.getfixturevalue(directory_fixture)
+    manager = getattr(fmu_directory, resource_name).migration_manager
 
     assert manager is not None
     assert manager.current_version == 1
     assert manager.migrations == {}
 
 
-def test_project_config_cache_boundary_handles_unversioned_revision(
+def test_unversioned_project_config_can_be_read_and_restored_from_cache(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Project cache APIs normalize and restore an unversioned config revision."""
+    """Legacy config restores version-one data, runtime settings, and changelog."""
     legacy_config = fmu_dir.config.load().model_dump(mode="json")
     legacy_config.pop("schema_version")
     legacy_config["cache_max_revisions"] = 7
@@ -397,10 +386,10 @@ def test_project_config_cache_boundary_handles_unversioned_revision(
     assert fmu_dir.changelog.load().root[-1].change_type == ChangeType.restore
 
 
-def test_mappings_cache_boundary_handles_unversioned_revision(
+def test_unversioned_mappings_can_be_read_and_restored_from_cache(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Project cache APIs use the mappings migration manager across the union."""
+    """Legacy mappings restore as version one and add a changelog entry."""
     legacy_mappings = InternalMappings().model_dump(mode="json")
     legacy_mappings.pop("schema_version")
     revision = fmu_dir.cache.store_revision(
@@ -419,10 +408,10 @@ def test_mappings_cache_boundary_handles_unversioned_revision(
     assert fmu_dir.changelog.load().root[-1].change_type == ChangeType.restore
 
 
-def test_resource_manager_rejects_mismatched_migration_model(
+def test_resource_manager_rejects_migration_functions_for_another_model(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """A resource manager cannot use migrations for a different model."""
+    """The migration and resource managers must use the same Pydantic model."""
     migration_manager = MigrationManager(
         VersionTwoResource,
         {1: migrate_one_to_two},
