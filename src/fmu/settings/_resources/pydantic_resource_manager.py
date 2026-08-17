@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import json
-from builtins import TypeError
-from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Final, Generic, Self, TypeVar
+from uuid import uuid4
 
 from pydantic import BaseModel, ValidationError
 
+from fmu.settings._logging import null_logger
+from fmu.settings._migrations import (
+    MigrationError,
+    MigrationManager,
+)
 from fmu.settings._utils import path_exists
 from fmu.settings.models.diff import (
     ListFieldDiff,
@@ -21,12 +28,13 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     # Avoid circular dependency for type hint in __init__ only
-    from pathlib import Path
-
     from fmu.settings._fmu_dir import FMUDirectoryBase
 
 PydanticResource = TypeVar("PydanticResource", bound=BaseModel)
 MutablePydanticResource = TypeVar("MutablePydanticResource", bound=ResettableBaseModel)
+
+MIGRATION_BACKUP_DIRECTORY: Final = Path("migration-backups")
+logger: Final = null_logger(__name__)
 
 
 class PydanticResourceManager(Generic[PydanticResource]):
@@ -35,16 +43,29 @@ class PydanticResourceManager(Generic[PydanticResource]):
     automatic_caching: bool = True
 
     def __init__(
-        self: Self, fmu_dir: FMUDirectoryBase, model_class: type[PydanticResource]
+        self: Self,
+        fmu_dir: FMUDirectoryBase,
+        model_class: type[PydanticResource],
+        *,
+        migration_manager: MigrationManager[PydanticResource] | None = None,
     ) -> None:
         """Initializes the resource manager.
 
         Args:
             fmu_dir: The FMUDirectory instance
             model_class: The Pydantic model class this manager handles
+            migration_manager: Optional migration manager for versioned resources
         """
         self.fmu_dir = fmu_dir
         self.model_class = model_class
+        if (
+            migration_manager is not None
+            and migration_manager.model_class is not model_class
+        ):
+            raise TypeError(
+                "Migration manager model must match the resource manager model"
+            )
+        self.migration_manager = migration_manager
         self._cache: PydanticResource | None = None
 
     @property
@@ -109,8 +130,10 @@ class PydanticResourceManager(Generic[PydanticResource]):
             Validated Pydantic model
 
         Raises:
-            ValueError: If the resource file is missing or data does not match the
-            model schema
+            FileNotFoundError: If the resource file does not exist.
+            MigrationError: If the resource cannot be migrated to the current schema.
+            ValueError: If the resource file contains invalid JSON or does not match
+                the model schema.
         """
         if self._cache is None or force:
             if not self.exists:
@@ -122,7 +145,13 @@ class PydanticResourceManager(Generic[PydanticResource]):
             try:
                 content = self.fmu_dir.read_text_file(self.relative_path)
                 data = json.loads(content)
-                validated_model = self.model_class.model_validate(data)
+                if (
+                    self.migration_manager is not None
+                    and self.migration_manager.requires_migration(data)
+                ):
+                    validated_model = self.migration_manager.migrate_resource(data)
+                else:
+                    validated_model = self.model_class.model_validate(data)
                 if store_cache:
                     self._cache = validated_model
                 else:
@@ -144,12 +173,49 @@ class PydanticResourceManager(Generic[PydanticResource]):
         self: Self,
         model: PydanticResource,
     ) -> None:
-        """Save the Pydantic model to disk.
+        """Save the Pydantic model and preserve stored data that needs migration.
+
+        Before overwriting older stored data, save its original content as a manual
+        migration backup and a normal cache revision.
 
         Args:
             model: Validated Pydantic model instance.
+
+        Raises:
+            MigrationError: If the stored schema version cannot be checked or cannot
+                be migrated to the current version.
+            PermissionError: If another process holds the write lock.
         """
         self.fmu_dir._lock.ensure_can_write()
+
+        migration_manager = self.migration_manager
+        if migration_manager is not None:
+            try:
+                content = self.fmu_dir.read_text_file(self.relative_path)
+                data = json.loads(content)
+            except (FileNotFoundError, json.JSONDecodeError):
+                pass
+            else:
+                if isinstance(data, dict):
+                    try:
+                        requires_migration = migration_manager.requires_migration(data)
+                    except MigrationError as e:
+                        raise MigrationError(
+                            "Failed to check migration requirements for resource "
+                            f"file '{self.__class__.__name__}' at '{self.path}': {e}"
+                        ) from e
+
+                    if requires_migration:
+                        source_schema_version = data.get("schema_version", 1)
+                        self._write_migration_backup(
+                            content,
+                            source_schema_version,
+                        )
+                        if self.automatic_caching:
+                            self.fmu_dir.cache.store_revision(
+                                self.relative_path,
+                                content,
+                            )
 
         json_data = model.model_dump_json(by_alias=True, indent=2)
         self.fmu_dir.write_text_file(self.relative_path, json_data)
@@ -158,6 +224,37 @@ class PydanticResourceManager(Generic[PydanticResource]):
             self.fmu_dir.cache.store_revision(self.relative_path, json_data)
 
         self._cache = model
+
+    def _write_migration_backup(
+        self: Self, content: str, source_schema_version: int
+    ) -> None:
+        """Write a best-effort migration backup of the original content.
+
+        For example, a ``config.json`` backup can be stored under
+        ``.fmu/migration-backups/config/`` as
+        ``<timestamp>-<token>-ProjectConfig-v1.json``.
+        """
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
+        token = uuid4().hex[:8]
+        backup_directory = (
+            MIGRATION_BACKUP_DIRECTORY
+            / self.relative_path.parent
+            / self.relative_path.stem
+        )
+        backup_filename = (
+            f"{timestamp}-{token}-{self.model_class.__name__}-v{source_schema_version}"
+            f"{self.relative_path.suffix}"
+        )
+        backup_path = backup_directory / backup_filename
+
+        try:
+            self.fmu_dir.write_text_file(backup_path, content)
+        except OSError as e:
+            logger.warning(
+                f"Failed to save migration backup for '{self.path}' at "
+                f"'{self.fmu_dir.get_file_path(backup_path)}'. "
+                f"Continuing without it: {e}"
+            )
 
     def get_model_diff(
         self: Self,
@@ -325,10 +422,18 @@ class MutablePydanticResourceManager(PydanticResourceManager[MutablePydanticReso
     """Manages the .fmu resource file."""
 
     def __init__(
-        self: Self, fmu_dir: FMUDirectoryBase, resource: type[MutablePydanticResource]
+        self: Self,
+        fmu_dir: FMUDirectoryBase,
+        resource: type[MutablePydanticResource],
+        *,
+        migration_manager: MigrationManager[MutablePydanticResource] | None = None,
     ) -> None:
         """Initializes the resource manager."""
-        super().__init__(fmu_dir, resource)
+        super().__init__(
+            fmu_dir,
+            resource,
+            migration_manager=migration_manager,
+        )
 
     def get(self: Self, key: str, default: Any = None) -> Any:
         """Gets a resource value by key.

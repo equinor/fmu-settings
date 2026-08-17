@@ -136,7 +136,7 @@ def test_init_logs_warning_and_uses_default_cache_revisions_on_config_read_error
     ):
         fmu = ProjectFMUDirectory(tmp_path)
 
-    assert fmu.cache.max_revisions == 5  # noqa: PLR2004
+    assert fmu.cache.max_revisions == 10  # noqa: PLR2004
     mock_warning.assert_called_once()
     warning_message = mock_warning.call_args.args[0]
     assert "project config" in warning_message
@@ -190,7 +190,7 @@ def test_cache_property_returns_cached_manager(fmu_dir: ProjectFMUDirectory) -> 
 
     assert cache is fmu_dir.cache
     assert fmu_dir._cache_manager is cache
-    assert cache.max_revisions == 5  # noqa: PLR2004
+    assert cache.max_revisions == 10  # noqa: PLR2004
 
 
 def test_set_cache_max_revisions_updates_manager(
@@ -1140,7 +1140,7 @@ def test_fmu_directory_base_sync_runtime_variables(
     runtime variables should be synced accordingly.
     """
     new_fmu_dir = extra_fmu_dir
-    new_cache_max_revisions = 10
+    new_cache_max_revisions = 15
     old_cache_max_revisions = fmu_dir.config.load().cache_max_revisions
     assert fmu_dir.cache_max_revisions != new_cache_max_revisions
     assert fmu_dir.cache_max_revisions == fmu_dir.config.load().cache_max_revisions
@@ -1270,8 +1270,8 @@ def test_restore_from_cache_higher_cache_max_revisions_does_not_trim_to_old_limi
 ) -> None:
     """Restoring config.json with a higher limit keeps the pre-restore snapshot."""
     current_config = fmu_dir.config.load()
-    current_max_revisions = 5
-    restored_max_revisions = 10
+    current_max_revisions = 10
+    restored_max_revisions = 15
     extra_config_revisions = 6
 
     assert current_config.cache_max_revisions == current_max_revisions
@@ -1499,7 +1499,7 @@ def test_fmu_directory_base_sync_dir_dont_sync_ignored_fields(
     last_modified_by = fmu_dir.config.load().last_modified_by
 
     new_fmu_dir = extra_fmu_dir
-    new_cache_max_revisions = 10
+    new_cache_max_revisions = 15
     new_fmu_dir.set_config_value("cache_max_revisions", new_cache_max_revisions)
 
     updates = fmu_dir.sync_dir(new_fmu_dir)
@@ -1519,16 +1519,16 @@ def test_fmu_directory_base_sync_dir_dont_sync_ignored_fields(
 
     # First entry should be the cache_max_revision update in fmu_dir
     assert updates["_changelog"][0].key == "cache_max_revisions"
-    assert "Old value: 5 -> New value: 5" in updates["_changelog"][0].change
+    assert "Old value: 10 -> New value: 5" in updates["_changelog"][0].change
 
     # Second entry should be the cache_max_revision update from the changelog merge
     assert updates["_changelog"][1].key == "cache_max_revisions"
-    assert "Old value: 5 -> New value: 10" in updates["_changelog"][1].change
+    assert "Old value: 10 -> New value: 15" in updates["_changelog"][1].change
     assert updates["_changelog"][1].path == new_fmu_dir.path
 
     # Third entry should be the cache_max_revision update from the config merge
     assert updates["_changelog"][2].key == "cache_max_revisions"
-    assert "Old value: 5 -> New value: 10" in updates["_changelog"][2].change
+    assert "Old value: 5 -> New value: 15" in updates["_changelog"][2].change
     assert updates["_changelog"][2].path == fmu_dir.path
 
     # Fourth entry should be the logged merge details

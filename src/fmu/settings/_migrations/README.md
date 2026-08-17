@@ -1,0 +1,286 @@
+# Schema migration guide
+
+Use this guide when a stored `.fmu` resource needs a new schema version.
+
+The supported resources and their migration function registries are:
+
+- `ProjectConfig`: `project_config/`
+- `UserConfig`: `user_config/`
+- `InternalMappings`: `mappings/`
+
+## Decide whether to change the schema version
+
+Change the schema version when existing stored data needs a migration before it can
+be used by the current model.
+
+### Changes that need a migration
+
+Renaming a stored field needs a migration. For example, changing
+`cache_max_revisions` to `max_cache_revisions` changes the JSON object from:
+
+```json
+{
+  "schema_version": 1,
+  "cache_max_revisions": 5
+}
+```
+
+to:
+
+```json
+{
+  "schema_version": 2,
+  "max_cache_revisions": 5
+}
+```
+
+Without a migration, the current model cannot recover the value stored under the
+old field name.
+
+Other changes that need a migration include:
+
+- Removing a stored field when its value must be moved or preserved elsewhere.
+- Making an optional field required and calculating its value from stored data from
+  an older schema.
+- Changing a field from one type to another, such as a string to a list of strings.
+- Moving flat fields into a nested model.
+- Changing the meaning of a value when stored data from an older schema must be
+  converted to keep its original meaning.
+
+### Changes that do not need a migration
+
+Adding an optional field with a safe default does not normally need a migration.
+For example:
+
+```python
+class ProjectConfig(ResettableBaseModel):
+    schema_version: Literal[1] = 1
+    description: str | None = None
+```
+
+An existing version 1 file without `description` still validates. Pydantic supplies
+`None`, so the schema version can remain 1.
+
+Other changes that do not normally need a migration include:
+
+- Making validation more permissive.
+- Changing a model method that does not change stored data.
+- Changing documentation or field descriptions.
+- Adding a computed property that is not stored.
+
+## Schema version contract
+
+Each migratable model declares one positive integer schema version. The literal and
+default values must match:
+
+```python
+schema_version: Literal[2] = 2
+```
+
+Migration functions are forward-only. Each function increments `schema_version` by
+exactly one:
+
+```text
+1 -> 2 -> 3
+```
+
+Do not skip a version. Data without a `schema_version` field is treated as schema
+version 1.
+
+## Add a migration
+
+The following example changes the current `ProjectConfig` from schema version 1 to
+2 and renames `cache_max_revisions` to `max_cache_revisions`.
+
+### 1. Update the current model
+
+Edit the existing model in `models/project_config.py`. Do not create a second
+`ProjectConfig` class. Some existing fields and default values are not shown in the
+shortened example. The comments show where they belong. These fields include `version`,
+`created_at`, `created_by`, `masterdata`, and `rms`. Only the schema version and the
+renamed field change in this example:
+
+```python
+class ProjectConfig(ResettableBaseModel):
+    """The configuration file in a .fmu directory."""
+
+    schema_version: Literal[2] = 2
+    # Existing fields before this field are not shown in this example.
+    max_cache_revisions: int = Field(default=10, ge=5)
+    # Existing fields after this field are not shown in this example.
+
+    @classmethod
+    def reset(cls: type[Self]) -> Self:
+        """Reset the configuration to its defaults."""
+        return cls(
+            # Existing default values before this one are not shown.
+            max_cache_revisions=10,
+            # Existing default values after this one are not shown.
+        )
+```
+
+Search the source code and tests for the old field name. Update attribute access
+such as `config.cache_max_revisions`, string keys such as
+`set_config_value("cache_max_revisions", ...)`, API models, and test input
+dictionaries. Any code that reads or writes this field must use the new name.
+
+### 2. Add a migration script with migration function
+
+Create `project_config/v1_to_v2.py`:
+
+```python
+from typing import Any
+
+
+def migrate_v1_to_v2(data: dict[str, Any]) -> dict[str, Any]:
+    """Migrate project config data from schema version 1 to 2."""
+    data["max_cache_revisions"] = data.pop("cache_max_revisions", 5)
+    data["schema_version"] = 2
+    return data
+```
+
+The migration manager gives each migration function a deep copy of the loaded
+data. A migration function can therefore modify its input without changing the
+original data.
+
+The returned data must:
+
+- Preserve all relevant stored values.
+- Set `schema_version` to the next version.
+- Be valid input for the next migration function or the current model.
+
+### 3. Register the migration function
+
+Update `project_config/__init__.py`:
+
+```python
+from fmu.settings._migrations.manager import MigrationFunction
+
+from .v1_to_v2 import migrate_v1_to_v2
+
+PROJECT_CONFIG_MIGRATIONS: dict[int, MigrationFunction] = {
+    1: migrate_v1_to_v2,
+}
+```
+
+The registry key is the source schema version. Key `1` registers the migration
+function from version 1 to version 2.
+
+Keep every migration function when later versions are added:
+
+```python
+PROJECT_CONFIG_MIGRATIONS: dict[int, MigrationFunction] = {
+    1: migrate_v1_to_v2,
+    2: migrate_v2_to_v3,
+}
+```
+
+## Test the migration
+
+When you add a migration:
+
+- Keep `test_migration_manager.py` and the generic resource tests unchanged unless
+  the framework behavior changes.
+- In `test_resource_migration.py`, update the affected resource tests that assert
+  its version, migration function registry, or previous version data.
+- Add resource-specific tests under `tests/test_migrations/`. For example, a
+  `ProjectConfig` migration can use `test_project_config_migration.py`.
+
+The resource-specific tests must cover migration, load, save, cache restore, and
+invalid data. Update the complete current version fixture used by
+`tests/test_resources/test_migratable_models_up_to_date.py`. Keep the previous
+version input with the resource-specific migration tests.
+
+Run the relevant checks:
+
+```text
+uv run pytest tests/test_migrations
+uv run pytest tests/test_resources/test_migratable_models_up_to_date.py
+uv run ruff check
+uv run ruff format --check
+uv run mypy src tests
+```
+
+## Runtime behavior
+
+Migration is automatic during normal use:
+
+1. The resource manager reads stored data from an older schema.
+2. The migration manager migrates it in memory.
+3. The resource manager returns the current validated model.
+4. The stored file remains unchanged until a save occurs.
+
+On the first save:
+
+1. The write lock is checked.
+2. If the stored data needs migration, the resource manager tries to save a copy of
+   the original JSON under `.fmu/migration-backups/`. This backup is separate from
+   the cache, is not removed automatically, and a failure to write it does not
+   stop the save. The original JSON is also added to a cache revision before
+   the migrated data is written.
+3. The current model is written with the new schema version.
+4. The newly written data is also added to a cache revision.
+
+Loading a resource does not create a changelog entry. A later user update or
+restore uses the existing changelog behavior.
+
+### Cache restore
+
+When an old cache revision is restored by the current release, it is migrated before
+it is written. The resource file therefore uses the current schema after the restore.
+
+### Rollback to an older release
+
+Migrations are forward-only. After current-schema data is saved, an older
+`fmu-settings` release can reject it as newer than its supported schema. If the
+pre-migration revision is retained, restore that revision with the older release to
+return the resource file to the older schema. Migration backups are not read or
+restored by the library. If the cache revision is no longer available, we should help
+users copy the appropriate migration backup back to the resource file before running
+the older release.
+
+## Release checklist for an `fmu-settings` schema version
+
+Use this checklist when releasing an `fmu-settings` package with an updated
+schema version in one of the migratable models. First prepare and publish
+`fmu-settings`. Then update the downstream applications so that users receive
+the new package.
+
+### 1. Prepare the `fmu-settings` package
+
+- Confirm that the schema change needs a migration.
+- Increase the model schema version by one.
+- Add and register the migration from the previous version.
+- Update `reset()` if it constructs or supplies a default for the changed field.
+- Update test fixture dictionaries so that current-model fixtures use the new field
+  and current schema version.
+- Update Python attribute access, dot-notation string keys, API code, and other
+  callers that use the changed field.
+- Test loading, saving, caching, and restoring previous-version data.
+- Run the full `fmu-settings` checks.
+
+### 2. Publish the `fmu-settings` package
+
+Publish a new GitHub release for `fmu-settings`. The publish workflow builds the
+package and uploads it to PyPI.
+
+### 3. Release `fmu-settings-api`
+
+1. Set the minimum `fmu-settings` dependency in `fmu-settings-api` to the newly
+   released version.
+2. Update the API lockfile and run the API tests.
+3. Publish a new `fmu-settings-api` release.
+
+If the schema change affects fields exposed by the API, update and verify the
+OpenAPI schema. Then regenerate and release the GUI client.
+
+### 4. Release `fmu-settings-cli`
+
+1. Set the minimum `fmu-settings-api` dependency in `fmu-settings-cli` to the newly
+   released API version.
+2. Also set the CLI's direct `fmu-settings` dependency to the new version.
+3. Update the CLI lockfile and run the CLI tests.
+4. Publish a new `fmu-settings-cli` release.
+
+This release order keeps the schema implementation, API runtime, and CLI
+distribution on compatible versions.

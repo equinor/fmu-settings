@@ -6,10 +6,14 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
+from unittest.mock import Mock, patch
 
 import pytest
 
+from fmu.settings import MigrationError
 from fmu.settings._fmu_dir import ProjectFMUDirectory
+from fmu.settings._migrations import MigrationManager
 from fmu.settings._resources.cache_manager import (
     _CACHEDIR_TAG_CONTENT,
     CacheManager,
@@ -298,6 +302,65 @@ def test_cache_manager_get_revision_content_returns_model(
     assert restored.model_dump() == cached_model.model_dump()
 
 
+def test_cache_manager_get_revision_content_uses_migration_manager(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Reading a revision migrates its data when migration is required."""
+    manager = CacheManager(fmu_dir)
+    stored_data = {"legacy": "value"}
+    snapshot = manager.store_revision("config.json", json.dumps(stored_data))
+    assert snapshot is not None
+    migrated_model = fmu_dir.config.load()
+    migration_manager = Mock(spec=MigrationManager)
+    migration_manager.requires_migration.return_value = True
+    migration_manager.migrate_resource.return_value = migrated_model
+    typed_migration_manager = cast(
+        "MigrationManager[ProjectConfig]",
+        migration_manager,
+    )
+
+    result = manager.get_revision_content(
+        "config.json",
+        snapshot.name,
+        ProjectConfig,
+        migration_manager=typed_migration_manager,
+    )
+
+    assert result == migrated_model
+    migration_manager.requires_migration.assert_called_once_with(stored_data)
+    migration_manager.migrate_resource.assert_called_once_with(stored_data)
+
+
+def test_cache_manager_get_revision_content_wraps_migration_error(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Reading a revision adds resource context to migration errors."""
+    manager = CacheManager(fmu_dir)
+    stored_data = {"legacy": "value"}
+    snapshot = manager.store_revision("config.json", json.dumps(stored_data))
+    assert snapshot is not None
+    migration_manager = Mock(spec=MigrationManager)
+    migration_manager.requires_migration.side_effect = MigrationError("cannot check")
+    typed_migration_manager = cast(
+        "MigrationManager[ProjectConfig]",
+        migration_manager,
+    )
+
+    with pytest.raises(
+        MigrationError,
+        match="Cannot migrate cached content for 'config.json': cannot check",
+    ):
+        manager.get_revision_content(
+            "config.json",
+            snapshot.name,
+            ProjectConfig,
+            migration_manager=typed_migration_manager,
+        )
+
+    migration_manager.requires_migration.assert_called_once_with(stored_data)
+    migration_manager.migrate_resource.assert_not_called()
+
+
 def test_cache_manager_get_revision_content_raises_for_missing_revision(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -355,6 +418,84 @@ def test_cache_manager_restore_revision_overwrites_and_caches_current(
         if path.suffix == ".json"
     ]
     assert "2.3.4" in cached_versions
+
+
+def test_cache_manager_restore_revision_uses_migration_manager(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Restore migrates the current state before storing its undo revision."""
+    manager = CacheManager(fmu_dir)
+    restored_model = fmu_dir.config.load()
+    current_data = {"legacy": "current"}
+    current_content = json.dumps(current_data)
+    fmu_dir.write_text_file("config.json", current_content)
+    migration_manager = Mock(spec=MigrationManager)
+    migration_manager.requires_migration.return_value = True
+    migration_manager.migrate_resource.return_value = restored_model
+    typed_migration_manager = cast(
+        "MigrationManager[ProjectConfig]",
+        migration_manager,
+    )
+
+    with (
+        patch.object(
+            manager,
+            "get_revision_content",
+            return_value=restored_model,
+        ) as get_revision_content,
+        patch.object(
+            manager,
+            "store_revision",
+        ) as store_revision,
+    ):
+        manager.restore_revision(
+            "config.json",
+            "revision.json",
+            ProjectConfig,
+            migration_manager=typed_migration_manager,
+        )
+
+    get_revision_content.assert_called_once_with(
+        Path("config.json"),
+        "revision.json",
+        ProjectConfig,
+        migration_manager=typed_migration_manager,
+    )
+    migration_manager.requires_migration.assert_called_once_with(current_data)
+    migration_manager.migrate_resource.assert_called_once_with(current_data)
+    store_revision.assert_called_once_with(
+        Path("config.json"),
+        current_content,
+        skip_trim=False,
+    )
+
+
+def test_cache_manager_restore_revision_propagates_migration_error(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Restore returns a migration error raised while reading the revision."""
+    manager = CacheManager(fmu_dir)
+
+    with (
+        patch.object(
+            manager,
+            "get_revision_content",
+            side_effect=MigrationError("cannot migrate"),
+        ) as get_revision_content,
+        pytest.raises(MigrationError, match="cannot migrate"),
+    ):
+        manager.restore_revision(
+            "config.json",
+            "revision.json",
+            ProjectConfig,
+        )
+
+    get_revision_content.assert_called_once_with(
+        Path("config.json"),
+        "revision.json",
+        ProjectConfig,
+        migration_manager=None,
+    )
 
 
 def test_cache_manager_restore_revision_skips_invalid_current_state_cache(

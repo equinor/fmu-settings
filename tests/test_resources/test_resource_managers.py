@@ -6,13 +6,15 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Self
-from unittest.mock import patch
+from typing import Self, cast
+from unittest.mock import Mock, patch
 
 import pytest
 from pydantic import AwareDatetime, BaseModel
 
+from fmu.settings import MigrationError
 from fmu.settings._fmu_dir import ProjectFMUDirectory
+from fmu.settings._migrations import MigrationManager
 from fmu.settings._resources.lock_manager import LockManager
 from fmu.settings._resources.pydantic_resource_manager import (
     MutablePydanticResourceManager,
@@ -112,6 +114,53 @@ def test_pydantic_resource_manager_save(fmu_dir: ProjectFMUDirectory) -> None:
     assert resource_model == PydanticResourceTest.model_validate(a_dict)
 
 
+def test_pydantic_resource_manager_save_backs_up_data_that_requires_migration(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Save checks stored data and backs it up when migration is required."""
+    manager = PydanticManagerTest(fmu_dir)
+    stored_data = {"foo": "old"}
+    stored_content = json.dumps(stored_data)
+    fmu_dir.write_text_file(manager.relative_path, stored_content)
+    migration_manager = Mock(spec=MigrationManager)
+    migration_manager.requires_migration.return_value = True
+    manager.migration_manager = cast(
+        "MigrationManager[PydanticResourceTest]",
+        migration_manager,
+    )
+
+    with patch.object(manager, "_write_migration_backup") as write_backup:
+        manager.save(PydanticResourceTest(foo="new"))
+
+    migration_manager.requires_migration.assert_called_once_with(stored_data)
+    migration_manager.migrate_resource.assert_not_called()
+    write_backup.assert_called_once_with(stored_content, 1)
+
+
+def test_pydantic_resource_manager_save_wraps_migration_check_error(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Save reports a migration check error before changing stored data."""
+    manager = PydanticManagerTest(fmu_dir)
+    stored_content = json.dumps({"foo": "old"})
+    fmu_dir.write_text_file(manager.relative_path, stored_content)
+    migration_manager = Mock(spec=MigrationManager)
+    migration_manager.requires_migration.side_effect = MigrationError("cannot check")
+    manager.migration_manager = cast(
+        "MigrationManager[PydanticResourceTest]",
+        migration_manager,
+    )
+
+    with pytest.raises(
+        MigrationError,
+        match="Failed to check migration requirements.*cannot check",
+    ):
+        manager.save(PydanticResourceTest(foo="new"))
+
+    assert fmu_dir.read_text_file(manager.relative_path) == stored_content
+    migration_manager.migrate_resource.assert_not_called()
+
+
 def test_pydantic_resource_manager_save_raises_when_locked(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
@@ -141,6 +190,52 @@ def test_pydantic_resource_manager_load(fmu_dir: ProjectFMUDirectory) -> None:
     test_manager.save(test_resource)
     assert test_manager.load() == test_resource
     assert test_manager._cache == test_resource
+
+
+def test_pydantic_resource_manager_load_uses_migration_manager(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Load migrates stored data when the migration manager requires it."""
+    manager = PydanticManagerTest(fmu_dir)
+    stored_data = {"foo": "old"}
+    fmu_dir.write_text_file(manager.relative_path, json.dumps(stored_data))
+    migrated_model = PydanticResourceTest(foo="migrated")
+    migration_manager = Mock(spec=MigrationManager)
+    migration_manager.requires_migration.return_value = True
+    migration_manager.migrate_resource.return_value = migrated_model
+    manager.migration_manager = cast(
+        "MigrationManager[PydanticResourceTest]",
+        migration_manager,
+    )
+
+    loaded = manager.load()
+
+    assert loaded == migrated_model
+    assert manager._cache == migrated_model
+    migration_manager.requires_migration.assert_called_once_with(stored_data)
+    migration_manager.migrate_resource.assert_called_once_with(stored_data)
+
+
+def test_pydantic_resource_manager_load_propagates_migration_error(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Load returns the migration error raised for stored data."""
+    manager = PydanticManagerTest(fmu_dir)
+    stored_data = {"foo": "old"}
+    fmu_dir.write_text_file(manager.relative_path, json.dumps(stored_data))
+    migration_manager = Mock(spec=MigrationManager)
+    migration_manager.requires_migration.return_value = True
+    migration_manager.migrate_resource.side_effect = MigrationError("cannot migrate")
+    manager.migration_manager = cast(
+        "MigrationManager[PydanticResourceTest]",
+        migration_manager,
+    )
+
+    with pytest.raises(MigrationError, match="cannot migrate"):
+        manager.load()
+
+    migration_manager.requires_migration.assert_called_once_with(stored_data)
+    migration_manager.migrate_resource.assert_called_once_with(stored_data)
 
 
 def test_pydantic_resource_manager_load_permission_error(

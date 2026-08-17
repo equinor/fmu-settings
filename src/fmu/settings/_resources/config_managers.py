@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self
 
 from fmu.settings._logging import null_logger
+from fmu.settings._migrations import MigrationManager
+from fmu.settings._migrations.project_config import PROJECT_CONFIG_MIGRATIONS
+from fmu.settings._migrations.user_config import USER_CONFIG_MIGRATIONS
 from fmu.settings.models.project_config import ProjectConfig
 from fmu.settings.models.user_config import UserConfig
 
@@ -35,7 +38,14 @@ class ProjectConfigManager(MutablePydanticResourceManager[ProjectConfig]):
 
     def __init__(self: Self, fmu_dir: ProjectFMUDirectory) -> None:
         """Initializes the ProjectConfig resource manager."""
-        super().__init__(fmu_dir, ProjectConfig)
+        super().__init__(
+            fmu_dir,
+            ProjectConfig,
+            migration_manager=MigrationManager(
+                ProjectConfig,
+                PROJECT_CONFIG_MIGRATIONS,
+            ),
+        )
 
     @property
     def relative_path(self: Self) -> Path:
@@ -94,7 +104,14 @@ class UserConfigManager(MutablePydanticResourceManager[UserConfig]):
 
     def __init__(self: Self, fmu_dir: UserFMUDirectory) -> None:
         """Initializes the UserConfig resource manager."""
-        super().__init__(fmu_dir, UserConfig)
+        super().__init__(
+            fmu_dir,
+            UserConfig,
+            migration_manager=MigrationManager(
+                UserConfig,
+                USER_CONFIG_MIGRATIONS,
+            ),
+        )
 
     @property
     def relative_path(self: Self) -> Path:

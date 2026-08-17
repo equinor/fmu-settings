@@ -28,6 +28,9 @@ from .models.project_config import (
 )
 from .models.user_config import UserConfig
 
+if TYPE_CHECKING:
+    from ._migrations import MigrationManager
+
 logger: Final = null_logger(__name__)
 
 FMUConfigManager: TypeAlias = ProjectConfigManager | UserConfigManager
@@ -44,7 +47,7 @@ class FMUDirectoryBase:
     def __init__(
         self: Self,
         base_path: str | Path,
-        cache_revisions: int = CacheManager.MIN_REVISIONS,
+        cache_revisions: int = 10,
         *,
         lock_timeout_seconds: int = DEFAULT_LOCK_TIMEOUT,
     ) -> None:
@@ -53,7 +56,8 @@ class FMUDirectoryBase:
         Args:
             base_path: The directory containing the .fmu directory or one of its parent
                 dirs
-            cache_revisions: Number of revisions to retain in the cache. Minimum is 5.
+            cache_revisions: Number of revisions to retain in the cache. Default is 10.
+                Minimum is 5.
             lock_timeout_seconds: Lock expiration time in seconds. Default 20 minutes.
 
         Raises:
@@ -331,20 +335,18 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         self.config = ProjectConfigManager(self)
         super().__init__(
             base_path,
-            CacheManager.MIN_REVISIONS,
+            10,
             lock_timeout_seconds=lock_timeout_seconds,
         )
         self._changelog = ChangelogManager(self)
         self._mappings = MappingsManager(self)
         try:
-            max_revisions = self.config.get(
-                "cache_max_revisions", CacheManager.MIN_REVISIONS
-            )
+            max_revisions = self.config.get("cache_max_revisions", 10)
             self._cache_manager.max_revisions = max_revisions
         except (FileNotFoundError, ValueError) as e:
             logger.warning(
                 f"Failed to load 'cache_max_revisions' from project config. "
-                f"Using default value '{CacheManager.MIN_REVISIONS}'. Error: {e}"
+                f"Using default value '10'. Error: {e}"
             )
 
     def update_validation_metadata(
@@ -494,13 +496,19 @@ class ProjectFMUDirectory(FMUDirectoryBase):
         if manager is self.config:
             previous_max_revisions = self._cache_manager.max_revisions
             restored_config = self.cache.get_revision_content(
-                relative_path, revision_id, model_class=ProjectConfig
+                relative_path,
+                revision_id,
+                model_class=ProjectConfig,
+                migration_manager=self.config.migration_manager,
             )
             self._cache_manager.max_revisions = restored_config.cache_max_revisions
 
             try:
                 self.cache.restore_revision(
-                    relative_path, revision_id, model_class=ProjectConfig
+                    relative_path,
+                    revision_id,
+                    model_class=ProjectConfig,
+                    migration_manager=self.config.migration_manager,
                 )
             except Exception:
                 # Restore the previous runtime retention if config restore fails
@@ -519,7 +527,13 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             return
 
         self.cache.restore_revision(
-            relative_path, revision_id, model_class=manager.model_class
+            relative_path,
+            revision_id,
+            model_class=cast("type[BaseModel]", manager.model_class),
+            migration_manager=cast(
+                "MigrationManager[BaseModel] | None",
+                manager.migration_manager,
+            ),
         )
 
         # Refresh the resource manager's in-memory cache
@@ -555,7 +569,13 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             )
 
         return self.cache.get_revision_content(
-            relative_path, revision_id, model_class=manager.model_class
+            relative_path,
+            revision_id,
+            model_class=cast("type[BaseModel]", manager.model_class),
+            migration_manager=cast(
+                "MigrationManager[BaseModel] | None",
+                manager.migration_manager,
+            ),
         )
 
     def _cacheable_resource_managers(

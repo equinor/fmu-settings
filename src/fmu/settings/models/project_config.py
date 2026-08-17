@@ -114,7 +114,7 @@ class ProjectConfig(ResettableBaseModel):
     masterdata: Masterdata | None = None
     model: Model | None = None
     access: Access | None = None
-    cache_max_revisions: int = Field(default=5, ge=5)
+    cache_max_revisions: int = Field(default=10, ge=5)
     rms: RmsProject | None = None
     validation: ProjectValidation = Field(default_factory=ProjectValidation)
 
@@ -134,7 +134,7 @@ class ProjectConfig(ResettableBaseModel):
             masterdata=None,
             model=None,
             access=None,
-            cache_max_revisions=5,
+            cache_max_revisions=10,
             rms=None,
             validation=ProjectValidation(),
         )
