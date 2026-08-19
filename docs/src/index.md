@@ -35,6 +35,6 @@ overview.md
 getting_started.md
 gui_user_guide.md
 terminal_commands.md
-data_models.md
+faq.md
 
 ```
