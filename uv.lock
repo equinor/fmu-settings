@@ -362,14 +362,14 @@ wheels = [
 
 [[package]]
 name = "fmu-config"
-version = "1.7.2"
+version = "1.7.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/af/78/f0fa4d29d96fed50d031fcd3c65ee225c291974994ce4e9e6be471eddc04/fmu_config-1.7.2.tar.gz", hash = "sha256:1d7a60ce866a2c021c565f9512084bc2ac2d57aa7c1df72cc40e2e1bd11414be", size = 201067, upload-time = "2026-06-30T08:26:22.635Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/09/d5/51e7503c5a47d325581bee2b9cbf624f8243d115a4580989126e98468239/fmu_config-1.7.3.tar.gz", hash = "sha256:40683912cb9d02018c9775f83052c4d888e370d18b4444076649bef345e69325", size = 200264, upload-time = "2026-08-10T10:04:28.34Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/ab/b6a36d5eb6d0150497815d9f9abaa4c9f8ca5ec47d12ec750771c4919ea0/fmu_config-1.7.2-py3-none-any.whl", hash = "sha256:c6ec3b3c434c6c25d2a120d5deb129a5339959862e5d579042fd98a6ac24104b", size = 28407, upload-time = "2026-06-30T08:26:21.429Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/18/994bfc684c8659377f1609a39cb2cebd6db9126bdd1893740c5e7b511d57/fmu_config-1.7.3-py3-none-any.whl", hash = "sha256:7db419a39293fef47266bd54be621c959dda97cf31f5fc46872b972ce7c09514", size = 27050, upload-time = "2026-08-10T10:04:26.941Z" },
 ]
 
 [[package]]
