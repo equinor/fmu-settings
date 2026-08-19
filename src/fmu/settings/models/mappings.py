@@ -307,12 +307,21 @@ def _validate_identifier_mappings_collection(
       of a same-system primary. It is also invalid to add two ``rms -> smda``
       mappings for the same ``source_id``.
 
-    - A cross-system ``target_id`` can be used only once per target system.
+    - A cross-system ``target_id`` can be used only once per target system, except
+      for RMS to SMDA wellbore mappings. Different RMS wellbore names can map to
+      the same SMDA wellbore.
       Example valid mappings::
 
           rms -> rms, primary, source_id="TopVolantis", target_id="TopVolantis"
           rms -> rms, alias, source_id="TOP_VOLANTIS", target_id="TopVolantis"
           rms -> smda, primary, source_id="TopVolantis", target_id="VOLANTIS GP. Top"
+
+      Example valid RMS to SMDA wellbore mappings::
+
+          rms -> rms, primary, source_id="RFT_30_9-B-21_C", target_id="RFT_30_9-B-21_C"
+          rms -> rms, primary, source_id="MLW_30_9-B-21_C", target_id="MLW_30_9-B-21_C"
+          rms -> smda, primary, source_id="RFT_30_9-B-21_C", target_id="NO 30/9-B-21 C"
+          rms -> smda, primary, source_id="MLW_30_9-B-21_C", target_id="NO 30/9-B-21 C"
 
       Example invalid mappings::
 
@@ -322,7 +331,9 @@ def _validate_identifier_mappings_collection(
           rms -> smda, primary, source_id="Volon", target_id="VOLANTIS GP. Top"
 
     The second cross-system mapping is invalid because one cross-system
-    ``target_id`` cannot be mapped to more than one same-system primary.
+    ``target_id`` cannot be mapped to more than one same-system primary. The
+    exception permits this relationship only for ``wellbore`` mappings from
+    ``rms`` to ``smda``.
     """
     same_system_source_keys: set[tuple[DataSystem, MappingType, str]] = set()
     same_system_primary_source_keys: set[tuple[DataSystem, MappingType, str]] = set()
@@ -368,8 +379,14 @@ def _validate_identifier_mappings_collection(
             )
         cross_system_source_keys.add(cross_system_source_key)
 
-        # A cross-system target_id can only belong to one same-system primary.
-        if mapping.target_id is not None:
+        # RMS wellbore names can share an SMDA wellbore target. Other
+        # cross-system target_ids can only belong to one same-system primary.
+        allows_reused_target_id = (
+            mapping.mapping_type == MappingType.wellbore
+            and mapping.source_system == DataSystem.rms
+            and mapping.target_system == DataSystem.smda
+        )
+        if mapping.target_id is not None and not allows_reused_target_id:
             cross_system_target_key = (
                 mapping.mapping_type,
                 mapping.source_system,
