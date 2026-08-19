@@ -502,26 +502,62 @@ def test_validate_collection_rejects_multiple_cross_system_outcomes() -> None:
         )
 
 
-def test_validate_collection_rejects_reused_cross_system_target_id() -> None:
+@pytest.mark.parametrize(
+    ("mapping_type", "target_system", "source_ids", "shared_target_id"),
+    [
+        (
+            MappingType.stratigraphy,
+            DataSystem.smda,
+            ("TopVolantis", "Volon"),
+            "VOLANTIS GP. Top",
+        ),
+        (
+            MappingType.wellbore,
+            DataSystem.simulator,
+            ("RFT_30_9-B-21_C", "MLW_30_9-B-21_C"),
+            "B21C",
+        ),
+    ],
+)
+def test_validate_collection_rejects_reused_cross_system_target_id(
+    mapping_type: MappingType,
+    target_system: DataSystem,
+    source_ids: tuple[str, str],
+    shared_target_id: str,
+) -> None:
     """A cross-system target identifier can only belong to one primary source."""
-    first_primary = create_stratigraphy_mapping()
-    second_primary = create_stratigraphy_mapping(
-        source_id="Volon",
-        target_id="Volon",
-    )
-    first_mapping = create_stratigraphy_mapping(
+    first_source_id, second_source_id = source_ids
+    first_primary = InternalIdentifierMapping(
         source_system=DataSystem.rms,
-        target_system=DataSystem.smda,
+        target_system=DataSystem.rms,
+        mapping_type=mapping_type,
         relation_type=InternalRelationType.primary,
-        source_id="TopVolantis",
-        target_id="VOLANTIS GP. Top",
+        source_id=first_source_id,
+        target_id=first_source_id,
     )
-    second_mapping = create_stratigraphy_mapping(
+    second_primary = InternalIdentifierMapping(
         source_system=DataSystem.rms,
-        target_system=DataSystem.smda,
+        target_system=DataSystem.rms,
+        mapping_type=mapping_type,
         relation_type=InternalRelationType.primary,
-        source_id="Volon",
-        target_id="VOLANTIS GP. Top",
+        source_id=second_source_id,
+        target_id=second_source_id,
+    )
+    first_mapping = InternalIdentifierMapping(
+        source_system=DataSystem.rms,
+        target_system=target_system,
+        mapping_type=mapping_type,
+        relation_type=InternalRelationType.primary,
+        source_id=first_source_id,
+        target_id=shared_target_id,
+    )
+    second_mapping = InternalIdentifierMapping(
+        source_system=DataSystem.rms,
+        target_system=target_system,
+        mapping_type=mapping_type,
+        relation_type=InternalRelationType.primary,
+        source_id=second_source_id,
+        target_id=shared_target_id,
     )
 
     with pytest.raises(
@@ -533,6 +569,44 @@ def test_validate_collection_rejects_reused_cross_system_target_id() -> None:
         mappings_model._validate_identifier_mappings_collection(
             [first_primary, second_primary, first_mapping, second_mapping]
         )
+
+
+def test_wellbore_mappings_allow_reused_rms_to_smda_target_id() -> None:
+    """Different RMS wellbore names can map to the same SMDA wellbore."""
+    rft_primary = create_wellbore_mapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.rms,
+        source_id="RFT_30_9-B-21_C",
+        target_id="RFT_30_9-B-21_C",
+    )
+    mlw_primary = create_wellbore_mapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.rms,
+        source_id="MLW_30_9-B-21_C",
+        target_id="MLW_30_9-B-21_C",
+    )
+    rft_mapping = create_wellbore_mapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.smda,
+        source_id="RFT_30_9-B-21_C",
+        target_id="NO 30/9-B-21 C",
+    )
+    mlw_mapping = create_wellbore_mapping(
+        source_system=DataSystem.rms,
+        target_system=DataSystem.smda,
+        source_id="MLW_30_9-B-21_C",
+        target_id="NO 30/9-B-21 C",
+    )
+
+    mappings = InternalWellboreMappings(
+        root=[rft_primary, mlw_primary, rft_mapping, mlw_mapping]
+    )
+
+    converted = mappings.to_wellbore_mappings()
+    assert [(mapping.source_id, mapping.target_id) for mapping in converted] == [
+        ("RFT_30_9-B-21_C", "NO 30/9-B-21 C"),
+        ("MLW_30_9-B-21_C", "NO 30/9-B-21 C"),
+    ]
 
 
 def test_validate_collection_rejects_reused_same_system_source_id() -> None:
