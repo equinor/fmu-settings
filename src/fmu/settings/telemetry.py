@@ -13,7 +13,7 @@ from uuid import uuid4
 _TELEMETRY_ENTRY_POINT_GROUP: Final[str] = "fmu_settings"
 
 
-def _telemetry_attribute(value: Any) -> str | bool | int | float:
+def _format_telemetry_attribute(value: Any) -> str | bool | int | float:
     """Format structured values so telemetry backends can query them."""
     if isinstance(value, str | bool | int | float):
         return value
@@ -38,6 +38,8 @@ class Telemetry:
         """Create telemetry with context shared by all emitted events."""
         self.run_id = run_id
         self._handler = handler
+        # Keep telemetry separate from the application's regular logging handlers.
+        # The current site plugin sends this logger's records to Azure.
         self._logger = logging.getLogger(f"{app_name.replace('-', '_')}.azure")
         self._context = {
             "app_name": app_name,
@@ -79,7 +81,7 @@ class Telemetry:
             properties = {
                 "level": logging.getLevelName(level).lower(),
                 **{
-                    key: _telemetry_attribute(value)
+                    key: _format_telemetry_attribute(value)
                     for key, value in attributes.items()
                     if value is not None
                 },

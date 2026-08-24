@@ -33,7 +33,7 @@ class RecordingHandler(logging.Handler):
         super().close()
 
 
-def _configure(
+def _configure_telemetry_with_handler(
     handler: logging.Handler, minimum_level: int = logging.INFO
 ) -> Telemetry:
     """Configure telemetry with one mocked site plugin."""
@@ -64,10 +64,47 @@ def test_configure_telemetry_without_plugin_returns_noop() -> None:
     assert telemetry.run_id
 
 
+def test_configure_telemetry_plugin_load_failure_returns_noop(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A plugin load failure is reported and returns a no-op."""
+    entry_point = Mock()
+    entry_point.load.side_effect = RuntimeError("setup failed")
+    with patch(
+        "fmu.settings.telemetry.metadata.entry_points", return_value=[entry_point]
+    ):
+        telemetry = configure_telemetry(
+            app_name="fmu-settings-api",
+            app_version="1.2.3",
+        )
+
+    telemetry.emit("request_completed")
+
+    assert "Telemetry is disabled: setup failed" in capsys.readouterr().err
+
+
+def test_configure_telemetry_entry_point_discovery_failure_returns_noop(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A discovery failure is reported and returns a no-op."""
+    with patch(
+        "fmu.settings.telemetry.metadata.entry_points",
+        side_effect=RuntimeError("discovery failed"),
+    ):
+        telemetry = configure_telemetry(
+            app_name="fmu-settings-api",
+            app_version="1.2.3",
+        )
+
+    telemetry.emit("request_completed")
+
+    assert "Telemetry is disabled: discovery failed" in capsys.readouterr().err
+
+
 def test_emit_adds_context_and_formats_attributes() -> None:
     """Add shared context, format structured values, and omit `None` values."""
     handler = RecordingHandler()
-    telemetry = _configure(handler)
+    telemetry = _configure_telemetry_with_handler(handler)
 
     telemetry.emit(
         "request_completed",
@@ -101,7 +138,7 @@ def test_emit_adds_context_and_formats_attributes() -> None:
 def test_emit_respects_minimum_level() -> None:
     """Events below the configured minimum level are not sent."""
     handler = RecordingHandler()
-    telemetry = _configure(handler, logging.WARNING)
+    telemetry = _configure_telemetry_with_handler(handler, logging.WARNING)
 
     telemetry.emit("debug_event", level=logging.INFO)
     telemetry.emit("warning_event", level=logging.WARNING)
@@ -115,54 +152,17 @@ def test_emit_suppresses_handler_failure() -> None:
     handler = Mock(spec=logging.Handler)
     handler.level = logging.NOTSET
     handler.handle.side_effect = RuntimeError("send failed")
-    telemetry = _configure(handler)
+    telemetry = _configure_telemetry_with_handler(handler)
 
     telemetry.emit("request_completed")
 
     telemetry.shutdown()
 
 
-def test_plugin_load_failure_returns_noop(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """A plugin load failure is reported and returns a no-op."""
-    entry_point = Mock()
-    entry_point.load.side_effect = RuntimeError("setup failed")
-    with patch(
-        "fmu.settings.telemetry.metadata.entry_points", return_value=[entry_point]
-    ):
-        telemetry = configure_telemetry(
-            app_name="fmu-settings-api",
-            app_version="1.2.3",
-        )
-
-    telemetry.emit("request_completed")
-
-    assert "Telemetry is disabled: setup failed" in capsys.readouterr().err
-
-
-def test_entry_point_discovery_failure_returns_noop(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """A discovery failure is reported and returns a no-op."""
-    with patch(
-        "fmu.settings.telemetry.metadata.entry_points",
-        side_effect=RuntimeError("discovery failed"),
-    ):
-        telemetry = configure_telemetry(
-            app_name="fmu-settings-api",
-            app_version="1.2.3",
-        )
-
-    telemetry.emit("request_completed")
-
-    assert "Telemetry is disabled: discovery failed" in capsys.readouterr().err
-
-
 def test_shutdown_uses_flush_when_force_flush_is_unavailable() -> None:
     """Standard logging handlers use their normal flush method."""
     handler = Mock(spec=logging.Handler)
-    telemetry = _configure(handler)
+    telemetry = _configure_telemetry_with_handler(handler)
 
     telemetry.shutdown()
 
@@ -173,7 +173,7 @@ def test_shutdown_uses_flush_when_force_flush_is_unavailable() -> None:
 def test_repeated_shutdown_flushes_closes_and_detaches_handler_once() -> None:
     """Repeated shutdown calls clean up the handler only once."""
     handler = RecordingHandler()
-    telemetry = _configure(handler)
+    telemetry = _configure_telemetry_with_handler(handler)
 
     telemetry.shutdown()
     telemetry.shutdown()
@@ -188,7 +188,7 @@ def test_shutdown_closes_handler_when_force_flush_fails(
 ) -> None:
     """A flush failure is reported without leaving the handler attached."""
     handler = RecordingHandler()
-    telemetry = _configure(handler)
+    telemetry = _configure_telemetry_with_handler(handler)
 
     with patch.object(handler, "force_flush", side_effect=RuntimeError("flush failed")):
         telemetry.shutdown()
@@ -205,7 +205,7 @@ def test_shutdown_reports_close_failure(
 ) -> None:
     """A close failure is reported after the handler is removed."""
     handler = RecordingHandler()
-    telemetry = _configure(handler)
+    telemetry = _configure_telemetry_with_handler(handler)
 
     with patch.object(handler, "close", side_effect=RuntimeError("close failed")):
         telemetry.shutdown()
@@ -223,7 +223,7 @@ def test_handler_configuration_failure_returns_noop(
     handler = Mock(spec=logging.Handler)
     handler.setLevel.side_effect = RuntimeError("invalid handler")
 
-    telemetry = _configure(handler)
+    telemetry = _configure_telemetry_with_handler(handler)
     telemetry.emit("request_completed")
 
     assert "Telemetry is disabled: invalid handler" in capsys.readouterr().err
