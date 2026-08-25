@@ -33,6 +33,7 @@ from .models.mappings import (
     InternalWellboreIdentifierMapping,
     InternalWellboreMappings,
 )
+from .telemetry import Telemetry, configure_telemetry
 
 __all__ = [
     "CacheResource",
@@ -51,7 +52,9 @@ __all__ = [
     "MigrationError",
     "ProjectFMUDirectory",
     "REQUIRED_FMU_PROJECT_SUBDIRS",
+    "Telemetry",
     "UserFMUDirectory",
+    "configure_telemetry",
     "find_nearest_fmu_directory",
     "find_global_config",
     "InvalidGlobalConfigurationError",
