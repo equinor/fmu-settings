@@ -149,7 +149,7 @@ def rms_horizons_list() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def rms_wells_list() -> list[dict[str, str | bool]]:
+def rms_wells_list() -> list[dict[str, str | bool | float | None]]:
     """Example RMS wells list."""
     return deepcopy(RMS_WELLS)
 
@@ -339,6 +339,14 @@ def mocked_project_config_with_all_fields(
     rms_project: dict[str, Any],
 ) -> dict[str, Any]:
     """A dictionary representing a .fmu project config file with all fields set."""
+    rms_project_with_all_fields = deepcopy(rms_project)
+    # Drogon planned and MLW wells intentionally have no UWI. This fixture must
+    # set every optional field so the migration test checks the complete model.
+    # Replace None only in the copied test data.
+    for well in rms_project_with_all_fields["wells"]:
+        if well["unique_well_identifier"] is None:
+            well["unique_well_identifier"] = "no uwi for planned wells"
+
     return {
         "schema_version": 1,
         "version": __version__,
@@ -350,7 +358,7 @@ def mocked_project_config_with_all_fields(
         "masterdata": masterdata_dict,
         "model": model_dict,
         "access": access_dict,
-        "rms": rms_project,
+        "rms": rms_project_with_all_fields,
         "validation": {
             "masterdata_smda": {
                 "last_validated_at": unix_epoch_utc,

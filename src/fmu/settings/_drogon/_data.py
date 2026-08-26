@@ -92,25 +92,35 @@ RMS_HORIZONS: Final[list[dict[str, Any]]] = [
     {"name": "BaseVelmodel", "type": "interpreted"},
 ]
 
-RMS_WELLS: Final[list[dict[str, str | bool]]] = [
-    {"name": "55_33-1", "planned": False},
-    {"name": "55_33-2", "planned": False},
-    {"name": "55_33-3", "planned": False},
-    {"name": "55_33-A-1", "planned": False},
-    {"name": "55_33-A-2", "planned": False},
-    {"name": "55_33-A-3", "planned": False},
-    {"name": "55_33-A-4", "planned": False},
-    {"name": "55_33-A-5", "planned": False},
-    {"name": "55_33-A-6", "planned": False},
-    {"name": "OP5_Y1", "planned": False},
-    {"name": "OP5_Y2", "planned": False},
-    {"name": "OP6", "planned": False},
-    {"name": "MLW_OP5_Y1", "planned": False},
-    {"name": "RFT_55_33-A-2", "planned": False},
-    {"name": "RFT_55_33-A-3", "planned": False},
-    {"name": "RFT_55_33-A-4", "planned": False},
-    {"name": "RFT_55_33-A-5", "planned": False},
-    {"name": "RFT_55_33-A-6", "planned": False},
+RMS_WELLS: Final[list[dict[str, str | bool | float | None]]] = [
+    {
+        "name": name,
+        "planned": name.startswith(("MLW", "OP")),
+        "unique_well_identifier": uwi,
+        "easting": easting,
+        "northing": northing,
+        "rkb": rkb,
+    }
+    for name, uwi, easting, northing, rkb in [
+        ("55_33-1", "NO 55/33-1", 462480, 5934232, 25),
+        ("55_33-2", "NO 55/33-2", 460000, 5935200, 25),
+        ("55_33-3", "NO 55/33-3", 465100, 5931340, 25),
+        ("55_33-A-1", "NO 55/33-A-1", 462588.52, 5934080.96, 49),
+        ("55_33-A-2", "NO 55/33-A-2", 460994.9, 5933813.29, 49),
+        ("55_33-A-3", "NO 55/33-A-3", 462753.44, 5932869.64, 49),
+        ("55_33-A-4", "NO 55/33-A-4", 463256.911377, 5930542.294434, 49),
+        ("55_33-A-5", "NO 55/33-A-5", 461519.21, 5935692.65, 49),
+        ("55_33-A-6", "NO 55/33-A-6", 461292.74, 5931883.26, 49),
+        ("OP5_Y1", None, 463256, 5930542, 0),
+        ("OP5_Y2", None, 463256, 5930542, 0),
+        ("OP6", None, 462084.02, 5931113.62, 0),
+        ("MLW_OP5_Y1", None, 463256, 5930542, 0),
+        ("RFT_55_33-A-2", "NO 55/33-A-2", 460994.9, 5933813.29, 49),
+        ("RFT_55_33-A-3", "NO 55/33-A-3", 462753.44, 5932869.64, 49),
+        ("RFT_55_33-A-4", "NO 55/33-A-4", 463256.911377, 5930542.294434, 49),
+        ("RFT_55_33-A-5", "NO 55/33-A-5", 461519.21, 5935692.65, 49),
+        ("RFT_55_33-A-6", "NO 55/33-A-6", 461292.74, 5931883.26, 49),
+    ]
 ]
 
 # Yes, this is the actual value in Drogon.

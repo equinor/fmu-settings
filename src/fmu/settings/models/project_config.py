@@ -62,6 +62,18 @@ class RmsWell(BaseModel):
     planned: bool = False
     """Whether the well is planned."""
 
+    unique_well_identifier: str | None = None
+    """The unique well identifier (UWI), if available."""
+
+    easting: float | None = None
+    """Easting coordinate of the wellhead in the RMS project coordinate system."""
+
+    northing: float | None = None
+    """Northing coordinate of the wellhead in the RMS project coordinate system."""
+
+    rkb: float | None = None
+    """Rotary Kelly Bushing (RKB) elevation of the well."""
+
 
 class RmsProject(BaseModel):
     """RMS project configuration."""
