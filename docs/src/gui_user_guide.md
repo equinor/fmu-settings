@@ -123,9 +123,13 @@ The page itself includes instructions for how to get the SMDA subscription key, 
 
 After you save the key, it is hidden in the application.
 
+```{note}
+[SMDA](https://smda.equinor.com) is the database containing the master data.
+```
+
 ## Step 3: Set up masterdata
 
-The **Masterdata** page shows the masterdata saved in the project, including:
+The **Masterdata** page shows the masterdata references saved in the project, including:
 
 - field
 - country
@@ -149,7 +153,7 @@ If required data for editing masterdata is not present, the page tells you what 
 
 ## Step 4: Set up RMS project and stratigraphy
 
-The **RMS** page is where you connect the FMU project to its RMS project and choose the project stratigraphy that can later be mapped to SMDA stratigraphic columns.
+The **RMS** page is where you connect the FMU project to its RMS project and choose the project stratigraphy that can later be mapped to stratigraphic columns in SMDA.
 
 ### Select RMS project
 
@@ -172,23 +176,20 @@ You can click horizons and zones to add or remove them. There are also **Add all
 
 If the project contains horizons or zones that no longer exist in RMS, FMU Settings asks you to remove them before saving.
 
-## Step 5: Map RMS stratigraphy to SMDA
+## Step 5: Map RMS stratigraphy to the stratigraphic column in SMDA
 
-The **Stratigraphy** page allows you to map your RMS names and aliases to the SMDA names. 
+The **Stratigraphy** page allows you to map your RMS names and aliases to the stratigraphic columns in SMDA. 
 
 The stratigraphy you configured in **Step 4**  will be displayed here, with your RMS elements marked as "RMS". Each stratigraphic element (zones and horizons) will have a corresponding SMDA field. 
 
-#### How to map RMS to SMDA name:
+#### How to map RMS to the stratigraphic column in SMDA:
 1. Click the Edit icon (pen symbol) for the zone or horizon you want to edit.
-2. A window will pop up with a drop-down menu listing available SMDA stratigraphic elements.
-3. Select the corresponding SMDA horizon or zone from the list.
+2. A window will pop up with a drop-down menu listing stratigraphy definitions from the stratigraphic column in SMDA.
+3. Select the corresponding horizon or zone from the list.
 4. If needed, add one or more aliases for the RMS name.
 5. Save your changes.
 
-If an RMS zone or horizon does not exist in SMDA, select “Zone does not exist in SMDA”.
-
-#### Upcoming feature: Automatic mapping
-An upcoming feature for FMU Settings is an automatic mapping functionality. This will attempt to auto-match RMS names to SMDA names. You will then only need to verify the results and manually map any horizons or zones that could not be automatically matched.
+If an RMS zone or horizon is not defined in the stratigraphic column in SMDA, select “Zone doesn't exist in SMDA” or "Horizon doesn't exist in SMDA".
 
 
 ## Optional: Review earlier saved versions
@@ -223,6 +224,6 @@ For a new project, a simple order is:
 3. Add the SMDA subscription key on **User > API keys**.
 4. Set and verify **Masterdata**.
 5. Set the **RMS** project and import the relevant stratigraphy.
-6. Map the RMS stratigraphy to SMDA stratigraphic columns on the **Mappings** page.
+6. Map the RMS stratigraphy to stratigraphic columns in SMDA on the **Mappings** page.
 
 If you need to look back at earlier saved versions, use the **History** page.
