@@ -1,6 +1,6 @@
 # FMU Settings documentation
 
-**FMU Settings** is a tool that will simplify the handling of FMU model metadata (metadata related to the FMU model itself) and references to master data (required for making FMU results usable in other applications and contexts).
+**FMU Settings** is a tool that simplifies the handling of FMU model metadata and references to master data (required for making FMU results usable in other applications and contexts).
 
 FMU Settings lets you manage static configuration through a graphical user interface (GUI) instead of editing files manually. In FMU Settings GUI, you can:
 - Set up FMU project metadata
