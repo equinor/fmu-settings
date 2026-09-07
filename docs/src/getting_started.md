@@ -1,5 +1,9 @@
 # Getting started
 
+   >##### Requirement!
+   >
+   >To be able to create and export metadata using FMU Settings it is a requirement to have the `WF_CREATE_CASE_METADATA` workflow in your ERT configuration file.
+
 To get started you need to initialize FMU Settings for your project.
 
 ## Initialize FMU Settings
