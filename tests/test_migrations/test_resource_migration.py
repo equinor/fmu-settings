@@ -369,30 +369,26 @@ def test_load_rejects_non_object_resource(
 
 
 @pytest.mark.parametrize(
-    ("directory_fixture", "resource_name"),
+    ("directory_fixture", "resource_name", "version"),
     [
-        ("fmu_dir", "config"),
-        ("fmu_dir", "mappings"),
-        ("user_fmu_dir", "config"),
+        ("fmu_dir", "config", 2),
+        ("fmu_dir", "mappings", 1),
+        ("user_fmu_dir", "config", 1),
     ],
 )
-def test_resource_has_version_one_migration_manager(
+def test_resource_has_current_migration_manager(
     request: pytest.FixtureRequest,
     directory_fixture: str,
     resource_name: str,
+    version: int,
 ) -> None:
-    """Check the current schema version and migrations for each resource.
-
-    Project config, user config, and mappings currently use schema version one, so
-    their migration registries are empty. Update this test when a resource gets a
-    new schema version and migration function.
-    """
+    """Check the current schema version and registered steps for each resource."""
     fmu_directory = request.getfixturevalue(directory_fixture)
     manager = getattr(fmu_directory, resource_name).migration_manager
 
     assert manager is not None
-    assert manager.current_version == 1
-    assert manager.migrations == {}
+    assert manager.current_version == version
+    assert set(manager.migrations) == set(range(1, version))
 
 
 def test_unversioned_project_config_can_be_read_and_restored_from_cache(
@@ -410,13 +406,13 @@ def test_unversioned_project_config_can_be_read_and_restored_from_cache(
 
     cached = fmu_dir.get_cache_content("config.json", revision.name)
     assert isinstance(cached, ProjectConfig)
-    assert cached.schema_version == 1
+    assert cached.schema_version == 2
     assert cached.cache_max_revisions == 7  # noqa: PLR2004
 
     fmu_dir.restore_from_cache("config.json", revision.name)
 
     restored = fmu_dir.config.load()
-    assert restored.schema_version == 1
+    assert restored.schema_version == 2
     assert restored.cache_max_revisions == 7  # noqa: PLR2004
     assert fmu_dir.cache_max_revisions == 7  # noqa: PLR2004
     assert fmu_dir.changelog.load().root[-1].change_type == ChangeType.restore

@@ -88,7 +88,7 @@ def fmu_project_root(tmp_path: Path) -> Path:
 def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
     """A dictionary representing a .fmu config."""
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "version": __version__,
         "created_at": unix_epoch_utc,
         "created_by": "user",
@@ -348,7 +348,7 @@ def mocked_project_config_with_all_fields(
             well["unique_well_identifier"] = "no uwi for planned wells"
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "version": __version__,
         "created_at": unix_epoch_utc,
         "created_by": "user",
