@@ -115,7 +115,7 @@ class ProjectConfig(ResettableBaseModel):
     Stored as config.json.
     """
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     """The version of the data schema defined by this data model."""
 
     version: VersionStr
