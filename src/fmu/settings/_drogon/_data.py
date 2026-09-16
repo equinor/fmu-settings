@@ -292,3 +292,16 @@ STRATIGRAPHY_MAPPINGS: Final[list[dict[str, Any]]] = [
         "target_uuid": "08d5f9e0-56bc-4956-b0f3-68f2a3047ef9",
     },
 ]
+
+WELLBORE_MAPPINGS: Final[list[dict[str, Any]]] = [
+    {
+        "source_system": "rms",
+        "target_system": "smda",
+        "relation_type": "primary",
+        "source_id": well["name"],
+        "target_id": well["unique_well_identifier"],
+        "target_uuid": None,
+    }
+    for well in RMS_WELLS
+    if isinstance(well["unique_well_identifier"], str)
+]

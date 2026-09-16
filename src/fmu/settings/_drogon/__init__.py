@@ -10,6 +10,7 @@ from ._data import (
     RMS_WELLS,
     RMS_ZONES,
     STRATIGRAPHY_MAPPINGS,
+    WELLBORE_MAPPINGS,
 )
 from .create import create_drogon_fmu_dir
 
@@ -20,6 +21,7 @@ __all__ = [
     "ACCESS",
     "GLOBAL_CONFIG_STRATIGRAPHY",
     "STRATIGRAPHY_MAPPINGS",
+    "WELLBORE_MAPPINGS",
     "PROJECT_CONFIG_DICT",
     "RMS_ZONES",
     "RMS_HORIZONS",

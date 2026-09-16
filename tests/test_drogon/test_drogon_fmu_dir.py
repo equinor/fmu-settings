@@ -11,6 +11,7 @@ from fmu.settings._drogon import (
     RMS_WELLS,
     RMS_ZONES,
     STRATIGRAPHY_MAPPINGS,
+    WELLBORE_MAPPINGS,
     create_drogon_fmu_dir,
 )
 
@@ -42,6 +43,22 @@ def test_create_drogon_fmu_roundtrip(tmp_path: Path) -> None:
         strat_mappings.append(modified_mapping)
 
     assert strat_mappings == STRATIGRAPHY_MAPPINGS
+
+    wellbore_mappings = fmu_dir.mappings.wellbore_mappings.model_dump(mode="json")
+
+    well_mappings = []
+    for wellbore_mapping in wellbore_mappings:
+        assert wellbore_mapping.get("mapping_type") == "wellbore"
+        assert wellbore_mapping.get("source_uuid") is None
+
+        modified_mapping = {
+            key: value
+            for key, value in wellbore_mapping.items()
+            if key not in ("mapping_type", "source_uuid")
+        }
+        well_mappings.append(modified_mapping)
+
+    assert well_mappings == WELLBORE_MAPPINGS
 
     assert config_dict["rms"]["path"] == "rms/model/drogon.rms15.0.1.0"
     assert config_dict["rms"]["version"] == "15.0.1.0"

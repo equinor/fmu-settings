@@ -48,6 +48,7 @@ from fmu.settings._drogon import (
     RMS_WELLS,
     RMS_ZONES,
     STRATIGRAPHY_MAPPINGS,
+    WELLBORE_MAPPINGS,
     create_drogon_fmu_dir,
 )
 from fmu.settings._fmu_dir import ProjectFMUDirectory, UserFMUDirectory
@@ -134,6 +135,12 @@ def stratigraphy_dict() -> dict[str, Any]:
 def stratigraphy_mappings_list() -> list[dict[str, Any]]:
     """Example stratigraphy mapping information."""
     return deepcopy(STRATIGRAPHY_MAPPINGS)
+
+
+@pytest.fixture
+def wellbore_mappings_list() -> list[dict[str, Any]]:
+    """Example wellbore mapping information."""
+    return deepcopy(WELLBORE_MAPPINGS)
 
 
 @pytest.fixture
