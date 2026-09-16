@@ -3,7 +3,7 @@
 from typing import Any
 
 from fmu.datamodels import Access, Masterdata
-from fmu.datamodels.context.mappings import StratigraphyMappings
+from fmu.datamodels.context.mappings import StratigraphyMappings, WellboreMappings
 from fmu.datamodels.fmu_results.fields import Model
 from fmu.datamodels.fmu_results.global_configuration import Stratigraphy
 
@@ -42,6 +42,13 @@ def test_stratigraphy_mapping_validates(
 ) -> None:
     """Drogon stratigraphy mapping validates with the StratigraphyMapping model."""
     StratigraphyMappings.model_validate(stratigraphy_mappings_list, extra="forbid")
+
+
+def test_wellbore_mapping_validates(
+    wellbore_mappings_list: list[dict[str, Any]],
+) -> None:
+    """Drogon wellbore mappings validate with the WellboreMappings model."""
+    WellboreMappings.model_validate(wellbore_mappings_list, extra="forbid")
 
 
 def test_rms_zones_validates(rms_zones_list: list[dict[str, Any]]) -> None:

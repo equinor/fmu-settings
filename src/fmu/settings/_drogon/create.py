@@ -14,9 +14,11 @@ from fmu.settings.models.mappings import (
     InternalRelationType,
     InternalStratigraphyIdentifierMapping,
     InternalStratigraphyMappings,
+    InternalWellboreIdentifierMapping,
+    InternalWellboreMappings,
 )
 
-from ._data import PROJECT_CONFIG_DICT, STRATIGRAPHY_MAPPINGS
+from ._data import PROJECT_CONFIG_DICT, STRATIGRAPHY_MAPPINGS, WELLBORE_MAPPINGS
 
 
 def create_drogon_fmu_dir(base_path: Path) -> ProjectFMUDirectory:
@@ -29,6 +31,8 @@ def create_drogon_fmu_dir(base_path: Path) -> ProjectFMUDirectory:
 
     stratigraphy_mappings = _build_internal_stratigraphy_mappings(STRATIGRAPHY_MAPPINGS)
     fmu_dir._mappings.update_internal_stratigraphy_mappings(stratigraphy_mappings)
+    wellbore_mappings = _build_internal_wellbore_mappings(WELLBORE_MAPPINGS)
+    fmu_dir._mappings.update_internal_wellbore_mappings(wellbore_mappings)
 
     return fmu_dir
 
@@ -86,3 +90,38 @@ def _build_internal_stratigraphy_mappings(
         )
 
     return InternalStratigraphyMappings(root=internal_mappings)
+
+
+def _build_internal_wellbore_mappings(
+    mappings: list[dict[str, Any]],
+) -> InternalWellboreMappings:
+    """Build internal .fmu wellbore mappings from Drogon's WELLBORE_MAPPINGS."""
+    internal_mappings: list[InternalWellboreIdentifierMapping] = []
+
+    for mapping in mappings:
+        internal_mappings.append(
+            InternalWellboreIdentifierMapping(
+                source_system=DataSystem(mapping["source_system"]),
+                target_system=DataSystem(mapping["source_system"]),
+                mapping_type=MappingType.wellbore,
+                relation_type=InternalRelationType.primary,
+                source_id=mapping["source_id"],
+                source_uuid=mapping.get("source_uuid"),
+                target_id=mapping["source_id"],
+                target_uuid=mapping.get("source_uuid"),
+            )
+        )
+        internal_mappings.append(
+            InternalWellboreIdentifierMapping(
+                source_system=DataSystem(mapping["source_system"]),
+                target_system=DataSystem(mapping["target_system"]),
+                mapping_type=MappingType.wellbore,
+                relation_type=InternalRelationType.primary,
+                source_id=mapping["source_id"],
+                source_uuid=mapping.get("source_uuid"),
+                target_id=mapping["target_id"],
+                target_uuid=mapping.get("target_uuid"),
+            )
+        )
+
+    return InternalWellboreMappings(root=internal_mappings)
