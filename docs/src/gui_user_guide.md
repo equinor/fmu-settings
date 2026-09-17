@@ -175,7 +175,7 @@ To access the RMS project:
 FMU Settings accesses the RMS project in read-only mode.
 ```
 
-Select **Reload RMS project** to refresh the RMS data. Select **Close RMS access** before you choose a different RMS project for the current FMU project. When you switch FMU projects, FMU Settings closes RMS access automatically.
+Select **Reload RMS project** to refresh the RMS data. If you want to choose a different RMS project, first select **Close RMS access**. When you switch FMU projects, FMU Settings closes RMS access automatically.
 
 ### Set project stratigraphy
 
@@ -207,7 +207,7 @@ To set the project wellbores:
 4. Select **Save**.
 
 ```{note}
-Planned wellbores can have simulator names, but they cannot have SMDA mappings. They appear as blue rows on the wellbore mappings page.
+Planned wellbores can be mapped to simulator names, but not to SMDA names. They appear as blue rows on the wellbore mappings page.
 ```
 
 ## Step 5: Map RMS stratigraphy to the stratigraphic column in SMDA
@@ -228,7 +228,7 @@ In SMDA, zones are stratigraphic units. Horizons define the tops and bases of th
 4. If needed, add one or more aliases for the RMS name.
 5. Select **Save**.
 
-Map zones first. After you map an adjacent zone, its top and base horizons appear first in the SMDA options for the RMS horizon.
+Map zones first. After you map an adjacent zone, its top and base horizons appear at the top of the list of available SMDA options for the RMS horizon.
 
 If an RMS zone or horizon is not defined in the SMDA stratigraphic column, select **Zone doesn't exist in SMDA** or **Horizon doesn't exist in SMDA**.
 
