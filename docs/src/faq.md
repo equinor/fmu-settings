@@ -50,7 +50,7 @@ The FAQ is regularly updated based on user feedback and new features, so check b
 
 <details>
     <summary>I have just started using FMU Settings. What do I need to change in my FMU model to be able to run everything?</summary>
-    First, you will have to make sure you have the <code>CREATE_CASE_METADATA</code> workflow in your ERT configuration file. This is a requirement for exporting metadata with fmu-dataio and FMU Settings.
+    First, you will have to make sure you have the <code>WF_CREATE_CASE_METADATA</code> workflow in your ERT configuration file. This is a requirement for exporting metadata with fmu-dataio and FMU Settings.
     <br><br>
     Secondly, if you have configured your project's master data in FMU Settings and still have one or more of these sections in your <code>global_master_config.yml</code> file, you should remove them (and the corresponding files in <code>/fmuconfig/input</code>):
     <ul>
@@ -89,7 +89,7 @@ The FAQ is regularly updated based on user feedback and new features, so check b
 ## RMS Project
 <details>
     <summary>What does it mean to access the RMS project from within FMU Settings?</summary>
-    To edit the stratigraphy and the wellbores sections in FMU Settings you must establish the connection between FMU Settings and RMS, so that FMU Settings can read from it. Due to a limited number of RMS licenses and license limitations, RMS is not opened by default when FMU Settings is opened. When you access the RMS project you will have an open connection to RMS for two hours before the RMS connection will be automatically closed.
+    To edit the stratigraphy and the wellbores sections in FMU Settings you must establish the connection between FMU Settings and RMS, so that FMU Settings can read from it. Due to a limited number of RMS licenses and license limitations, RMS is not opened by default when FMU Settings is opened. When you access the RMS project, the RMS connection remains open until it has been idle for two hours. It is then closed automatically.
 </details>
 
 
@@ -151,4 +151,3 @@ The FAQ is regularly updated based on user feedback and new features, so check b
     <summary>My ERT run is completed but nothing seems to be uploaded to Sumo. What could be wrong?</summary>
     To generate and export metadata using fmu-dataio and FMU Settings, your ERT configuration file must include the <code>WF_CREATE_CASE_METADATA</code> workflow. If this workflow is not executed, fmu-dataio will be unable to export metadata, and without metadata, the data will not be uploaded to Sumo.
 </details>
-

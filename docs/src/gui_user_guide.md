@@ -12,8 +12,8 @@ The checklist tracks whether the project has:
 
 - model information and access control
 - masterdata
-- RMS project and stratigraphy
-- stratigraphy mappings
+- RMS project, stratigraphy, and wellbores
+- stratigraphy and wellbore mappings
 
 This guide follows that same setup flow.
 
@@ -151,46 +151,148 @@ If required data for editing masterdata is not present, the page tells you what 
 - an SMDA **subscription key** is present
 - an SSO **access token** is present
 
-## Step 4: Set up RMS project and stratigraphy
+## Step 4: Set up RMS project data
 
-The **RMS** page is where you connect the FMU project to its RMS project and choose the project stratigraphy that can later be mapped to stratigraphic columns in SMDA.
+The **RMS** pages connect the FMU project to its RMS project. Use these pages to select the stratigraphy and wellbores to use in mappings.
 
 ### Select RMS project
 
-The page shows the main RMS project located in the `rms/model` directory. The version is detected automatically.
+Open **RMS > Overview**. This page shows the main RMS project in the `rms/model` directory. FMU Settings detects the version automatically.
 
-Use **Select RMS project** or **Change RMS project** to choose the correct one.
+Use **Select RMS project** or **Change RMS project** to choose the RMS project.
+
+### Access the RMS project
+
+FMU Settings must access the selected RMS project before it can read the stratigraphy and wellbores.
+
+To access the RMS project:
+
+1. Open **RMS > Overview**.
+2. Select **Access RMS project**.
+3. Wait until the page shows that the RMS project is ready for access. This can take a while.
+
+```{note}
+FMU Settings accesses the RMS project in read-only mode.
+```
+
+Select **Reload RMS project** to refresh the RMS data. Select **Close RMS access** before you choose a different RMS project for the current FMU project. When you switch FMU projects, FMU Settings closes RMS access automatically.
 
 ### Set project stratigraphy
 
-The RMS project must be open before FMU Settings can access data such as zones and horizons.
+Open **RMS > Stratigraphy** to select the RMS horizons and zones to store in the project. This page does not create SMDA mappings.
 
-Once the RMS project is open, you can update the project stratigraphy.
+The RMS project must be ready for access before FMU Settings can read the available stratigraphy.
 
-The stratigraphy editor shows:
+To set the project stratigraphy:
 
-- the current project stratigraphy
-- the available RMS stratigraphy
+1. Select **Add** or **Edit**.
+2. Select horizons and zones to add or remove them. You can also use **Add all** or **Remove all**.
+3. Select **Save**.
 
-You can click horizons and zones to add or remove them. There are also **Add all** and **Remove all** buttons.
+Only the stratigraphy stored in the project is available on the stratigraphy mappings page.
 
 If the project contains horizons or zones that no longer exist in RMS, FMU Settings asks you to remove them before saving.
 
+### Set project wellbores
+
+Open **RMS > Wellbores** to select the RMS wellbores to store in the project.
+
+The RMS project must be ready for access before FMU Settings can read the available wellbores.
+
+To set the project wellbores:
+
+1. Select **Add** or **Edit**.
+2. Use the **Include** checkboxes to select wellbores. You can filter the list and use the buttons to select or deselect all filtered wellbores.
+3. Select **Planned** to set a wellbore as a planned wellbore.
+4. Select **Save**.
+
+```{note}
+Planned wellbores can have simulator names, but they cannot have SMDA mappings. They appear as blue rows on the wellbore mappings page.
+```
+
 ## Step 5: Map RMS stratigraphy to the stratigraphic column in SMDA
 
-The **Stratigraphy** page allows you to map your RMS names and aliases to the stratigraphic columns in SMDA. 
+Open **Mappings > Stratigraphy** to map the stored RMS stratigraphy to the SMDA stratigraphic column selected in **Masterdata**.
 
-The stratigraphy you configured in **Step 4**  will be displayed here, with your RMS elements marked as "RMS". Each stratigraphic element (zones and horizons) will have a corresponding SMDA field. 
+The page displays the stratigraphy selected in **Step 4**, with the source names marked as "RMS". Each horizon and zone has a corresponding SMDA field. The field shows `(not set)` until it is mapped.
 
-#### How to map RMS to the stratigraphic column in SMDA:
-1. Click the Edit icon (pen symbol) for the zone or horizon you want to edit.
-2. A window will pop up with a drop-down menu listing stratigraphy definitions from the stratigraphic column in SMDA.
-3. Select the corresponding horizon or zone from the list.
+This page is separate from **RMS > Stratigraphy**. The RMS page controls which horizons and zones are stored. The mappings page controls the SMDA name and RMS aliases for each stored element.
+
+In SMDA, zones are stratigraphic units. Horizons define the tops and bases of those units.
+
+### Map RMS to the stratigraphic column in SMDA
+
+1. Make sure that the project is editable, and then enable editing mode.
+2. Select the Edit icon (pen symbol) for the zone or horizon to map.
+3. Select the corresponding SMDA name from the selected stratigraphic column.
 4. If needed, add one or more aliases for the RMS name.
-5. Save your changes.
+5. Select **Save**.
 
-If an RMS zone or horizon is not defined in the stratigraphic column in SMDA, select “Zone doesn't exist in SMDA” or "Horizon doesn't exist in SMDA".
+Map zones first. After you map an adjacent zone, its top and base horizons appear first in the SMDA options for the RMS horizon.
 
+If an RMS zone or horizon is not defined in the SMDA stratigraphic column, select **Zone doesn't exist in SMDA** or **Horizon doesn't exist in SMDA**.
+
+## Step 6: Map RMS wellbores
+
+Open **Mappings > Wellbores** to manage RMS, simulator, and SMDA names for the wellbores selected in **Step 4**.
+
+Make sure that the project is editable, and then enable editing mode. To map SMDA names, you must also have:
+
+- a field in the project masterdata
+- an SMDA subscription key
+- an active SSO access token
+
+### Edit one wellbore
+
+To edit one wellbore:
+
+1. Select its row in the table.
+2. Enter its **Simulator name**, select its **SMDA name**, or do both.
+3. Select **Save**.
+
+If the wellbore is not defined in SMDA, select **Wellbore doesn't exist in SMDA**. This completes the SMDA mapping task for that wellbore.
+
+Planned wellbores can only have simulator names.
+
+### Import or export simulator names
+
+If no simulator names are saved, select **Import simulator names** to read them from an `rms_eclipse.csv` file. The default path is:
+
+```text
+rms/input/well_modelling/well_info/rms_eclipse.csv
+```
+
+FMU Settings reads the `RMS_WELL_NAME` and `ECLIPSE_WELL_NAME` columns. It imports names only for RMS wellbores that are stored in the project.
+
+When simulator names are saved, select **Export simulator names** to write an RMS simulator renaming table. The default path is:
+
+```text
+rms/input/well_modelling/well_info/rms_simulator.renaming_table
+```
+
+You can enter another path relative to the project root for either operation. FMU Settings asks for confirmation before it overwrites an existing renaming table.
+
+### Get suggested SMDA names
+
+Projects can contain thousands of wellbores. Mapping each RMS name to an SMDA name manually can take a long time. **Suggest SMDA names** compares the names and proposes likely matches for non-planned RMS wellbores that are not yet mapped.
+
+Identical names most likely refer to the same wellbore. However, RMS and SMDA can use different prefixes for that wellbore. For example, one system can include a country prefix while the other does not. Ignoring the prefix lets FMU Settings compare the remaining parts of the names.
+
+To generate suggestions:
+
+1. Select **Suggest SMDA names**.
+2. In **Prefixes to ignore**, keep or change the prefixes used for name comparison. Country prefixes are selected by default. You can also add other prefixes.
+3. Select **Generate suggestions**.
+4. Review each suggested RMS and SMDA pair. Select only the pairs that refer to the same wellbore.
+5. Select **Save selected SMDA names**.
+
+Prefix rules change only the comparison. FMU Settings saves the complete SMDA name. Exact name matches are selected automatically.
+
+```{warning}
+Suggested matches are based on name similarity. A matching name does not prove that the RMS and SMDA names refer to the same wellbore. Verify each suggestion before saving it.
+```
+
+To complete the project setup checklist, each non-planned RMS wellbore must have an SMDA name or the **Wellbore doesn't exist in SMDA** selection.
 
 ## Optional: Review earlier saved versions
 
@@ -215,6 +317,25 @@ When you restore an earlier version, FMU Settings first saves a backup of the cu
 
 You cannot restore while the project is read-only.
 
+### Set the maximum number of snapshots
+
+Use **Max snapshots** to control how many snapshots FMU Settings keeps on disk for the project.
+
+1. Select the maximum number of snapshots to keep.
+2. Select **Save**.
+
+If you reduce the maximum, FMU Settings shows how many old snapshots will be deleted before you confirm the change. You cannot change this setting while the project is read-only.
+
+## Optional: Recover deleted user files
+
+Open **User > Recovery** to recover files that were deleted from your user `.fmu` directory while FMU Settings was running.
+
+1. Select **Check for deleted files**.
+2. Review the files that can be recovered.
+3. Select **Recover**.
+
+Files that were not deleted are not affected. FMU Settings cannot recover files that were deleted before the application started.
+
 ## Summary
 
 For a new project, a simple order is:
@@ -223,7 +344,9 @@ For a new project, a simple order is:
 2. Fill in **Project** information.
 3. Add the SMDA subscription key on **User > API keys**.
 4. Set and verify **Masterdata**.
-5. Set the **RMS** project and import the relevant stratigraphy.
-6. Map the RMS stratigraphy to stratigraphic columns in SMDA on the **Mappings** page.
+5. Set the **RMS** project.
+6. Select the RMS stratigraphy and wellbores to store in the project.
+7. Map the stored RMS stratigraphy to the selected SMDA stratigraphic column.
+8. Map non-planned RMS wellbores to SMDA names. Add simulator names if the project needs them.
 
 If you need to look back at earlier saved versions, use the **History** page.
