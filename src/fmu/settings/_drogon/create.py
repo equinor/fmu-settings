@@ -97,23 +97,28 @@ def _build_internal_wellbore_mappings(
 ) -> InternalWellboreMappings:
     """Build internal .fmu wellbore mappings from Drogon's WELLBORE_MAPPINGS."""
     internal_mappings: list[InternalWellboreIdentifierMapping] = []
+    sources_with_primary_mapping: set[tuple[DataSystem, str]] = set()
 
     for mapping in mappings:
-        internal_mappings.append(
-            InternalWellboreIdentifierMapping(
-                source_system=DataSystem(mapping["source_system"]),
-                target_system=DataSystem(mapping["source_system"]),
-                mapping_type=MappingType.wellbore,
-                relation_type=InternalRelationType.primary,
-                source_id=mapping["source_id"],
-                source_uuid=mapping.get("source_uuid"),
-                target_id=mapping["source_id"],
-                target_uuid=mapping.get("source_uuid"),
+        source_system = DataSystem(mapping["source_system"])
+        source_key = (source_system, mapping["source_id"])
+        if source_key not in sources_with_primary_mapping:
+            internal_mappings.append(
+                InternalWellboreIdentifierMapping(
+                    source_system=source_system,
+                    target_system=source_system,
+                    mapping_type=MappingType.wellbore,
+                    relation_type=InternalRelationType.primary,
+                    source_id=mapping["source_id"],
+                    source_uuid=mapping.get("source_uuid"),
+                    target_id=mapping["source_id"],
+                    target_uuid=mapping.get("source_uuid"),
+                )
             )
-        )
+            sources_with_primary_mapping.add(source_key)
         internal_mappings.append(
             InternalWellboreIdentifierMapping(
-                source_system=DataSystem(mapping["source_system"]),
+                source_system=source_system,
                 target_system=DataSystem(mapping["target_system"]),
                 mapping_type=MappingType.wellbore,
                 relation_type=InternalRelationType.primary,

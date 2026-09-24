@@ -406,4 +406,29 @@ WELLBORE_MAPPINGS: Final[list[dict[str, Any]]] = [
         "target_id": "NO 55/33-A-6",
         "target_uuid": "73bdcd25-d4f7-53d4-92ff-494c90e03ce7",
     },
+    # Source: fmu-drogon/rms/input/well_modelling/well_info/rms_eclipse.csv
+    *[
+        {
+            "source_system": "rms",
+            "target_system": "simulator",
+            "relation_type": "primary",
+            "source_id": rms_name,
+            "target_id": simulator_name,
+            "target_uuid": None,
+        }
+        for rms_name, simulator_name in [
+            ("55_33-A-1", "A1"),
+            ("55_33-A-2", "A2"),
+            ("55_33-A-3", "A3"),
+            ("55_33-A-4", "A4"),
+            ("55_33-A-5", "A5"),
+            ("55_33-A-6", "A6"),
+            ("RFT_55_33-A-2", "R_A2"),
+            ("RFT_55_33-A-3", "R_A3"),
+            ("RFT_55_33-A-4", "R_A4"),
+            ("RFT_55_33-A-5", "R_A5"),
+            ("RFT_55_33-A-6", "R_A6"),
+            ("MLW_OP5_Y1", "OP5"),
+        ]
+    ],
 ]
