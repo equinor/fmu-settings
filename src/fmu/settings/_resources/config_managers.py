@@ -67,6 +67,7 @@ class ProjectConfigManager(MutablePydanticResourceManager[ProjectConfig]):
             "masterdata.smda.country": "uuid",
             "masterdata.smda.discovery": "uuid",
             "masterdata.smda.field": "uuid",
+            "associated_fields": "uuid",
         }
 
     def save(self: Self, model: ProjectConfig) -> None:

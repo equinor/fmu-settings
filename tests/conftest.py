@@ -97,6 +97,7 @@ def config_dict(unix_epoch_utc: datetime) -> dict[str, Any]:
         "last_modified_by": "user",
         "cache_max_revisions": 10,
         "masterdata": None,
+        "associated_fields": [],
         "model": None,
         "access": None,
         "rms": None,
@@ -366,6 +367,12 @@ def mocked_project_config_with_all_fields(
         "model": model_dict,
         "access": access_dict,
         "rms": rms_project_with_all_fields,
+        "associated_fields": [
+            {
+                "identifier": "ASSOCIATED_FIELD",
+                "uuid": "afe0e5cb-c24b-4b02-b1d3-7a3f7d0a43c1",
+            }
+        ],
         "validation": {
             "masterdata_smda": {
                 "last_validated_at": unix_epoch_utc,
