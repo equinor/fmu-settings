@@ -573,6 +573,9 @@ def test_project_config_structured_diff_uses_configured_list_keys(
         {"identifier": "DROGON", "uuid": str(uuid.uuid4())}
     ]
 
+    incoming_dict["associated_fields"] = [
+        {"identifier": "ASSOCIATED_FIELD", "uuid": str(uuid.uuid4())}
+    ]
     incoming_model = ProjectConfig.model_validate(incoming_dict)
 
     diffs = fmu_dir.config.get_structured_model_diff(current_model, incoming_model)
@@ -592,6 +595,7 @@ def test_project_config_structured_diff_uses_configured_list_keys(
     assert len(list_diffs["masterdata.smda.country"].updated) == 1
     assert len(list_diffs["masterdata.smda.discovery"].added) == 1
     assert len(list_diffs["masterdata.smda.field"].removed) == 1
+    assert len(list_diffs["associated_fields"].added) == 1
 
 
 def test_project_config_merge_with_other_config(

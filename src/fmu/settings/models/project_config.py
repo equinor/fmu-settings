@@ -8,7 +8,7 @@ from typing import Literal, Self
 from pydantic import AwareDatetime, BaseModel, Field
 
 from fmu.datamodels.common.access import Access
-from fmu.datamodels.common.masterdata import Masterdata
+from fmu.datamodels.common.masterdata import FieldItem, Masterdata
 from fmu.datamodels.fmu_results.fields import Model
 from fmu.settings import __version__
 from fmu.settings.types import ResettableBaseModel, VersionStr  # noqa: TC001
@@ -124,6 +124,7 @@ class ProjectConfig(ResettableBaseModel):
     last_modified_at: AwareDatetime | None = None
     last_modified_by: str | None = None
     masterdata: Masterdata | None = None
+    associated_fields: list[FieldItem] = Field(default_factory=list)
     model: Model | None = None
     access: Access | None = None
     cache_max_revisions: int = Field(default=10, ge=5)
@@ -144,6 +145,7 @@ class ProjectConfig(ResettableBaseModel):
             last_modified_at=None,
             last_modified_by=None,
             masterdata=None,
+            associated_fields=[],
             model=None,
             access=None,
             cache_max_revisions=10,
