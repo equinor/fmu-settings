@@ -1,20 +1,19 @@
 """Tests for ChangelogManager."""
 
 import copy
-import uuid
+import json
 import warnings
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 import pytest
-from fmu.datamodels.common.masterdata import StratigraphicColumn
 
 from fmu.settings._fmu_dir import ProjectFMUDirectory
 from fmu.settings._resources.changelog_manager import ChangelogManager
 from fmu.settings.models._enums import ChangeType, FilterType
 from fmu.settings.models.change_info import ChangeInfo
+from fmu.settings.models.diff import ResourceDiff, ScalarFieldDiff
 from fmu.settings.models.log import Filter, Log, LogFileName
 
 DATE_TIME_NOW = datetime.now(UTC)
@@ -605,182 +604,107 @@ def test_changelog_dataframe_cache_cleared(
     assert changelog_resource._cached_dataframe is None
 
 
-def test_log_update_to_changelog_when_flat_dict(fmu_dir: ProjectFMUDirectory) -> None:
-    """Tests that updates of flat dictionaries are logged as expected.
-
-    Checks that the key, change_type and change fields are logged with correct values.
-    """
+def test_log_update_to_changelog_writes_update_entry(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that an update key with a diff is logged as an update entry."""
     changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
-
-    first_key = "first_key"
-    first_value = "first_test_value"
-    old_resource_dict = {first_key: first_value, "some_key": "some_value"}
-
-    updated_value = "updated_value"
-    added_key = "added_key"
-    added_value = "added_value"
-    updates: dict[str, Any] = {
-        first_key: updated_value,
-        added_key: added_value,
-    }
+    diff = ScalarFieldDiff(field_path="model.name", before="old", after="new")
 
     changelog_resource.log_update_to_changelog(
-        updates, old_resource_dict, Path("config.json")
+        {"model.name": "new"}, Path("config.json"), structured_diff=[diff]
     )
 
     changelog: Log[ChangeInfo] = changelog_resource.load()
-    expected_log_entries = 2
-    assert len(changelog) == expected_log_entries
-
-    expected_change_string = (
-        f"Updated field '{first_key}'. Old value: {first_value}"
-        f" -> New value: {updated_value}"
-    )
+    assert len(changelog) == 1
     assert changelog[0].change_type == ChangeType.update
-    assert changelog[0].change == expected_change_string
+    assert changelog[0].change == "Updated field 'model.name'."
+    assert changelog[0].key == "model.name"
+    assert changelog[0].file == "config.json"
+    assert changelog[0].path == fmu_dir.path
+    assert changelog[0].structured_diff == [diff]
 
-    expected_change_string = f"Added field '{added_key}'. New value: {added_value}"
-    assert changelog[1].change_type == ChangeType.add
-    assert expected_change_string == changelog[1].change
 
-
-def test_log_update_to_changelog_when_nested_dict(
-    fmu_dir: ProjectFMUDirectory, masterdata_dict: dict[str, Any]
+@pytest.mark.parametrize(
+    ("update_keys", "diff_paths", "expected_entries"),
+    [
+        (
+            ["model"],
+            ["model.name", "model.description"],
+            {"model": ["model.name", "model.description"]},
+        ),
+        (
+            ["model", "model.name"],
+            ["model.name", "model.description"],
+            {"model": ["model.description"], "model.name": ["model.name"]},
+        ),
+        (
+            ["rms.path", "rms.version"],
+            ["rms"],
+            {"rms": ["rms"]},
+        ),
+        (
+            ["model.name"],
+            ["model.description"],
+            {"model.description": ["model.description"]},
+        ),
+        (
+            ["model.name", "model.revision"],
+            ["model.name"],
+            {"model.name": ["model.name"]},
+        ),
+    ],
+    ids=[
+        "diffs_inside_key",
+        "key_and_its_parent",
+        "whole_parent_changed",
+        "diff_outside_keys",
+        "key_without_diffs",
+    ],
+)
+def test_log_update_to_changelog_with_structured_diff(
+    fmu_dir: ProjectFMUDirectory,
+    update_keys: list[str],
+    diff_paths: list[str],
+    expected_entries: dict[str, list[str]],
 ) -> None:
-    """Tests that updates of nested dictionaries are logged as expected.
+    """Tests that each diff is logged once, in the entry of the key it belongs to.
 
-    Checks that the key, change_type and change fields are logged with correct values.
+    The expected entries show each diff by its field path.
     """
     changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
-
-    updated_country = [
-        {
-            "identifier": "Norge",
-            "uuid": "00000000-0000-0000-0000-000000000000",
-        }
+    diffs: list[ResourceDiff] = [
+        ScalarFieldDiff(field_path=path, before="old", after="new")
+        for path in diff_paths
     ]
 
-    first_key = "smda.country"
-    new_key = "new_key"
-    new_nested_key = "new.nested.key"
-    updates: dict[str, Any] = {
-        first_key: updated_country,
-        new_key: "new_value",
-        new_nested_key: "new_nested_value",
-    }
-
     changelog_resource.log_update_to_changelog(
-        updates, masterdata_dict, Path("config.json")
+        dict.fromkeys(update_keys),
+        Path("config.json"),
+        structured_diff=diffs,
     )
 
     changelog: Log[ChangeInfo] = changelog_resource.load()
-    expected_log_entries = 3
-    assert len(changelog) == expected_log_entries
-
-    expected_old_value = str(masterdata_dict["smda"]["country"])
-    expected_change_string = (
-        f"Updated field '{first_key}'. Old value: {expected_old_value}"
-        f" -> New value: {str(updated_country)}"
-    )
-
-    assert changelog[0].change_type == ChangeType.update
-    assert changelog[0].change == expected_change_string
-
-    expected_change_string = f"Added field '{new_key}'. New value: new_value"
-    assert changelog[1].change_type == ChangeType.add
-    assert expected_change_string == changelog[1].change
-
-    expected_change_string = (
-        f"Added field '{new_nested_key}'. New value: new_nested_value"
-    )
-    assert changelog[2].change_type == ChangeType.add
-    assert expected_change_string == changelog[2].change
-
-
-def test_log_update_to_changelog_when_none_values(fmu_dir: ProjectFMUDirectory) -> None:
-    """Tests that updates with None values are logged as expected.
-
-    Checks that the key, change_type and change fields are logged with correct values.
-    """
-    first_key = "first_key"
-    first_value = "first_test_value"
-    second_key = "some_key"
-    old_resource_dict = {first_key: first_value, second_key: None}
-
-    updated_value = "updated_value"
-    added_key = "added_key"
-    updates: dict[str, Any] = {
-        first_key: None,
-        second_key: updated_value,
-        added_key: None,
+    logged_entries = {
+        entry.key: [diff.field_path for diff in entry.structured_diff or []]
+        for entry in changelog
     }
-
-    changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
-    changelog_resource.log_update_to_changelog(
-        updates, old_resource_dict, Path("config.json")
-    )
-
-    changelog: Log[ChangeInfo] = changelog_resource.load()
-    expected_log_entries = 3
-    assert len(changelog) == expected_log_entries
-
-    assert changelog[0].change_type == ChangeType.update
-    expected_change_string = (
-        f"Updated field '{first_key}'. Old value: {first_value}"
-        f" -> New value: {str(None)}"
-    )
-    assert changelog[0].change == expected_change_string
-
-    assert changelog[1].change_type == ChangeType.update
-    expected_change_string = (
-        f"Updated field '{second_key}'. Old value: {str(None)}"
-        f" -> New value: {updated_value}"
-    )
-    assert changelog[1].change == expected_change_string
-
-    assert changelog[2].change_type == ChangeType.add
-    expected_change_string = f"Added field '{added_key}'. New value: {str(None)}"
-    assert changelog[2].change_type == ChangeType.add
-    assert expected_change_string == changelog[2].change
+    assert logged_entries == expected_entries
 
 
-def test_log_update_to_changelog_when_base_model_values(
-    fmu_dir: ProjectFMUDirectory, masterdata_dict: dict[str, Any]
+def test_changelog_loads_entries_without_structured_diff(
+    fmu_dir: ProjectFMUDirectory, change_entry: ChangeInfo
 ) -> None:
-    """Tests that updates to BaseModel objects are logged as expected.
-
-    Checks that the key, change_type and change fields are logged with correct values.
-    """
-    strat_column = StratigraphicColumn(identifier="test_strat", uuid=uuid.uuid4())
-
-    test_update = "smda.stratigraphic_column"
-    test_add = "new.field"
-    updates: dict[str, Any] = {test_update: strat_column, test_add: strat_column}
-
+    """Tests that entries written before structured diffs load without a diff."""
     changelog_resource: ChangelogManager = ChangelogManager(fmu_dir)
-    changelog_resource.log_update_to_changelog(
-        updates, masterdata_dict, Path("config.json")
-    )
+    old_entry = change_entry.model_dump(mode="json", exclude={"structured_diff"})
+    fmu_dir.write_text_file(changelog_resource.relative_path, json.dumps([old_entry]))
 
     changelog: Log[ChangeInfo] = changelog_resource.load()
-    expected_log_entries = 2
-    assert len(changelog) == expected_log_entries
 
-    assert changelog[0].key == test_update
-    assert changelog[0].change_type == ChangeType.update
-    old_value = masterdata_dict["smda"]["stratigraphic_column"]
-    expected_change_string = (
-        f"Updated field '{test_update}'. Old value: {str(old_value)}"
-        f" -> New value: {str(strat_column.model_dump())}"
-    )
-    assert expected_change_string == changelog[0].change
-
-    assert changelog[1].key == test_add
-    assert changelog[1].change_type == ChangeType.add
-    expected_change_string = (
-        f"Added field '{test_add}'. New value: {str(strat_column.model_dump())}"
-    )
-    assert expected_change_string == changelog[1].change
+    assert len(changelog) == 1
+    assert changelog[0].change == change_entry.change
+    assert changelog[0].structured_diff is None
 
 
 def test_changelog_get_latest_change_timestamp(

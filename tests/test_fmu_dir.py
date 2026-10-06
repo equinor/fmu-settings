@@ -32,6 +32,7 @@ from fmu.settings._resources.lock_manager import DEFAULT_LOCK_TIMEOUT, LockManag
 from fmu.settings._resources.mappings_manager import MappingsManager
 from fmu.settings.models._enums import ChangeType
 from fmu.settings.models.change_info import ChangeInfo
+from fmu.settings.models.diff import ScalarFieldDiff
 from fmu.settings.models.log import Log
 from fmu.settings.models.mappings import (
     InternalMappings,
@@ -1456,31 +1457,29 @@ def test_fmu_directory_base_sync_dir_with_all_resources(
 
     assert "_changelog" in updated_resources
     updated_changelog: Log[ChangeInfo] = updated_resources["_changelog"]
-    expected_log_length = 6
+    expected_log_length = 5
 
-    # Assert existing entries
+    # Assert existing entry. Saving empty mappings to a new file changes no value.
     assert len(updated_changelog) == expected_log_length
     assert updated_changelog[0].key == "masterdata"
     assert updated_changelog[0].path == fmu_dir.path
-    assert updated_changelog[1].key == "stratigraphy"
-    assert updated_changelog[1].path == fmu_dir.path
 
     # Assert merged entry
-    assert updated_changelog[2].key == "stratigraphy"
-    assert updated_changelog[2].path == new_fmu_dir.path
-    assert updated_changelog[2] == new_fmu_dir._changelog.load()[0]
+    assert updated_changelog[1].key == "stratigraphy"
+    assert updated_changelog[1].path == new_fmu_dir.path
+    assert updated_changelog[1] == new_fmu_dir._changelog.load()[0]
 
     # Assert entries from merging config and mappings
-    assert updated_changelog[3].key == "masterdata"
+    assert updated_changelog[2].key == "masterdata"
+    assert updated_changelog[2].path == fmu_dir.path
+    assert updated_changelog[3].key == "stratigraphy"
     assert updated_changelog[3].path == fmu_dir.path
-    assert updated_changelog[4].key == "stratigraphy"
-    assert updated_changelog[4].path == fmu_dir.path
 
     # Assert log entry with merge details
-    assert updated_changelog[5].change_type == ChangeType.merge
-    assert "config" in updated_changelog[5].file
-    assert "_changelog" in updated_changelog[5].file
-    assert "_mappings" in updated_changelog[5].file
+    assert updated_changelog[4].change_type == ChangeType.merge
+    assert "config" in updated_changelog[4].file
+    assert "_changelog" in updated_changelog[4].file
+    assert "_mappings" in updated_changelog[4].file
 
 
 def test_fmu_directory_base_sync_dir_dont_sync_ignored_fields(
@@ -1519,16 +1518,22 @@ def test_fmu_directory_base_sync_dir_dont_sync_ignored_fields(
 
     # First entry should be the cache_max_revision update in fmu_dir
     assert updates["_changelog"][0].key == "cache_max_revisions"
-    assert "Old value: 10 -> New value: 5" in updates["_changelog"][0].change
+    assert updates["_changelog"][0].structured_diff == [
+        ScalarFieldDiff(field_path="cache_max_revisions", before=10, after=5)
+    ]
 
     # Second entry should be the cache_max_revision update from the changelog merge
     assert updates["_changelog"][1].key == "cache_max_revisions"
-    assert "Old value: 10 -> New value: 15" in updates["_changelog"][1].change
+    assert updates["_changelog"][1].structured_diff == [
+        ScalarFieldDiff(field_path="cache_max_revisions", before=10, after=15)
+    ]
     assert updates["_changelog"][1].path == new_fmu_dir.path
 
     # Third entry should be the cache_max_revision update from the config merge
     assert updates["_changelog"][2].key == "cache_max_revisions"
-    assert "Old value: 5 -> New value: 15" in updates["_changelog"][2].change
+    assert updates["_changelog"][2].structured_diff == [
+        ScalarFieldDiff(field_path="cache_max_revisions", before=5, after=15)
+    ]
     assert updates["_changelog"][2].path == fmu_dir.path
 
     # Fourth entry should be the logged merge details
@@ -1536,18 +1541,16 @@ def test_fmu_directory_base_sync_dir_dont_sync_ignored_fields(
     assert updates["_changelog"][3].change_type == ChangeType.merge
 
     # This should not happen, but just to illustrate:
-    # Force updating one of the diff ignore fields, adds log entries that will be merged
+    # Force updating one of the diff ignore fields does not add a log entry
     new_fmu_dir.set_config_value("created_by", "johndoe")
     updates = fmu_dir.sync_dir(new_fmu_dir)
 
     # The updated created_by value should not be merged
     assert new_fmu_dir.config.load().created_by == "johndoe"
     assert "config" not in updates
+    assert "_changelog" not in updates
     assert fmu_dir.config.load().created_by != "johndoe"
-
-    # The changelog entry for the update will be merged
-    assert updates["_changelog"][4].key == "created_by"
-    assert "Old value: user -> New value: johndoe" in updates["_changelog"][4].change
+    assert new_fmu_dir._changelog.load()[-1].key != "created_by"
 
 
 def test_fmu_directory_base_get_dir_diff_with_mappings(

@@ -16,7 +16,7 @@ class ScalarFieldDiff(BaseModel):
 
 
 class ListUpdatedEntry(BaseModel):
-    """Before and after values for an updated list item."""
+    """Before and after values of the changed fields in an updated list item."""
 
     key: Any
     before: dict[str, Any]

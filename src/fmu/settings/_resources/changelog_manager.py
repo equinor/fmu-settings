@@ -6,11 +6,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
-from pydantic import BaseModel
-
 from fmu.settings._resources.log_manager import LogManager
 from fmu.settings.models._enums import ChangeType, FilterType
 from fmu.settings.models.change_info import ChangeInfo
+from fmu.settings.models.diff import ListFieldDiff, ResourceDiff
 from fmu.settings.models.log import Filter, Log, LogFileName
 
 if TYPE_CHECKING:
@@ -37,55 +36,96 @@ class ChangelogManager(LogManager[ChangeInfo]):
     def log_update_to_changelog(
         self: Self,
         updates: dict[str, Any],
-        old_resource_dict: dict[str, Any],
         relative_path: Path,
+        *,
+        structured_diff: list[ResourceDiff],
     ) -> None:
         """Logs the update of a resource to the changelog."""
-        _MISSING_KEY = object()
-        for key, new_value in updates.items():
-            change_type = ChangeType.update
-            if "." in key:
-                old_value = self._get_dot_notation_key(
-                    resource_dict=old_resource_dict, key=key, default=_MISSING_KEY
-                )
-            else:
-                old_value = old_resource_dict.get(key, _MISSING_KEY)
-
-            if old_value != _MISSING_KEY:
-                old_value_string = (
-                    str(old_value.model_dump())
-                    if isinstance(old_value, BaseModel)
-                    else str(old_value)
-                )
-                new_value_string = (
-                    str(new_value.model_dump())
-                    if isinstance(new_value, BaseModel)
-                    else str(new_value)
-                )
-                change_string = (
-                    f"Updated field '{key}'. Old value: {old_value_string}"
-                    f" -> New value: {new_value_string}"
-                )
-            else:
-                change_type = ChangeType.add
-                new_value_string = (
-                    str(new_value.model_dump())
-                    if isinstance(new_value, BaseModel)
-                    else str(new_value)
-                )
-                change_string = f"Added field '{key}'. New value: {new_value_string}"
-
+        entries = self._group_diffs_by_update_key(updates, structured_diff)
+        for key, diffs in entries.items():
             change_entry = ChangeInfo(
                 timestamp=datetime.now(UTC),
-                change_type=change_type,
+                change_type=ChangeType.update,
                 user=os.getenv("USER", "unknown"),
                 path=self.fmu_dir.path,
-                change=change_string,
+                change=f"Updated field '{key}'.",
+                structured_diff=diffs,
                 hostname=socket.gethostname(),
                 file=str(relative_path),
                 key=key,
             )
             self.add_log_entry(change_entry)
+
+    @staticmethod
+    def _group_diffs_by_update_key(
+        updates: dict[str, Any], diffs: list[ResourceDiff]
+    ) -> dict[str, list[ResourceDiff]]:
+        """Decide which changelog entry each change belongs to.
+
+        One update can set several keys, for example ``model`` and ``model.name``.
+        The changelog gets one entry for each key. This method puts each change
+        from ``diffs`` into the entry of the key that it belongs to.
+
+        How a change is placed:
+
+        - It goes to the most specific key that contains it. A change to
+          ``model.name`` goes to ``model.name`` if that key was updated.
+          Otherwise, it goes to ``model``. Each change is placed only once.
+        - If a whole section changed, the section gets one entry. For example,
+          when ``rms`` is set for the first time, the updates to ``rms.path`` and
+          ``rms.version`` are logged together as one ``rms`` entry.
+        - If no key contains the change, the change gets its own entry.
+        - A key with no changes is left out, so it is not logged. The value was
+          saved, but it did not change.
+
+        Examples:
+            The examples show each change by its field path.
+
+            Two keys where one is inside the other::
+
+                updates: model, model.name
+                changes: model.name, model.description
+                entries: model      -> [model.description]
+                         model.name -> [model.name]
+
+            A section that is set for the first time::
+
+                updates: rms.path, rms.version
+                changes: rms
+                entries: rms -> [rms]
+
+            A value that is saved again without a change::
+
+                updates: model.name
+                changes: (none)
+                entries: (none)
+        """
+        entries: dict[str, list[ResourceDiff]] = {key: [] for key in updates}
+        for diff in diffs:
+            # No item was added, removed or updated, e.g. the list was reordered.
+            if isinstance(diff, ListFieldDiff) and not (
+                diff.added or diff.removed or diff.updated
+            ):
+                continue
+
+            changed_path = diff.field_path
+
+            # If a whole section changed, keys inside it do not get their own entry.
+            keys_inside_change = [
+                key for key in entries if key.startswith(f"{changed_path}.")
+            ]
+            for key in keys_inside_change:
+                del entries[key]
+
+            # Use the most specific key that contains the change, else its own path.
+            keys_containing_change = [
+                key
+                for key in entries
+                if changed_path == key or changed_path.startswith(f"{key}.")
+            ]
+            entry_key = max(keys_containing_change, key=len, default=changed_path)
+            entries.setdefault(entry_key, []).append(diff)
+        return {key: key_diffs for key, key_diffs in entries.items() if key_diffs}
 
     def log_merge_to_changelog(
         self: Self, source_path: Path, incoming_path: Path, merged_resources: list[str]
