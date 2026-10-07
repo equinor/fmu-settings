@@ -87,7 +87,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
         return path_exists(self.path)
 
     @property
-    def diff_list_keys(self: Self) -> Mapping[str, str]:
+    def diff_list_keys(self: Self) -> Mapping[str, str | tuple[str, ...]]:
         """Return list field paths and their identity keys used for list diffs."""
         return {}
 
@@ -318,8 +318,8 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
         For list fields in ``diff_list_keys``, this returns only the items that
         changed (``added``, ``removed``, ``updated``), using the configured identity
-        key. ``get_model_diff`` instead returns the whole list as one before/after
-        change.
+        key. Updated items include only their changed fields. A list that changes
+        to or from ``None`` is returned as a scalar diff.
         """
         changes = self.get_model_diff(current_model, incoming_model)
 
@@ -327,7 +327,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
         for field_path, before, after in changes:
             list_key = self.diff_list_keys.get(field_path)
-            if list_key is None:
+            if list_key is None or before is None or after is None:
                 results.append(
                     ScalarFieldDiff(
                         field_path=field_path,
@@ -337,8 +337,8 @@ class PydanticResourceManager(Generic[PydanticResource]):
                 )
                 continue
 
-            before_map = self._build_list_item_map(before or [], list_key)
-            after_map = self._build_list_item_map(after or [], list_key)
+            before_map = self._build_list_item_map(before, list_key)
+            after_map = self._build_list_item_map(after, list_key)
 
             before_keys = set(before_map)
             after_keys = set(after_map)
@@ -351,15 +351,24 @@ class PydanticResourceManager(Generic[PydanticResource]):
                 self._dump_diff_value(before_map[key])
                 for key in sorted(before_keys - after_keys, key=str)
             ]
-            updated = [
-                ListUpdatedEntry(
-                    key=key,
-                    before=self._dump_diff_value(before_map[key]),
-                    after=self._dump_diff_value(after_map[key]),
+            updated: list[ListUpdatedEntry] = []
+            for key in sorted(before_keys & after_keys, key=str):
+                item_changes = self.get_model_diff(before_map[key], after_map[key])
+                if not item_changes:
+                    continue
+                updated.append(
+                    ListUpdatedEntry(
+                        key=key,
+                        before={
+                            path: self._dump_diff_value(old)
+                            for path, old, _ in item_changes
+                        },
+                        after={
+                            path: self._dump_diff_value(new)
+                            for path, _, new in item_changes
+                        },
+                    )
                 )
-                for key in sorted(before_keys & after_keys, key=str)
-                if before_map[key] != after_map[key]
-            ]
 
             results.append(
                 ListFieldDiff(
@@ -373,17 +382,14 @@ class PydanticResourceManager(Generic[PydanticResource]):
         return results
 
     def _build_list_item_map(
-        self: Self, items: list[Any], list_key: str
+        self: Self, items: list[Any], list_key: str | tuple[str, ...]
     ) -> dict[object, Any]:
         """Build a lookup map for list diffing using a configured identity key."""
-        if list_key == "__full__":
-            return {
-                json.dumps(
-                    self._dump_diff_value(item), sort_keys=True, default=str
-                ): item
-                for item in items
-            }
-        return {getattr(item, list_key): item for item in items}
+        if isinstance(list_key, str):
+            return {getattr(item, list_key): item for item in items}
+        return {
+            tuple(getattr(item, field) for field in list_key): item for item in items
+        }
 
     def get_resource_diff(
         self: Self, incoming_resource: PydanticResourceManager[PydanticResource]

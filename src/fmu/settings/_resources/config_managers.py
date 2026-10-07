@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import getpass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -80,21 +79,25 @@ class ProjectConfigManager(MutablePydanticResourceManager[ProjectConfig]):
 
     def set(self: Self, key: str, value: Any) -> None:
         """Sets a project config value by key and writes to changelog."""
-        old_resource_dict = copy.deepcopy(self.load().model_dump())
+        old_config = self.load()
         super().set(key, value)
         self.fmu_dir.changelog.log_update_to_changelog(
             updates={key: value},
-            old_resource_dict=old_resource_dict,
+            structured_diff=self.get_structured_model_diff(
+                current_model=old_config, incoming_model=self.load()
+            ),
             relative_path=self.relative_path,
         )
 
     def update(self: Self, updates: dict[str, Any]) -> ProjectConfig:
         """Updates project config values and writes to changelog."""
-        old_resource_dict = copy.deepcopy(self.load().model_dump())
+        old_config = self.load()
         updated_resource = super().update(updates)
         self.fmu_dir.changelog.log_update_to_changelog(
             updates=updates,
-            old_resource_dict=old_resource_dict,
+            structured_diff=self.get_structured_model_diff(
+                current_model=old_config, incoming_model=updated_resource
+            ),
             relative_path=self.relative_path,
         )
         return updated_resource

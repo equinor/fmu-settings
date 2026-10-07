@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
@@ -48,12 +47,10 @@ class MappingsManager(PydanticResourceManager[InternalMappings]):
         return Path("mappings.json")
 
     @property
-    def diff_list_keys(self: Self) -> Mapping[str, str]:
+    def diff_list_keys(self: Self) -> Mapping[str, str | tuple[str, ...]]:
         """List field identity keys used for per-item diffing."""
-        return {
-            "stratigraphy.root": "__full__",
-            "wellbore.root": "__full__",
-        }
+        identity = ("mapping_type", "source_system", "target_system", "source_id")
+        return {"stratigraphy.root": identity, "wellbore.root": identity}
 
     @property
     def internal_stratigraphy_mappings(self: Self) -> InternalStratigraphyMappings:
@@ -79,15 +76,17 @@ class MappingsManager(PydanticResourceManager[InternalMappings]):
         self: Self, strat_mappings: InternalStratigraphyMappings
     ) -> InternalStratigraphyMappings:
         """Update stratigraphy mappings stored in the internal .fmu mappings format."""
-        mappings: InternalMappings = self.load() if self.exists else InternalMappings()
-
-        old_mappings_dict = copy.deepcopy(mappings.model_dump())
-        mappings.stratigraphy = strat_mappings
-        self.save(mappings)
+        old_mappings = self.load() if self.exists else InternalMappings()
+        new_mappings = old_mappings.model_copy(
+            update={"stratigraphy": strat_mappings.model_copy(deep=True)}
+        )
+        self.save(new_mappings)
 
         self.fmu_dir.changelog.log_update_to_changelog(
-            updates={"stratigraphy": mappings.stratigraphy},
-            old_resource_dict=old_mappings_dict,
+            updates={"stratigraphy": new_mappings.stratigraphy},
+            structured_diff=self.get_structured_model_diff(
+                current_model=old_mappings, incoming_model=new_mappings
+            ),
             relative_path=self.relative_path,
         )
 
@@ -97,15 +96,17 @@ class MappingsManager(PydanticResourceManager[InternalMappings]):
         self: Self, wellbore_mappings: InternalWellboreMappings
     ) -> InternalWellboreMappings:
         """Update wellbore mappings stored in the internal .fmu mappings format."""
-        mappings: InternalMappings = self.load() if self.exists else InternalMappings()
-
-        old_mappings_dict = copy.deepcopy(mappings.model_dump())
-        mappings.wellbore = wellbore_mappings
-        self.save(mappings)
+        old_mappings = self.load() if self.exists else InternalMappings()
+        new_mappings = old_mappings.model_copy(
+            update={"wellbore": wellbore_mappings.model_copy(deep=True)}
+        )
+        self.save(new_mappings)
 
         self.fmu_dir.changelog.log_update_to_changelog(
-            updates={"wellbore": mappings.wellbore},
-            old_resource_dict=old_mappings_dict,
+            updates={"wellbore": new_mappings.wellbore},
+            structured_diff=self.get_structured_model_diff(
+                current_model=old_mappings, incoming_model=new_mappings
+            ),
             relative_path=self.relative_path,
         )
 

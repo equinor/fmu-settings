@@ -23,7 +23,7 @@ from fmu.settings._resources.config_managers import (
     UserConfigManager,
 )
 from fmu.settings.models._enums import ChangeType
-from fmu.settings.models.diff import ListFieldDiff
+from fmu.settings.models.diff import ListFieldDiff, ScalarFieldDiff
 from fmu.settings.models.project_config import (
     ProjectConfig,
     RmsCoordinateSystem,
@@ -250,17 +250,17 @@ def test_update_config(fmu_dir: ProjectFMUDirectory) -> None:
 
 
 def test_update_config_writes_to_changelog(fmu_dir: ProjectFMUDirectory) -> None:
-    """Tests that config updates are written to changelog."""
+    """Tests that config updates are written to changelog.
+
+    Checks that keys without a value change, such as ignored fields and fields that
+    are not in the config, are not logged.
+    """
     fmu_dir.config.update({"created_by": "user2", "version": "200.0.0", "new.field": 0})
     changelog = fmu_dir._changelog.load()
-    expected_log_entries = 3
-    assert len(changelog) == expected_log_entries
+    assert len(changelog) == 1
     assert changelog[0].change_type == ChangeType.update
-    assert changelog[0].key == "created_by"
+    assert changelog[0].key == "version"
     assert changelog[0].file == "config.json"
-    assert changelog[2].change_type == ChangeType.add
-    assert changelog[2].key == "new.field"
-    assert changelog[2].file == "config.json"
 
 
 def test_set_smda(
@@ -308,6 +308,28 @@ def test_set_config_writes_to_changelog(
     assert changelog[1].key == "masterdata.smda.field"
     assert changelog[1].change_type == ChangeType.update
     assert changelog[1].file == "config.json"
+
+
+@pytest.mark.parametrize("method", ["set", "update"])
+def test_config_change_writes_structured_diff_to_changelog(
+    fmu_dir: ProjectFMUDirectory, method: str
+) -> None:
+    """Tests that set and update write the changed fields to the changelog."""
+    fmu_dir.config.set("model", Model(name="old", revision="1", description=["old"]))
+    new_model = {"name": "new", "revision": "1", "description": ["new"]}
+
+    if method == "set":
+        fmu_dir.config.set("model", new_model)
+    else:
+        fmu_dir.config.update({"model": new_model})
+
+    change_entry = fmu_dir._changelog.load()[-1]
+    assert change_entry.key == "model"
+    assert change_entry.change == "Updated field 'model'."
+    assert change_entry.structured_diff == [
+        ScalarFieldDiff(field_path="model.description", before=["old"], after=["new"]),
+        ScalarFieldDiff(field_path="model.name", before="old", after="new"),
+    ]
 
 
 def test_set_model_invalid_fails(

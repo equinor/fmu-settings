@@ -662,11 +662,42 @@ def test_pydantic_resource_manager_get_structured_model_diff_when_list_diff_with
     assert len(diff.added) == 1
     assert len(diff.removed) == 1
     assert len(diff.updated) == 1
-    assert diff.added[0]["name"] == "C"
-    assert diff.removed[0]["name"] == "B"
+    assert diff.added == [{"name": "C", "value": "1"}]
+    assert diff.removed == [{"name": "B", "value": "1"}]
     assert diff.updated[0].key == "A"
-    assert diff.updated[0].before["value"] == "1"
-    assert diff.updated[0].after["value"] == "2"
+    assert diff.updated[0].before == {"value": "1"}
+    assert diff.updated[0].after == {"value": "2"}
+
+
+def test_pydantic_resource_manager_get_structured_model_diff_when_list_is_none(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that a keyed list that changes to or from None gives a scalar diff.
+
+    Checks that None and an empty list are kept as different values.
+    """
+
+    class ExampleListItem(BaseModel):
+        name: str
+
+    class ExamplePydanticModel(BaseModel):
+        items: list[ExampleListItem] | None
+
+    class PydanticManagerListKeyTest(PydanticManagerTest):
+        @property
+        def diff_list_keys(self: Self) -> dict[str, str]:
+            return {"items": "name"}
+
+    test_manager = PydanticManagerListKeyTest(fmu_dir)
+    unset_model = ExamplePydanticModel(items=None)
+    empty_model = ExamplePydanticModel(items=[])
+
+    assert test_manager.get_structured_model_diff(unset_model, empty_model) == [
+        ScalarFieldDiff(field_path="items", before=None, after=[])
+    ]
+    assert test_manager.get_structured_model_diff(empty_model, unset_model) == [
+        ScalarFieldDiff(field_path="items", before=[], after=None)
+    ]
 
 
 def test_pydantic_resource_manager_get_diff_when_value_is_none(

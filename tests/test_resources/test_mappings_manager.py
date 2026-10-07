@@ -1,7 +1,8 @@
 """Tests for MappingsManager."""
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 from uuid import UUID
 
 import pytest
@@ -16,7 +17,7 @@ from fmu.settings._drogon import GLOBAL_CONFIG_STRATIGRAPHY
 from fmu.settings._fmu_dir import ProjectFMUDirectory
 from fmu.settings._resources.mappings_manager import MappingsManager
 from fmu.settings.models._enums import ChangeType
-from fmu.settings.models.diff import ListFieldDiff
+from fmu.settings.models.diff import ListFieldDiff, ListUpdatedEntry
 from fmu.settings.models.mappings import (
     InternalMappings,
     InternalRelationType,
@@ -160,7 +161,10 @@ def test_mappings_manager_update_internal_stratigraphy_mappings_overwrites_mappi
 def test_mappings_manager_update_internal_stratigraphy_mappings_writes_to_changelog(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:
-    """Tests that each update of the stratigraphy mappings, writes to the changelog."""
+    """Tests that each update of the stratigraphy mappings, writes to the changelog.
+
+    Checks that saving the same mappings again is not logged.
+    """
     mappings_manager: MappingsManager = MappingsManager(fmu_dir)
     new_mappings = _stratigraphy_mappings("TopViking", "VIKING GP. Top")
     mappings_manager.update_internal_stratigraphy_mappings(new_mappings)
@@ -170,13 +174,13 @@ def test_mappings_manager_update_internal_stratigraphy_mappings_writes_to_change
     assert changelog[0].change_type == ChangeType.update
     assert changelog[0].file == "mappings.json"
     assert changelog[0].key == "stratigraphy"
-    assert f"New value: {new_mappings.model_dump()}" in changelog[0].change
+    assert changelog[0].change == "Updated field 'stratigraphy'."
+    assert changelog[0].structured_diff is not None
 
     mappings_manager.update_internal_stratigraphy_mappings(new_mappings)
     mappings_manager.update_internal_stratigraphy_mappings(new_mappings)
 
-    expected_no_of_mappings = 3
-    assert len(mappings_manager.fmu_dir._changelog.load()) == expected_no_of_mappings
+    assert len(mappings_manager.fmu_dir._changelog.load()) == 1
 
 
 def test_internal_stratigraphy_mappings_converts_to_stratigraphy_mappings(
@@ -282,7 +286,10 @@ def test_mappings_manager_update_internal_wellbore_mappings_writes_to_changelog(
     fmu_dir: ProjectFMUDirectory,
     wellbore_mappings: InternalWellboreMappings,
 ) -> None:
-    """Tests that each update of the wellbore mappings writes to the changelog."""
+    """Tests that each update of the wellbore mappings writes to the changelog.
+
+    Checks that saving the same mappings again is not logged.
+    """
     mappings_manager: MappingsManager = MappingsManager(fmu_dir)
 
     mappings_manager.update_internal_wellbore_mappings(wellbore_mappings)
@@ -292,13 +299,138 @@ def test_mappings_manager_update_internal_wellbore_mappings_writes_to_changelog(
     assert changelog[0].change_type == ChangeType.update
     assert changelog[0].file == "mappings.json"
     assert changelog[0].key == "wellbore"
-    assert f"New value: {wellbore_mappings.model_dump()}" in changelog[0].change
+    assert changelog[0].change == "Updated field 'wellbore'."
+    assert changelog[0].structured_diff is not None
 
     mappings_manager.update_internal_wellbore_mappings(wellbore_mappings)
     mappings_manager.update_internal_wellbore_mappings(wellbore_mappings)
 
-    expected_no_of_mappings = 3
-    assert len(mappings_manager.fmu_dir._changelog.load()) == expected_no_of_mappings
+    assert len(mappings_manager.fmu_dir._changelog.load()) == 1
+
+
+@pytest.mark.parametrize(
+    ("changes", "expected_before", "expected_after"),
+    [
+        ({"target_id": "B44"}, {"target_id": "B43A"}, {"target_id": "B44"}),
+        (
+            {"source_uuid": UUID(int=1), "target_uuid": UUID(int=2)},
+            {"source_uuid": None, "target_uuid": None},
+            {"source_uuid": str(UUID(int=1)), "target_uuid": str(UUID(int=2))},
+        ),
+        (
+            {"relation_type": InternalRelationType.unmappable, "target_id": None},
+            {"relation_type": "primary", "target_id": "B43A"},
+            {"relation_type": "unmappable", "target_id": None},
+        ),
+    ],
+    ids=["target_id", "uuids", "unmappable"],
+)
+def test_mappings_manager_update_internal_wellbore_mappings_logs_changed_fields(
+    fmu_dir: ProjectFMUDirectory,
+    wellbore_mappings: InternalWellboreMappings,
+    changes: dict[str, Any],
+    expected_before: dict[str, Any],
+    expected_after: dict[str, Any],
+) -> None:
+    """Tests that an edited wellbore mapping is logged with only its changed fields.
+
+    Checks that the mapping keeps its identity key, so that it is logged as updated.
+    """
+    mappings_manager: MappingsManager = MappingsManager(fmu_dir)
+    mappings_manager.update_internal_wellbore_mappings(wellbore_mappings)
+    edited_mapping = wellbore_mappings[1].model_copy(update=changes)
+
+    mappings_manager.update_internal_wellbore_mappings(
+        InternalWellboreMappings(root=[wellbore_mappings[0], edited_mapping])
+    )
+
+    changelog: Log[ChangeInfo] = fmu_dir._changelog.load(force=True)
+    assert changelog[-1].structured_diff == [
+        ListFieldDiff(
+            field_path="wellbore.root",
+            added=[],
+            removed=[],
+            updated=[
+                ListUpdatedEntry(
+                    key=["wellbore", "rms", "simulator", "30_9-B-43_A"],
+                    before=expected_before,
+                    after=expected_after,
+                )
+            ],
+        )
+    ]
+
+
+def test_mappings_manager_update_internal_wellbore_mappings_ignores_order(
+    fmu_dir: ProjectFMUDirectory,
+    wellbore_mappings: InternalWellboreMappings,
+) -> None:
+    """Tests that reordered wellbore mappings are not logged."""
+    mappings_manager: MappingsManager = MappingsManager(fmu_dir)
+    mappings_manager.update_internal_wellbore_mappings(wellbore_mappings)
+
+    mappings_manager.update_internal_wellbore_mappings(
+        InternalWellboreMappings(root=list(reversed(wellbore_mappings.root)))
+    )
+
+    changelog: Log[ChangeInfo] = fmu_dir._changelog.load()
+    assert len(changelog) == 1
+
+
+@pytest.mark.parametrize(
+    ("mapping_type", "target_system"),
+    [("wellbore", "simulator"), ("stratigraphy", "smda")],
+)
+def test_mappings_manager_failed_update_keeps_old_mappings(
+    fmu_dir: ProjectFMUDirectory, mapping_type: str, target_system: str
+) -> None:
+    """Tests that a failed update keeps the old mappings and changelog.
+
+    Checks that the next update is compared with the last saved mappings.
+    """
+    mappings_manager: MappingsManager = MappingsManager(fmu_dir)
+
+    def update_mappings(target_id: str) -> None:
+        if mapping_type == "wellbore":
+            mappings_manager.update_internal_wellbore_mappings(
+                _wellbore_mappings("A", target_id)
+            )
+        else:
+            mappings_manager.update_internal_stratigraphy_mappings(
+                _stratigraphy_mappings("A", target_id)
+            )
+
+    update_mappings("B")
+    old_mappings = mappings_manager.load()
+    old_file_content = mappings_manager.path.read_text()
+
+    with (
+        patch.object(fmu_dir, "write_text_file", side_effect=PermissionError),
+        pytest.raises(PermissionError),
+    ):
+        update_mappings("C")
+
+    assert mappings_manager.path.read_text() == old_file_content
+    assert mappings_manager.load() is old_mappings
+    assert len(fmu_dir._changelog.load()) == 1
+
+    update_mappings("C")
+
+    changelog: Log[ChangeInfo] = fmu_dir._changelog.load(force=True)
+    assert changelog[-1].structured_diff == [
+        ListFieldDiff(
+            field_path=f"{mapping_type}.root",
+            added=[],
+            removed=[],
+            updated=[
+                ListUpdatedEntry(
+                    key=[mapping_type, "rms", target_system, "A"],
+                    before={"target_id": "B"},
+                    after={"target_id": "C"},
+                )
+            ],
+        )
+    ]
 
 
 def test_mappings_manager_diff(
@@ -456,11 +588,45 @@ def test_mappings_manager_merge_changes(
     assert len(updated_mappings.wellbore) == 2
 
 
-def test_mappings_manager_structured_diff_uses_full_item_identity(
+def test_mappings_manager_update_internal_stratigraphy_mappings_logs_changed_fields(
     fmu_dir: ProjectFMUDirectory,
     stratigraphy_mappings: InternalStratigraphyMappings,
 ) -> None:
-    """Tests stratigraphy list changes are returned as added/removed with __full__."""
+    """Tests that an edited stratigraphy mapping is logged with its changed fields."""
+    mappings_manager: MappingsManager = MappingsManager(fmu_dir)
+    mappings_manager.update_internal_stratigraphy_mappings(stratigraphy_mappings)
+    edited_mapping = stratigraphy_mappings[3].model_copy(
+        update={"target_id": "VIKING GP. Top"}
+    )
+
+    mappings_manager.update_internal_stratigraphy_mappings(
+        InternalStratigraphyMappings(
+            root=[*stratigraphy_mappings.root[:3], edited_mapping]
+        )
+    )
+
+    changelog: Log[ChangeInfo] = fmu_dir._changelog.load(force=True)
+    assert changelog[-1].structured_diff == [
+        ListFieldDiff(
+            field_path="stratigraphy.root",
+            added=[],
+            removed=[],
+            updated=[
+                ListUpdatedEntry(
+                    key=["stratigraphy", "rms", "smda", "TopVolantis"],
+                    before={"target_id": "VOLANTIS GP. Top"},
+                    after={"target_id": "VIKING GP. Top"},
+                )
+            ],
+        )
+    ]
+
+
+def test_mappings_manager_structured_diff_detects_added_removed_items(
+    fmu_dir: ProjectFMUDirectory,
+    stratigraphy_mappings: InternalStratigraphyMappings,
+) -> None:
+    """Tests that mappings with a new source identity are added and removed."""
     mappings_manager = MappingsManager(fmu_dir)
 
     replacement_mappings = _stratigraphy_mappings("TopViking", "VIKING GP. Top")
