@@ -12,7 +12,7 @@ Example: A zone called `UpperTarbert23` in RMS can be equal to a grid zone calle
 
 FMU Settings is made to address these concerns by offering a simple user interface to configure your FMU project and connect FMU data to the official databases, including validation of the data.
 
-The need for referencing master data is not limited to stratigraphy. It will also include wells, production data etc.
+The need for referencing master data is not limited to stratigraphy. FMU Settings also supports wellbore mappings between RMS, the simulator, and SMDA.
 
 **FMU Settings can:**
 
@@ -26,7 +26,7 @@ The need for referencing master data is not limited to stratigraphy. It will als
 
 By using FMU Settings you get benefits like a **web-based GUI**, **simplified configuration** of FMU projects and a **stronger data quality** guarantee.
 
-#### What you can do in FMU Settings vs how it is done without FMU Settings
+### What you can do in FMU Settings vs how it is done without FMU Settings
 
 | Task | How it is done today | How it will be done in FMU Settings |
 | ----- | ---------------------- | ---------------------------------------- |
