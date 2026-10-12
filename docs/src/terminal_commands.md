@@ -90,14 +90,16 @@ The `--from` path defaults to the current directory, so you can omit it if you a
 
 `fmu copy` is the replacement for the `fmu_copy_revision` script. Use it to copy a FMU revision folder to a new location.
 
-```bash
-fmu copy --source /path/to/source/revision --target /path/to/target/revision
-```
-
-Run it without arguments to use an interactive menu instead:
+Run it without arguments to use the interactive menu:
 
 ```bash
 fmu copy
+```
+
+You can also provide the source and target paths as arguments:
+
+```bash
+fmu copy --source /path/to/source/revision --target /path/to/target/revision
 ```
 
 The command also copies the `.fmu/` folder, so FMU Settings content is carried over to the new revision automatically.
