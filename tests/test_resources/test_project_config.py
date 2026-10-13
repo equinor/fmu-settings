@@ -695,3 +695,31 @@ def test_project_config_last_modified_set_and_updated_on_save(
 
     assert second_config.last_modified_at is not None
     assert second_config.last_modified_at >= first_config.last_modified_at
+
+
+def test_project_config_restore_from_cache_trims_cache_to_restored_retention(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that a config restore applies and trims to the restored retention."""
+    initial_max_revisions = 10
+    restored_max_revisions = 5
+
+    fmu_dir.cache_max_revisions = initial_max_revisions
+    for i in range(initial_max_revisions):
+        fmu_dir.cache.store_revision("foo.json", f"content_{i}", skip_trim=True)
+
+    restored_config = fmu_dir.config.load().model_copy(
+        update={"cache_max_revisions": restored_max_revisions}
+    )
+    revision_path = fmu_dir.cache.store_revision(
+        Path("config.json"),
+        restored_config.model_dump_json(by_alias=True, indent=2),
+        skip_trim=True,
+    )
+    assert revision_path is not None
+
+    fmu_dir.config.restore_from_cache(revision_path.name)
+
+    assert fmu_dir.config.load().cache_max_revisions == restored_max_revisions
+    assert fmu_dir.cache.max_revisions == restored_max_revisions
+    assert len(fmu_dir.cache.list_revisions("foo.json")) == restored_max_revisions

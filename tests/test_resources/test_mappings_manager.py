@@ -780,3 +780,30 @@ def test_build_global_config_stratigraphy_correct_drogon_integration(
         stratigraphy.model_dump(mode="json", exclude_none=True, exclude_unset=True)
         == GLOBAL_CONFIG_STRATIGRAPHY
     )
+
+
+def test_mappings_restore_from_cache_updates_file_and_loaded_model(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that restoring from cache updates the mappings file and loaded model."""
+    cached_mappings = InternalMappings(
+        stratigraphy=_stratigraphy_mappings("TopVolantis", "VOLANTIS GP. Top")
+    )
+    revision_path = fmu_dir.cache.store_revision(
+        fmu_dir.mappings.relative_path,
+        cached_mappings.model_dump_json(by_alias=True, indent=2),
+    )
+    assert revision_path is not None
+    fmu_dir.mappings.save(
+        InternalMappings(
+            stratigraphy=_stratigraphy_mappings("TopTherys", "THERYS GP. Top")
+        )
+    )
+
+    fmu_dir.mappings.restore_from_cache(revision_path.name)
+
+    assert fmu_dir.mappings.load() == cached_mappings
+    assert (
+        InternalMappings.model_validate_json(fmu_dir.mappings.path.read_text())
+        == cached_mappings
+    )

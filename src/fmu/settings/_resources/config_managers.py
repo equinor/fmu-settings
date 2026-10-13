@@ -102,6 +102,28 @@ class ProjectConfigManager(MutablePydanticResourceManager[ProjectConfig]):
         )
         return updated_resource
 
+    def restore_from_cache(self: Self, revision_id: str) -> None:
+        """Restore the config from a cache revision and apply its cache retention.
+
+        Args:
+            revision_id: The revision filename to restore from.
+
+        Raises:
+            FileNotFoundError: If the cache revision doesn't exist.
+            MigrationError: If the cached content cannot be migrated to the current
+                schema.
+            ValueError: If the cached content is invalid JSON or fails model
+                validation.
+        """
+        restored_config = self.fmu_dir.cache.get_revision_content(
+            self.relative_path,
+            revision_id,
+            model_class=ProjectConfig,
+            migration_manager=self.migration_manager,
+        )
+        with self.fmu_dir._set_cache_retention(restored_config.cache_max_revisions):
+            super().restore_from_cache(revision_id)
+
 
 class UserConfigManager(MutablePydanticResourceManager[UserConfig]):
     """Manages the .fmu configuration file in a user's home directory."""
