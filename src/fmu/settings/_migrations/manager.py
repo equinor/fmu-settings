@@ -19,6 +19,10 @@ class MigrationError(ValueError):
     """Raised when a resource cannot be migrated to the current schema."""
 
 
+class NewerSchemaVersionError(MigrationError):
+    """Raised when stored data uses a schema version newer than supported."""
+
+
 class MigrationManager(Generic[MigratableResource]):
     """Migrate stored data to its current schema."""
 
@@ -119,7 +123,7 @@ class MigrationManager(Generic[MigratableResource]):
     ) -> list[tuple[int, MigrationFunction]]:
         """Return migration functions from source to current schema version."""
         if source_schema_version > self.current_version:
-            raise MigrationError(
+            raise NewerSchemaVersionError(
                 f"Stored {self.model_class.__name__} data has schema version "
                 f"{source_schema_version}, which is newer than supported version "
                 f"{self.current_version}; downgrade migration "

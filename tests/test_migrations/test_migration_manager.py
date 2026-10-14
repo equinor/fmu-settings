@@ -7,7 +7,7 @@ from typing import Any, Literal, cast
 import pytest
 from pydantic import BaseModel
 
-from fmu.settings import MigrationError
+from fmu.settings import MigrationError, NewerSchemaVersionError
 from fmu.settings._migrations import MigrationManager
 
 
@@ -166,7 +166,7 @@ def test_requires_migration_rejects_newer_schema() -> None:
     manager = MigrationManager(VersionThreeModel, {})
 
     with pytest.raises(
-        MigrationError,
+        NewerSchemaVersionError,
         match=(
             "Stored VersionThreeModel data has schema version 4, which is newer "
             "than supported version 3"
@@ -205,7 +205,7 @@ def test_migration_manager_rejects_newer_schema() -> None:
     manager = MigrationManager(VersionThreeModel, {})
 
     with pytest.raises(
-        MigrationError,
+        NewerSchemaVersionError,
         match=(
             "Stored VersionThreeModel data has schema version 4, which is newer "
             "than supported version 3"
