@@ -1,7 +1,8 @@
 """Main interface for working with .fmu directory."""
 
 import getpass
-from collections.abc import Mapping
+from collections.abc import Generator, Mapping
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Self, TypeAlias, cast
@@ -116,6 +117,33 @@ class FMUDirectoryBase:
         finally:
             self.config.automatic_caching = original_automatic_caching
         if clamped_value < previous_value:
+            self._cache_manager.trim_all_revisions()
+
+    @contextmanager
+    def _set_cache_retention(self: Self, max_revisions: int) -> Generator[None]:
+        """Switch the in-memory cache retention to the value of a restored config.
+
+        1. Before the write, set the cache retention to ``max_revisions``. The
+           write can store and trim cache revisions, so it must use the new
+           retention, not the old one.
+        2. If the write fails, set the cache retention back to the old value.
+        3. If the write succeeds and the new retention is smaller than the old
+           one, trim the cache revisions of all resources to the new retention.
+
+        This does not write ``cache_max_revisions`` to ``config.json``. The
+        restored config already contains the new value.
+
+        Args:
+            max_revisions: The ``cache_max_revisions`` value of the restored config.
+        """
+        previous_max_revisions = self._cache_manager.max_revisions
+        self._cache_manager.max_revisions = max_revisions
+        try:
+            yield
+        except Exception:
+            self._cache_manager.max_revisions = previous_max_revisions
+            raise
+        if max_revisions < previous_max_revisions:
             self._cache_manager.trim_all_revisions()
 
     def get_config_value(self: Self, key: str, default: Any = None) -> Any:
@@ -485,62 +513,16 @@ class ProjectFMUDirectory(FMUDirectoryBase):
                 supported for cache restoration.
         """
         relative_path = Path(relative_path)
-        restore_source = f"cache revision '{revision_id}'"
-
         manager = self._cacheable_resource_managers().get(relative_path)
         if manager is None:
             raise ValueError(
                 f"Resource '{relative_path}' is not supported for cache restoration"
             )
 
-        if manager is self.config:
-            previous_max_revisions = self._cache_manager.max_revisions
-            restored_config = self.cache.get_revision_content(
-                relative_path,
-                revision_id,
-                model_class=ProjectConfig,
-                migration_manager=self.config.migration_manager,
-            )
-            self._cache_manager.max_revisions = restored_config.cache_max_revisions
-
-            try:
-                self.cache.restore_revision(
-                    relative_path,
-                    revision_id,
-                    model_class=ProjectConfig,
-                    migration_manager=self.config.migration_manager,
-                )
-            except Exception:
-                # Restore the previous runtime retention if config restore fails
-                self._cache_manager.max_revisions = previous_max_revisions
-                raise
-
-            # Refresh the resource manager's in-memory cache
-            manager.load(force=True, store_cache=True)
-            self._sync_runtime_variables()
-            if restored_config.cache_max_revisions < previous_max_revisions:
-                self._cache_manager.trim_all_revisions()
-            self.changelog.log_restore_to_changelog(
-                relative_path=relative_path,
-                source=restore_source,
-            )
-            return
-
-        self.cache.restore_revision(
-            relative_path,
-            revision_id,
-            model_class=cast("type[BaseModel]", manager.model_class),
-            migration_manager=cast(
-                "MigrationManager[BaseModel] | None",
-                manager.migration_manager,
-            ),
-        )
-
-        # Refresh the resource manager's in-memory cache
-        manager.load(force=True, store_cache=True)
+        manager.restore_from_cache(revision_id)
         self.changelog.log_restore_to_changelog(
             relative_path=relative_path,
-            source=restore_source,
+            source=f"cache revision '{revision_id}'",
         )
 
     def get_cache_content(

@@ -225,6 +225,30 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
         self._cache = model
 
+    def restore_from_cache(self: Self, revision_id: str) -> None:
+        """Restore the resource file from a cache revision.
+
+        The current state is cached first when it is valid, so the restore can be
+        undone.
+
+        Args:
+            revision_id: The revision filename to restore from.
+
+        Raises:
+            FileNotFoundError: If the cache revision doesn't exist.
+            MigrationError: If the cached content cannot be migrated to the current
+                schema.
+            ValueError: If the cached content is invalid JSON or fails model
+                validation.
+        """
+        self.fmu_dir.cache.restore_revision(
+            self.relative_path,
+            revision_id,
+            model_class=self.model_class,
+            migration_manager=self.migration_manager,
+        )
+        self.load(force=True)
+
     def _write_migration_backup(
         self: Self, content: str, source_schema_version: int
     ) -> None:
