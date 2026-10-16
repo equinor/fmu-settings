@@ -35,6 +35,9 @@ PydanticResource = TypeVar("PydanticResource", bound=BaseModel)
 MutablePydanticResource = TypeVar("MutablePydanticResource", bound=ResettableBaseModel)
 
 MIGRATION_BACKUP_DIRECTORY: Final = Path("migration-backups")
+MIGRATION_BACKUP_FILENAME_TEMPLATE: Final = (
+    "{timestamp}-{token}-{model_name}-v{schema_version}{suffix}"
+)
 logger: Final = null_logger(__name__)
 
 
@@ -145,7 +148,9 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
             try:
                 content = self.fmu_dir.read_text_file(self.relative_path)
-                validated_model = self._validate_stored_data(json.loads(content))
+                validated_model = self._migrate_and_validate_stored_data(
+                    json.loads(content)
+                )
                 if store_cache:
                     self._cache = validated_model
                 else:
@@ -163,7 +168,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
         return self._cache
 
-    def _validate_stored_data(self: Self, data: Any) -> PydanticResource:
+    def _migrate_and_validate_stored_data(self: Self, data: Any) -> PydanticResource:
         """Validate decoded stored data, migrating it forward when required."""
         if (
             self.migration_manager is not None
@@ -263,9 +268,12 @@ class PydanticResourceManager(Generic[PydanticResource]):
         """
         timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
         token = uuid4().hex[:8]
-        backup_filename = (
-            f"{timestamp}-{token}-{self.model_class.__name__}-v{source_schema_version}"
-            f"{self.relative_path.suffix}"
+        backup_filename = MIGRATION_BACKUP_FILENAME_TEMPLATE.format(
+            timestamp=timestamp,
+            token=token,
+            model_name=self.model_class.__name__,
+            schema_version=source_schema_version,
+            suffix=self.relative_path.suffix,
         )
         backup_path = self._migration_backup_directory / backup_filename
 
@@ -280,7 +288,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
     @property
     def _migration_backup_directory(self: Self) -> Path:
-        """Return the backup directory for this resource relative to ``.fmu``."""
+        """Return the migration backup directory relative to ``.fmu``."""
         return (
             MIGRATION_BACKUP_DIRECTORY
             / self.relative_path.parent
@@ -289,11 +297,15 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
     @property
     def _migration_backup_filename_pattern(self: Self) -> re.Pattern[str]:
-        """Return the pattern of filenames written by ``_write_migration_backup``."""
+        """Return the migration backup filename pattern from the shared template."""
         return re.compile(
-            r"\d{8}T\d{6}\.\d{6}Z-[0-9a-f]{8}-"
-            rf"{re.escape(self.model_class.__name__)}-v\d+"
-            rf"{re.escape(self.relative_path.suffix)}"
+            MIGRATION_BACKUP_FILENAME_TEMPLATE.format(
+                timestamp=r"\d{8}T\d{6}\.\d{6}Z",
+                token=r"[0-9a-f]{8}",
+                model_name=re.escape(self.model_class.__name__),
+                schema_version=r"\d+",
+                suffix=re.escape(self.relative_path.suffix),
+            )
         )
 
     def find_latest_compatible_migration_backup(
@@ -301,8 +313,8 @@ class PydanticResourceManager(Generic[PydanticResource]):
     ) -> tuple[Path, PydanticResource] | None:
         """Return the newest migration backup that validates with this schema.
 
-        Only files named like backups from ``_write_migration_backup`` are
-        checked, from newest to oldest. A backup is compatible if it validates
+        Only files that match ``_migration_backup_filename_pattern`` are checked,
+        from newest to oldest. A backup is compatible if it validates
         directly or after forward migration. Unreadable, invalid, and
         newer-schema backups are skipped.
 
@@ -324,7 +336,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
             backup_path = self._migration_backup_directory / backup_file.name
             try:
                 content = self.fmu_dir.read_text_file(backup_path)
-                model = self._validate_stored_data(json.loads(content))
+                model = self._migrate_and_validate_stored_data(json.loads(content))
             except (OSError, ValueError) as e:
                 logger.debug(
                     f"Skipped incompatible migration backup {backup_path}: {e}"

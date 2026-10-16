@@ -169,7 +169,8 @@ def test_requires_migration_rejects_newer_schema() -> None:
         NewerSchemaVersionError,
         match=(
             "Stored VersionThreeModel data has schema version 4, which is newer "
-            "than supported version 3"
+            r"than supported version 3\. Use a newer FMU Settings version, or "
+            r"restore a compatible migration backup if one is available\."
         ),
     ):
         manager.requires_migration({"schema_version": 4})
@@ -208,7 +209,8 @@ def test_migration_manager_rejects_newer_schema() -> None:
         NewerSchemaVersionError,
         match=(
             "Stored VersionThreeModel data has schema version 4, which is newer "
-            "than supported version 3"
+            r"than supported version 3\. Use a newer FMU Settings version, or "
+            r"restore a compatible migration backup if one is available\."
         ),
     ):
         manager.migrate_resource(

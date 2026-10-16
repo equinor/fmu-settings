@@ -126,8 +126,8 @@ class MigrationManager(Generic[MigratableResource]):
             raise NewerSchemaVersionError(
                 f"Stored {self.model_class.__name__} data has schema version "
                 f"{source_schema_version}, which is newer than supported version "
-                f"{self.current_version}; downgrade migration "
-                "is not supported"
+                f"{self.current_version}. Use a newer FMU Settings version, or "
+                "restore a compatible migration backup if one is available."
             )
 
         steps: list[tuple[int, MigrationFunction]] = []
