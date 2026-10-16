@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import BaseModel
 
-from fmu.settings import MigrationError
+from fmu.settings import MigrationError, NewerSchemaVersionError
 from fmu.settings._migrations import MigrationManager
 from fmu.settings._resources.lock_manager import LockManager
 from fmu.settings._resources.pydantic_resource_manager import PydanticResourceManager
@@ -60,6 +60,15 @@ class MigratableResourceManager(PydanticResourceManager[VersionTwoResource]):
     def relative_path(self: Self) -> Path:
         """Return the test resource path."""
         return Path("migratable.json")
+
+
+def _write_migration_backup(
+    fmu_dir: ProjectFMUDirectory, filename: str, content: str
+) -> Path:
+    """Write a test migration backup and return its path relative to ``.fmu``."""
+    backup_path = Path("migration-backups/migratable") / filename
+    fmu_dir.write_text_file(backup_path, content)
+    return backup_path
 
 
 def test_load_migrates_in_memory_without_changing_disk(
@@ -345,7 +354,7 @@ def test_load_rejects_newer_schema(
     )
 
     with pytest.raises(
-        ValueError,
+        NewerSchemaVersionError,
         match=(
             "Stored VersionTwoResource data has schema version 3, which is newer "
             "than supported version 2"
@@ -366,6 +375,123 @@ def test_load_rejects_non_object_resource(
         match="Stored VersionTwoResource data must be a JSON object",
     ):
         manager.load()
+
+
+def test_find_latest_compatible_migration_backup_skips_incompatible_backups(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that the newest backup that validates is returned.
+
+    Newer backups that have a newer schema, invalid JSON, invalid content, or a
+    filename that was not written as a migration backup are skipped.
+    """
+    manager = MigratableResourceManager(fmu_dir)
+    _write_migration_backup(
+        fmu_dir,
+        "20260101T000000.000000Z-aaaaaaaa-VersionTwoResource-v2.json",
+        json.dumps({"schema_version": 2, "value": "oldest"}),
+    )
+    compatible_backup = _write_migration_backup(
+        fmu_dir,
+        "20260102T000000.000000Z-bbbbbbbb-VersionTwoResource-v2.json",
+        json.dumps({"schema_version": 2, "value": "compatible"}),
+    )
+    _write_migration_backup(
+        fmu_dir,
+        "20260103T000000.000000Z-cccccccc-VersionTwoResource-v3.json",
+        json.dumps({"schema_version": 3, "value": "future"}),
+    )
+    _write_migration_backup(
+        fmu_dir,
+        "20260104T000000.000000Z-dddddddd-VersionTwoResource-v2.json",
+        "{broken",
+    )
+    _write_migration_backup(
+        fmu_dir,
+        "20260105T000000.000000Z-eeeeeeee-VersionTwoResource-v2.json",
+        json.dumps({"schema_version": 2}),
+    )
+    _write_migration_backup(
+        fmu_dir,
+        "20260106T000000.000000Z-ffffffff-VersionTwoResource-v2.txt",
+        json.dumps({"schema_version": 2, "value": "other file type"}),
+    )
+    _write_migration_backup(
+        fmu_dir,
+        "notes.json",
+        json.dumps({"schema_version": 2, "value": "not a migration backup"}),
+    )
+
+    backup = manager.find_latest_compatible_migration_backup()
+
+    assert backup == (compatible_backup, VersionTwoResource(value="compatible"))
+
+
+def test_find_latest_compatible_migration_backup_finds_backup_written_by_save(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that a backup written during a migration save can be found."""
+    manager = MigratableResourceManager(fmu_dir)
+    fmu_dir.write_text_file(
+        manager.relative_path,
+        json.dumps({"schema_version": 1, "value": "old"}),
+    )
+    manager.save(VersionTwoResource(value="updated"))
+
+    backup = manager.find_latest_compatible_migration_backup()
+
+    assert backup is not None
+    assert backup[1] == VersionTwoResource(value="old")
+
+
+def test_find_latest_compatible_migration_backup_migrates_older_backup(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that a backup with an older schema is migrated to the current schema."""
+    manager = MigratableResourceManager(fmu_dir)
+    old_backup = _write_migration_backup(
+        fmu_dir,
+        "20260101T000000.000000Z-aaaaaaaa-VersionTwoResource-v1.json",
+        json.dumps({"schema_version": 1, "value": "old"}),
+    )
+
+    backup = manager.find_latest_compatible_migration_backup()
+
+    assert backup == (old_backup, VersionTwoResource(value="old"))
+
+
+def test_find_latest_compatible_migration_backup_returns_none_without_backups(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that no backup is returned when the backup directory does not exist."""
+    manager = MigratableResourceManager(fmu_dir)
+
+    assert manager.find_latest_compatible_migration_backup() is None
+
+
+def test_restore_from_migration_backup_overwrites_newer_schema_resource(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that a backup replaces a resource that has a newer schema.
+
+    The current content is not read, so it is not cached or backed up.
+    """
+    manager = MigratableResourceManager(fmu_dir)
+    fmu_dir.write_text_file(
+        manager.relative_path,
+        json.dumps({"schema_version": 3, "value": "future"}),
+    )
+    backup = VersionTwoResource(value="restored")
+
+    manager.restore_from_migration_backup(backup)
+
+    assert json.loads(fmu_dir.read_text_file(manager.relative_path)) == {
+        "schema_version": 2,
+        "value": "restored",
+    }
+    assert manager.load() == backup
+    assert fmu_dir.cache.list_revisions(manager.relative_path) == []
+    assert not fmu_dir.get_file_path("migration-backups").exists()
 
 
 @pytest.mark.parametrize(

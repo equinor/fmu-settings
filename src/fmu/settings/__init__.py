@@ -21,7 +21,7 @@ from ._init import (
     init_fmu_directory,
     init_user_fmu_directory,
 )
-from ._migrations import MigrationError
+from ._migrations import MigrationError, NewerSchemaVersionError
 from .models._enums import CacheResource
 from .models.mappings import (
     InternalBaseMapping,
@@ -50,6 +50,7 @@ __all__ = [
     "InternalWellboreMappings",
     "InvalidFMUProjectPathError",
     "MigrationError",
+    "NewerSchemaVersionError",
     "ProjectFMUDirectory",
     "REQUIRED_FMU_PROJECT_SUBDIRS",
     "Telemetry",

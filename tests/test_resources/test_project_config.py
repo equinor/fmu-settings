@@ -723,3 +723,25 @@ def test_project_config_restore_from_cache_trims_cache_to_restored_retention(
     assert fmu_dir.config.load().cache_max_revisions == restored_max_revisions
     assert fmu_dir.cache.max_revisions == restored_max_revisions
     assert len(fmu_dir.cache.list_revisions("foo.json")) == restored_max_revisions
+
+
+def test_project_config_restore_from_migration_backup_trims_cache_to_backup_retention(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that a migration backup restore applies and trims to its retention."""
+    initial_max_revisions = 10
+    restored_max_revisions = 5
+
+    fmu_dir.cache_max_revisions = initial_max_revisions
+    for i in range(initial_max_revisions):
+        fmu_dir.cache.store_revision("foo.json", f"content_{i}", skip_trim=True)
+
+    backup = fmu_dir.config.load().model_copy(
+        update={"cache_max_revisions": restored_max_revisions}
+    )
+
+    fmu_dir.config.restore_from_migration_backup(backup)
+
+    assert fmu_dir.config.load(force=True) == backup
+    assert fmu_dir.cache.max_revisions == restored_max_revisions
+    assert len(fmu_dir.cache.list_revisions("foo.json")) == restored_max_revisions
