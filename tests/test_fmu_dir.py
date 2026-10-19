@@ -1328,20 +1328,6 @@ def test_restore_from_cache_higher_cache_max_revisions_does_not_trim_to_old_limi
     assert len(fmu_dir.cache.list_revisions("config.json")) == expected_revision_count
 
 
-def test_has_compatible_migration_backup_reports_backup_availability(
-    fmu_dir: ProjectFMUDirectory,
-) -> None:
-    """Tests that backup availability is reported when the config cannot load."""
-    backup_config = fmu_dir.config.load()
-    _write_newer_schema_config(fmu_dir)
-
-    assert fmu_dir.has_compatible_migration_backup() is False
-
-    _write_config_migration_backup(fmu_dir, backup_config)
-
-    assert fmu_dir.has_compatible_migration_backup() is True
-
-
 def test_restore_latest_compatible_migration_backup_restores_config_and_logs_restore(
     fmu_dir: ProjectFMUDirectory,
 ) -> None:

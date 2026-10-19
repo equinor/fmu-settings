@@ -525,15 +525,6 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             source=f"cache revision '{revision_id}'",
         )
 
-    def has_compatible_migration_backup(self: Self) -> bool:
-        """Return whether a project config migration backup can be restored.
-
-        A backup is compatible if it validates with the installed schema, directly
-        or after forward migration. This works even when the current config cannot
-        be loaded.
-        """
-        return self.config.find_latest_compatible_migration_backup() is not None
-
     def restore_latest_compatible_migration_backup(self: Self) -> None:
         """Replace the project config with the latest compatible migration backup.
 
