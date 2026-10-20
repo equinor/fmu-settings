@@ -124,6 +124,18 @@ class ProjectConfigManager(MutablePydanticResourceManager[ProjectConfig]):
         with self.fmu_dir._set_cache_retention(restored_config.cache_max_revisions):
             super().restore_from_cache(revision_id)
 
+    def restore_from_migration_backup(self: Self, backup: ProjectConfig) -> None:
+        """Overwrite the config with a migration backup and apply its retention.
+
+        Args:
+            backup: A backup model from ``find_latest_compatible_migration_backup``.
+
+        Raises:
+            PermissionError: If another process holds the write lock.
+        """
+        with self.fmu_dir._set_cache_retention(backup.cache_max_revisions):
+            super().restore_from_migration_backup(backup)
+
 
 class UserConfigManager(MutablePydanticResourceManager[UserConfig]):
     """Manages the .fmu configuration file in a user's home directory."""

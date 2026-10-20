@@ -40,6 +40,7 @@ from fmu.settings.models.mappings import (
     InternalStratigraphyIdentifierMapping,
     InternalStratigraphyMappings,
 )
+from fmu.settings.models.project_config import ProjectConfig
 
 
 def _stratigraphy_mappings(
@@ -63,6 +64,29 @@ def _stratigraphy_mappings(
             ),
         ]
     )
+
+
+def _write_newer_schema_config(fmu_dir: ProjectFMUDirectory) -> str:
+    """Write a project config with an unsupported newer schema version."""
+    newer_config = fmu_dir.config.load().model_dump(mode="json", by_alias=True)
+    newer_config["schema_version"] = 99
+    content = json.dumps(newer_config)
+    fmu_dir.write_text_file(fmu_dir.config.relative_path, content)
+    return content
+
+
+def _write_config_migration_backup(
+    fmu_dir: ProjectFMUDirectory, config: ProjectConfig
+) -> Path:
+    """Write a project config migration backup and return its relative path."""
+    backup_path = (
+        Path("migration-backups/config")
+        / "20260101T000000.000000Z-aaaaaaaa-ProjectConfig-v2.json"
+    )
+    fmu_dir.write_text_file(
+        backup_path, config.model_dump_json(by_alias=True, indent=2)
+    )
+    return backup_path
 
 
 def test_init_existing_directory(fmu_dir: ProjectFMUDirectory) -> None:
@@ -1302,6 +1326,63 @@ def test_restore_from_cache_higher_cache_max_revisions_does_not_trim_to_old_limi
     assert fmu_dir.cache_max_revisions == restored_max_revisions
     assert fmu_dir.cache.max_revisions == restored_max_revisions
     assert len(fmu_dir.cache.list_revisions("config.json")) == expected_revision_count
+
+
+def test_restore_latest_compatible_migration_backup_restores_config_and_logs_restore(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that the backup replaces a newer config and the restore is logged."""
+    backup_config = fmu_dir.config.load()
+    backup_path = _write_config_migration_backup(fmu_dir, backup_config)
+    _write_newer_schema_config(fmu_dir)
+
+    fmu_dir.restore_latest_compatible_migration_backup()
+
+    assert fmu_dir.config.load(force=True) == backup_config
+
+    changelog_entry = fmu_dir.changelog.load()[-1]
+    assert changelog_entry.change_type == ChangeType.restore
+    assert changelog_entry.file == CacheResource.config.value
+    assert f"migration backup '{backup_path.name}'" in changelog_entry.change
+
+
+def test_restore_latest_compatible_migration_backup_raises_without_backup(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that the config is unchanged when no compatible backup exists."""
+    newer_content = _write_newer_schema_config(fmu_dir)
+
+    with pytest.raises(FileNotFoundError, match="No migration backup"):
+        fmu_dir.restore_latest_compatible_migration_backup()
+
+    assert fmu_dir.read_text_file(fmu_dir.config.relative_path) == newer_content
+    assert not fmu_dir.changelog.exists
+
+
+def test_restore_latest_compatible_migration_backup_raises_when_locked(
+    fmu_dir: ProjectFMUDirectory,
+) -> None:
+    """Tests that the config is unchanged when another process holds the lock."""
+    _write_config_migration_backup(fmu_dir, fmu_dir.config.load())
+    newer_content = _write_newer_schema_config(fmu_dir)
+    lock = LockManager(fmu_dir)
+    with (
+        patch("socket.gethostname", return_value="other-host"),
+        patch("os.getpid", return_value=12345),
+    ):
+        lock.acquire()
+
+    try:
+        with pytest.raises(PermissionError, match="Cannot write to .fmu directory"):
+            fmu_dir.restore_latest_compatible_migration_backup()
+    finally:
+        with (
+            patch("socket.gethostname", return_value="other-host"),
+            patch("os.getpid", return_value=12345),
+        ):
+            lock.release()
+
+    assert fmu_dir.read_text_file(fmu_dir.config.relative_path) == newer_content
 
 
 def test_fmu_directory_base_get_dir_diff_with_same_changelog(

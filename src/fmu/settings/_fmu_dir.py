@@ -525,6 +525,33 @@ class ProjectFMUDirectory(FMUDirectoryBase):
             source=f"cache revision '{revision_id}'",
         )
 
+    def restore_latest_compatible_migration_backup(self: Self) -> None:
+        """Replace the project config with the latest compatible migration backup.
+
+        Use this to recover a project config that was migrated by a newer version
+        of fmu-settings. The current config file is overwritten without a backup,
+        so all changes made after the selected backup are lost.
+
+        Raises:
+            FileNotFoundError: If no compatible migration backup exists.
+            PermissionError: If another process holds the write lock.
+        """
+        self._lock.ensure_can_write()
+
+        backup = self.config.find_latest_compatible_migration_backup()
+        if backup is None:
+            raise FileNotFoundError(
+                "No migration backup of the project config is compatible with the "
+                "installed version of fmu-settings"
+            )
+        backup_path, restored_config = backup
+
+        self.config.restore_from_migration_backup(restored_config)
+        self.changelog.log_restore_to_changelog(
+            relative_path=self.config.relative_path,
+            source=f"migration backup '{backup_path.name}'",
+        )
+
     def get_cache_content(
         self: Self, relative_path: Path | str, revision_id: str
     ) -> BaseModel:
