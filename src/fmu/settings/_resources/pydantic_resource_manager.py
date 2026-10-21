@@ -148,7 +148,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
             try:
                 content = self.fmu_dir.read_text_file(self.relative_path)
-                validated_model = self._migrate_and_validate_stored_data(
+                validated_model = self._migrate_if_required_and_validate_data(
                     json.loads(content)
                 )
                 if store_cache:
@@ -168,7 +168,9 @@ class PydanticResourceManager(Generic[PydanticResource]):
 
         return self._cache
 
-    def _migrate_and_validate_stored_data(self: Self, data: Any) -> PydanticResource:
+    def _migrate_if_required_and_validate_data(
+        self: Self, data: Any
+    ) -> PydanticResource:
         """Validate decoded stored data, migrating it forward when required."""
         if (
             self.migration_manager is not None
@@ -336,7 +338,7 @@ class PydanticResourceManager(Generic[PydanticResource]):
             backup_path = self._migration_backup_directory / backup_file.name
             try:
                 content = self.fmu_dir.read_text_file(backup_path)
-                model = self._migrate_and_validate_stored_data(json.loads(content))
+                model = self._migrate_if_required_and_validate_data(json.loads(content))
             except (OSError, ValueError) as e:
                 logger.debug(
                     f"Skipped incompatible migration backup {backup_path}: {e}"
