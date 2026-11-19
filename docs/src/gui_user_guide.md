@@ -151,6 +151,22 @@ If required data for editing masterdata is not present, the page tells you what 
 - an SMDA **subscription key** is present
 - an SSO **access token** is present
 
+(associated-fields)=
+### Add associated fields for wellbore mapping
+
+Add an associated field when you need to map an RMS wellbore to an SMDA wellbore in another field.
+After you save the associated field, its wellbores appear in the **SMDA name** list on **Mappings > Wellbores**.
+Select project fields and the stratigraphic column in the project masterdata.
+
+Make sure the project is editable and you have access to SMDA. Enable editing mode on the **Masterdata** page. Save at least one project field before you add associated fields.
+
+1. If the project already has associated fields, select **Edit** under **Associated fields**. Otherwise, select **Add**.
+2. Select **Search for fields**. Enter a field name and select **Search**.
+3. Select the fields in the results and select **Add fields**.
+4. Select **Save** in the **Edit associated fields** dialog.
+
+To remove an associated field, select **Edit**. Select the close icon next to the field name. Select **Save**.
+
 ## Step 4: Set up RMS project data
 
 The **RMS** pages connect the FMU project to its RMS project. Use these pages to select the stratigraphy and wellbores to use in mappings.
@@ -241,6 +257,8 @@ Make sure that the project is editable, and then enable editing mode. To map SMD
 - a field in the project masterdata
 - an SMDA subscription key
 - an active SSO access token
+
+The SMDA name list includes wellbores from the project fields and any {ref}`associated fields <associated-fields>`.
 
 ### Edit one wellbore
 
