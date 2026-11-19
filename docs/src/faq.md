@@ -117,6 +117,11 @@ The FAQ is regularly updated based on user feedback and new features, so check b
 </details>
 
 <details>
+    <summary>How do I map an RMS wellbore to an SMDA wellbore in another field?</summary>
+    Add the SMDA field under <strong>Masterdata &gt; Associated fields</strong>. Then select the SMDA name on the <strong>Mappings &gt; Wellbores</strong> page. See <a href="gui_user_guide.html#associated-fields">Add associated fields for wellbore mapping</a> for the steps.
+</details>
+
+<details>
     <summary>Do I have to map my RMS wells to simulator wells to be able to visualize my wells in Webviz?</summary>
     No. Mapping wellbores between RMS and simulator is optional. If you want to upload RMS wells to Sumo (for instance to be able to visualize them in Webviz), the only mandatory step is to map the RMS well names to SMDA well names.
 </details>
