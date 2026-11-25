@@ -51,10 +51,13 @@ dev = [
     "ruff",
     "types-PyYAML",
 ]
+
+[dependency-groups]
 docs = [
     "autodoc_pydantic",
     "furo",
     "myst-parser",
+    "soupsieve>=4.0",
     "sphinx",
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
@@ -133,6 +136,9 @@ convention = "google"
 
 [tool.uv]
 exclude-newer = "1 week"
+
+[tool.uv.dependency-groups]
+docs = { requires-python = ">=3.11.5" }
 
 [tool.uv.exclude-newer-package]
 "fmu-config" = false

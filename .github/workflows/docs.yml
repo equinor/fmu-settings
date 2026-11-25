@@ -30,10 +30,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install fmu-settings
-        run: uv sync --extra docs --frozen
+        run: uv sync --group docs --frozen
 
       - name: Build documentation with sphinx
-        run: uv run sphinx-build -b html docs/src build/docs/html -j auto
+        run: uv run --group docs --frozen sphinx-build -b html docs/src build/docs/html -j auto
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
